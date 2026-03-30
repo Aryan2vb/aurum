@@ -11,8 +11,9 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
+ARG REACT_APP_API_BASE_URL
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+
 ENV NODE_OPTIONS="--max_old_space_size=2048"
 ENV GENERATE_SOURCEMAP=false
 RUN npm run build

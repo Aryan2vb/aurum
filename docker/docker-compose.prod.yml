@@ -22,7 +22,7 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        VITE_API_URL: ${VITE_API_URL}
+        REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-/api}
     expose:
       - '4001'
     environment:
