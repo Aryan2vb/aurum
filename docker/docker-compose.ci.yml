@@ -1,0 +1,41 @@
+# docker-compose.ci.yml
+# Used exclusively by GitHub Actions for Playwright E2E tests.
+# Both repos must be checked out side-by-side before running this.
+
+name: aurum-ci
+
+services:
+  backend:
+    build:
+      context: ./back-aurum
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: 'no'
+
+  frontend:
+    build:
+      context: ./aurum
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    ports:
+      - '4001:4001'
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+    restart: 'no'

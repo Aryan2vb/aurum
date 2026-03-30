@@ -1,0 +1,45 @@
+.behavior-tag {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  background-color: var(--color-neutral-50);
+  color: var(--color-neutral-700);
+  border: 1px solid var(--color-neutral-200);
+}
+
+.behavior-tag-sm {
+  font-size: var(--font-size-xs);
+  padding: 0.125rem var(--spacing-xs);
+}
+
+.behavior-tag-md {
+  font-size: var(--font-size-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+/* Color variants based on behavior */
+.behavior-tag[style*="CLEAR"] {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--color-behavior-clear);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.behavior-tag[style*="REGULAR"] {
+  background-color: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent-light);
+}
+
+.behavior-tag[style*="DELAYED"] {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: var(--color-behavior-delayed);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.behavior-tag[style*="RISKY"] {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--color-behavior-risky);
+  border-color: rgba(239, 68, 68, 0.2);
+}

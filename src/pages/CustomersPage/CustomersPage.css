@@ -1,0 +1,29 @@
+/* Customers Page Wrapper - Full height Attio-style */
+.customers-page-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  margin: -24px;
+  margin-top: 0; /* Prevent overlapping with DashboardHeader */
+  overflow: hidden;
+  border-radius: 0;
+}
+
+/* Remove any extra borders/gaps */
+.customers-page-wrapper .attio-table-container {
+  border-left: none;
+  margin-left: 0;
+}
+
+/* ============================================
+   Mobile
+   ============================================ */
+@media (max-width: 768px) {
+  .customers-page-wrapper {
+    height: auto; /* Let content determine height, avoid fixed viewport calcs */
+    min-height: calc(100vh - 100px);
+    margin: -12px -16px;
+    margin-top: 0;
+    overflow: visible; /* Allow filter dropdowns to render outside */
+  }
+}

@@ -1,0 +1,33 @@
+.meta-tracking-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.meta-tracking-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.meta-tracking-notes {
+  grid-column: 1 / -1;
+}
+
+.meta-tracking-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 640px) {
+  .meta-tracking-form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .meta-tracking-notes {
+    grid-column: 1;
+  }
+}

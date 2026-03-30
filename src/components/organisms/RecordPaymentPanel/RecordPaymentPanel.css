@@ -1,0 +1,129 @@
+.record-payment-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.record-payment-panel-loading {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.record-payment-panel-credit-info {
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.record-payment-panel-section-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+[data-theme='dark'] .record-payment-panel-section-title {
+  color: #f9fafb; /* Light color for dark mode visibility */
+}
+
+.record-payment-panel-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.record-payment-panel-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.record-payment-panel-info-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+[data-theme='dark'] .record-payment-panel-info-label {
+  color: #d1d5db; /* Light gray for dark mode visibility */
+}
+
+.record-payment-panel-info-value {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.record-payment-panel-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.record-payment-panel-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.record-payment-panel-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.record-payment-panel-form-field-full {
+  grid-column: 1 / -1;
+}
+
+.record-payment-panel-form-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.record-payment-panel-form-label .required {
+  color: var(--color-risk-high);
+}
+
+.record-payment-panel-form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.record-payment-panel-form-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.record-payment-panel-form-textarea {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.record-payment-panel-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .record-payment-panel-info-grid,
+  .record-payment-panel-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

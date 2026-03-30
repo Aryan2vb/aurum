@@ -1,0 +1,67 @@
+.text-filter-content {
+  padding: 8px;
+  min-width: 220px;
+}
+
+.text-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.text-filter-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ct-text-muted, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.text-filter-clear {
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--ct-text-muted, #9ca3af);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.text-filter-clear:hover {
+  background: var(--ct-hover, rgba(0, 0, 0, 0.04));
+  color: var(--ct-text, #1f2937);
+}
+
+.text-filter-input {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--ct-text, #1f2937);
+  background: var(--ct-bg, var(--bg-secondary));
+  border: 1px solid var(--ct-border, #e5e7eb);
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.12s ease;
+}
+
+.text-filter-input:focus {
+  border-color: var(--ct-accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.text-filter-input::placeholder {
+  color: var(--ct-text-muted, #9ca3af);
+}
+
+/* Dark mode */
+[data-theme='dark'] .text-filter-title {
+  color: var(--ct-text-muted, #6b7280);
+}
+
+[data-theme='dark'] .text-filter-input {
+  background: var(--ct-bg-secondary, #1f2937);
+  border-color: var(--ct-border, #374151);
+  color: var(--ct-text, #f9fafb);
+}

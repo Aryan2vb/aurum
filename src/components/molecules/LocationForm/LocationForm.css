@@ -1,0 +1,34 @@
+.location-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.location-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.location-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.form-error {
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  color: #ef4444;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .location-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

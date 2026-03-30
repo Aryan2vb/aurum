@@ -1,0 +1,116 @@
+.visit-heatmap-widget {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: 24px;
+  transition: background-color 0.3s ease;
+  color: var(--text-primary);
+}
+
+.heatmap-container {
+  margin-top: 24px;
+}
+
+.heatmap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heatmap-header {
+  display: grid;
+  grid-template-columns: 100px repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 100px repeat(7, 1fr);
+  gap: 4px;
+}
+
+.time-label {
+  font-size: 11px;
+  color: #666;
+  display: flex;
+  align-items: center;
+}
+
+.day-label {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  padding: 4px;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.1);
+  z-index: 1;
+  position: relative;
+}
+
+/* Keep heatmap colors consistent - these represent data intensity */
+.intensity-1 {
+  background-color: #1e3a5f;
+}
+
+.intensity-2 {
+  background-color: var(--accent-hover);
+}
+
+.intensity-3 {
+  background-color: var(--accent);
+}
+
+.intensity-4 {
+  background-color: var(--focus-ring);
+}
+
+.intensity-5 {
+  background-color: #93c5fd;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.legend-colors {
+  display: flex;
+  gap: 2px;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .heatmap-header,
+  .heatmap-row {
+    grid-template-columns: 80px repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .time-label {
+    font-size: 10px;
+  }
+
+  .day-label {
+    font-size: 10px;
+  }
+}
+

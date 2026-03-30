@@ -1,0 +1,189 @@
+.record-payment-page {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.record-payment-loading,
+.record-payment-error {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--color-neutral-500);
+}
+
+.record-payment-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+.record-payment-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+}
+
+.record-payment-title {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-900);
+  margin: 0;
+}
+
+.record-payment-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+.record-payment-credit-info {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+}
+
+.record-payment-section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+  margin: 0 0 var(--spacing-lg) 0;
+}
+
+.record-payment-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.record-payment-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.record-payment-info-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+  font-weight: var(--font-weight-medium);
+}
+
+.record-payment-info-value {
+  font-size: var(--font-size-base);
+  color: var(--color-neutral-900);
+  font-weight: var(--font-weight-medium);
+}
+
+.record-payment-form {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.record-payment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+.record-payment-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.record-payment-form-field-full {
+  grid-column: 1 / -1;
+}
+
+.record-payment-form-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-700);
+}
+
+.record-payment-form-label .required {
+  color: var(--color-risk-high);
+}
+
+.record-payment-form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+}
+
+.record-payment-form-select {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-secondary);
+  color: var(--color-neutral-900);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.record-payment-form-textarea {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  background-color: var(--bg-secondary);
+  color: var(--color-neutral-900);
+  resize: vertical;
+}
+
+.record-payment-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .record-payment-info-grid,
+  .record-payment-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .record-payment-page {
+    padding-bottom: 88px;
+  }
+
+  .record-payment-form-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
+    padding: 12px 16px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+    display: flex;
+    gap: 12px;
+  }
+
+  .record-payment-form-actions > button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .record-payment-form-select {
+    min-height: 48px;
+  }
+
+  .record-payment-title {
+    font-size: var(--font-size-2xl);
+  }
+}

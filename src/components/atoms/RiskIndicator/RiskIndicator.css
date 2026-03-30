@@ -1,0 +1,36 @@
+.risk-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+}
+
+.risk-indicator-sm {
+  font-size: var(--font-size-xs);
+}
+
+.risk-indicator-md {
+  font-size: var(--font-size-sm);
+}
+
+.risk-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.risk-indicator-sm .risk-indicator-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.risk-indicator-label {
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Dark theme */
+[data-theme='dark'] .risk-indicator-label {
+  color: var(--text-secondary);
+}

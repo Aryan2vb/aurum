@@ -1,0 +1,38 @@
+.text {
+  display: inline-block;
+}
+
+.text-heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.text-subheading {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.text-body {
+  font-size: 14px;
+}
+
+.text-small {
+  font-size: 12px;
+}
+
+.text-caption {
+  font-size: 11px;
+}
+
+.text-normal {
+  font-weight: 400;
+}
+
+.text-medium {
+  font-weight: 500;
+}
+
+.text-bold {
+  font-weight: 600;
+}
+

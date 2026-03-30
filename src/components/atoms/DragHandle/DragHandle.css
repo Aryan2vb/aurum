@@ -1,0 +1,21 @@
+.drag-handle {
+  display: flex;
+  flex-wrap: wrap;
+  width: 12px;
+  height: 12px;
+  gap: 2px;
+  cursor: grab;
+  opacity: 0.4;
+  transition: opacity 0.15s ease;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.drag-handle-dot {
+  width: 3px;
+  height: 3px;
+  background: var(--text-tertiary);
+  border-radius: 50%;
+}

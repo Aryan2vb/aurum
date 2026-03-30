@@ -1,0 +1,328 @@
+/* ReminderRow - Attio-style minimal reminder line
+ * One calm line, not a card. No shadows, minimal borders, neutral greys.
+ */
+
+.reminder-line {
+    padding: var(--spacing-md) 0;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.15s;
+}
+
+.reminder-line:last-child {
+    border-bottom: none;
+}
+
+.reminder-line:hover {
+    background-color: var(--bg-secondary);
+}
+
+.reminder-line.overdue {
+    border-left: 2px solid var(--color-status-overdue);
+    padding-left: var(--spacing-sm);
+    margin-left: calc(-1 * var(--spacing-sm));
+}
+
+/* Main line - single row */
+.reminder-line-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    min-height: 32px;
+}
+
+.reminder-line-left {
+    flex: 1;
+    min-width: 0;
+}
+
+.reminder-line-customer {
+    font-size: 14px;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reminder-line-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+/* Date group */
+.reminder-line-date-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.reminder-line-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: var(--font-weight-medium);
+}
+
+.reminder-line-date {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 14px;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-primary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s;
+}
+
+.reminder-line-date:hover {
+    background: var(--bg-tertiary);
+}
+
+.reminder-line-date:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.reminder-line-change {
+    font-size: 12px;
+    color: var(--color-primary-600);
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.reminder-line-date:hover .reminder-line-change,
+.reminder-line-date:focus .reminder-line-change {
+    opacity: 1;
+}
+
+/* WhatsApp button */
+.reminder-line-whatsapp {
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    color: #25D366;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s;
+    white-space: nowrap;
+}
+
+.reminder-line-whatsapp:hover {
+    background: rgba(37, 211, 102, 0.1);
+}
+
+/* Record payment button */
+.reminder-line-record {
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary-600);
+    background: none;
+    border: 1px solid var(--color-primary-200);
+    cursor: pointer;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.reminder-line-record:hover {
+    background: var(--color-primary-50);
+    border-color: var(--color-primary-400);
+}
+
+/* Secondary line: Expected amount affected */
+.reminder-line-secondary {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-xs);
+    padding-left: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.reminder-line-secondary-label {
+    font-weight: var(--font-weight-medium);
+}
+
+.reminder-line-secondary-value {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+/* Presets - inline, no modal */
+.reminder-line-presets {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.reminder-line-preset {
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: none;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: var(--font-weight-medium);
+}
+
+.reminder-line-preset:hover:not(:disabled) {
+    background: var(--color-primary-100);
+    color: var(--color-primary-700);
+}
+
+.reminder-line-preset:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.reminder-line-custom {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.reminder-line-date-input {
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px dashed var(--border-color);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.reminder-line-date-input:focus {
+    outline: none;
+    border-color: var(--color-primary-400);
+    background: var(--bg-primary);
+}
+
+/* Impact preview - inline, no box, normal text */
+.reminder-line-impact {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-xs);
+    padding-left: 0;
+    line-height: 1.5;
+}
+
+/* Feedback: "Updated · Undo" */
+.reminder-line-feedback {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 13px;
+    color: var(--color-status-active);
+    margin-top: var(--spacing-xs);
+    padding-left: 0;
+}
+
+.reminder-line-undo {
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-primary-600);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.reminder-line-undo:hover {
+    text-decoration: none;
+}
+
+.reminder-line-error {
+    color: var(--color-status-error);
+}
+
+/* Dark theme */
+[data-theme='dark'] .reminder-line {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme='dark'] .reminder-line:hover {
+    background-color: var(--bg-secondary);
+}
+
+[data-theme='dark'] .reminder-line-date:hover {
+    background: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .reminder-line-presets {
+    background: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .reminder-line-preset {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+[data-theme='dark'] .reminder-line-preset:hover:not(:disabled) {
+    background: var(--accent-light);
+    color: var(--color-primary-400);
+}
+
+[data-theme='dark'] .reminder-line-date-input {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme='dark'] .reminder-line-date-input:focus {
+    border-color: var(--color-primary-400);
+    background: var(--bg-primary);
+}
+
+[data-theme='dark'] .reminder-line-record {
+    border-color: var(--color-primary-700);
+}
+
+[data-theme='dark'] .reminder-line-record:hover {
+    background: var(--accent-light);
+    border-color: var(--color-primary-500);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .reminder-line-main {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
+
+    .reminder-line-left {
+        width: 100%;
+    }
+
+    .reminder-line-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .reminder-line-presets {
+        flex-wrap: wrap;
+    }
+}

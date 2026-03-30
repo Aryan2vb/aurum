@@ -1,0 +1,72 @@
+.visit-donut-widget {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: 24px;
+  transition: background-color 0.3s ease;
+  color: var(--text-primary);
+}
+
+.donut-content {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  margin-top: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.donut-chart {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.donut-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.legend-color-mobile {
+  background-color: var(--accent);
+}
+
+.legend-color-website {
+  background-color: var(--focus-ring);
+}
+
+.legend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .donut-content {
+    flex-direction: column;
+  }
+}
+

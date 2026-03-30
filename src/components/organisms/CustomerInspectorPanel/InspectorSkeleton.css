@@ -1,0 +1,186 @@
+/**
+ * InspectorSkeleton Styles
+ * 
+ * Key UX decisions:
+ * - Shimmer animation is subtle (not jarring pulse)
+ * - Layout matches final content exactly to prevent shift
+ * - Colors are muted to not compete with real content
+ * - Animation is continuous but gentle (3s duration)
+ */
+
+.inspector-skeleton {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ============================================ */
+/* SHIMMER BASE STYLES                         */
+/* ============================================ */
+
+.skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 0%,
+    var(--border-light) 50%,
+    var(--bg-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ============================================ */
+/* HEADER SKELETON                             */
+/* ============================================ */
+
+.skeleton-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.skeleton-header-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.skeleton-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.skeleton-name {
+  height: 24px;
+  width: 180px;
+  margin-bottom: 8px;
+}
+
+.skeleton-name.create-title {
+  width: 140px;
+}
+
+.skeleton-code {
+  height: 14px;
+  width: 100px;
+}
+
+.skeleton-status {
+  height: 24px;
+  width: 70px;
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.skeleton-action {
+  height: 28px;
+  width: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.skeleton-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.skeleton-meta-item {
+  height: 14px;
+  width: 80px;
+}
+
+.skeleton-meta-item.short {
+  width: 50px;
+}
+
+/* ============================================ */
+/* CONTENT SKELETON                            */
+/* ============================================ */
+
+.skeleton-content {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+}
+
+.skeleton-section {
+  margin-bottom: 4px;
+}
+
+.skeleton-section-title {
+  height: 12px;
+  width: 80px;
+  margin-bottom: 16px;
+}
+
+.skeleton-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.skeleton-label {
+  height: 14px;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.skeleton-value {
+  height: 14px;
+  flex: 1;
+  max-width: 200px;
+}
+
+.skeleton-value.short {
+  max-width: 120px;
+}
+
+/* ============================================ */
+/* DIVIDER & ACCORDION                         */
+/* ============================================ */
+
+.skeleton-divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 16px 0;
+}
+
+.skeleton-collapsed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-accordion {
+  height: 32px;
+  width: 100%;
+}
+
+/* ============================================ */
+/* REDUCED MOTION                              */
+/* ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar {
+    animation: none;
+    background: var(--bg-tertiary);
+  }
+}

@@ -1,0 +1,23 @@
+.contact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-neutral-600);
+}
+
+.contact-icon-clickable {
+  cursor: pointer;
+  transition: all var(--transition-base);
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-md);
+}
+
+.contact-icon-clickable:hover {
+  background-color: var(--color-neutral-100);
+  color: var(--color-primary-600);
+  transform: scale(1.1);
+}
+
+.contact-icon-clickable:active {
+  transform: scale(0.95);
+}

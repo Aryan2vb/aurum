@@ -1,0 +1,112 @@
+.customer-summary-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.customer-summary-card:hover {
+  border-color: var(--color-primary-300);
+  box-shadow: var(--shadow-md);
+}
+
+.customer-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-lg);
+}
+
+.customer-summary-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.customer-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.customer-summary-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.customer-summary-name {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+}
+
+.customer-summary-code {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-500);
+  background-color: var(--color-neutral-100);
+  padding: 0.125rem var(--spacing-xs);
+  border-radius: var(--radius-sm);
+}
+
+.customer-summary-contact {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.customer-summary-tags {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.customer-summary-main {
+  margin-bottom: var(--spacing-lg);
+}
+
+.customer-summary-amount {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.customer-summary-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+  font-weight: var(--font-weight-medium);
+}
+
+.customer-summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.customer-summary-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.customer-summary-stat-label {
+  color: var(--color-neutral-600);
+}
+
+.customer-summary-stat-value {
+  color: var(--color-neutral-900);
+  font-weight: var(--font-weight-medium);
+}
+
+.customer-summary-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}

@@ -1,0 +1,18 @@
+.email-cell {
+  font-size: 13px;
+  color: var(--text-primary);
+  background: rgba(139, 92, 246, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  transition: background-color 0.15s ease;
+}
+
+.email-cell:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.email-cell-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+}

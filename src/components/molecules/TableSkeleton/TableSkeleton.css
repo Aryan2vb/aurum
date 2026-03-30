@@ -1,0 +1,75 @@
+.table-skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
+.table-skeleton-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 100px 120px 140px 140px 180px 160px;
+  align-items: center;
+  height: 56px;
+  padding: 0 24px;
+  border-bottom: 1px solid transparent;
+}
+
+.table-skeleton-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.table-skeleton-shimmer {
+  height: 16px;
+  width: 100%;
+  max-width: 120px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 0%,
+    var(--border-color) 50%,
+    var(--bg-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.table-skeleton-row:nth-child(1) .table-skeleton-shimmer {
+  max-width: 80px;
+}
+
+.table-skeleton-row:nth-child(2) .table-skeleton-shimmer {
+  max-width: 140px;
+}
+
+.table-skeleton-row:nth-child(3) .table-skeleton-shimmer {
+  max-width: 60px;
+}
+
+.table-skeleton-row:nth-child(4) .table-skeleton-shimmer {
+  max-width: 70px;
+}
+
+.table-skeleton-row:nth-child(5) .table-skeleton-shimmer {
+  max-width: 100px;
+}
+
+.table-skeleton-row:nth-child(6) .table-skeleton-shimmer {
+  max-width: 90px;
+}
+
+.table-skeleton-row:nth-child(7) .table-skeleton-shimmer {
+  max-width: 150px;
+}
+
+.table-skeleton-row:nth-child(8) .table-skeleton-shimmer {
+  max-width: 110px;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

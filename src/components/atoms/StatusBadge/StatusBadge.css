@@ -1,0 +1,80 @@
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+.status-badge-sm {
+  font-size: 10px;
+  padding: 2px 7px;
+  gap: 3px;
+}
+
+.status-badge-md {
+  font-size: 11px;
+  padding: 3px 9px;
+  gap: 4px;
+}
+
+.status-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.status-badge-sm .status-badge-dot {
+  width: 4px;
+  height: 4px;
+}
+
+.status-badge-label {
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* Variants - Compact pill style like customer table */
+.status-badge-subtle {
+  /* Background color set via inline style based on status */
+}
+
+.status-badge-subtle .status-badge-label {
+  color: inherit;
+}
+
+.status-badge-outline {
+  border: 1px solid currentColor;
+  background-color: transparent;
+}
+
+.status-badge-solid {
+  background-color: var(--status-color);
+  color: white;
+}
+
+.status-badge-solid .status-badge-label {
+  color: white;
+}
+
+.status-badge-solid .status-badge-dot {
+  background-color: white;
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .status-badge {
+  color: inherit;
+}
+
+[data-theme='dark'] .status-badge-subtle {
+  /* Background color set via inline style */
+}
+
+[data-theme='dark'] .status-badge-label {
+  color: inherit;
+}

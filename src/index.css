@@ -1,0 +1,278 @@
+@import './styles/designTokens.css';
+@import './styles/mobile.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   Base UI Foundation – applies to ALL light themes
+   No pure white (#FFFFFF). Warm/rough whites, soft charcoal text.
+   WCAG-safe, subtle borders, gentle contrast.
+   ============================================ */
+
+:root {
+  /* Base backgrounds – warm/rough white, never pure white */
+  --bg-primary: #F7F6F2;
+  --bg-secondary: #FAF9F6;
+  --bg-tertiary: #F0EFEB;
+  --bg-hover: #EEEDE9;
+
+  /* Typography – soft charcoal, not pure black */
+  --text-primary: #2E2E2E;
+  --text-secondary: #6B6F6A;
+  --text-tertiary: #8E918C;
+
+  /* Borders – subtle */
+  --border-color: #E2E4E1;
+  --border-light: #E8EAE7;
+
+  /* Shadows – very subtle, avoid heavy */
+  --shadow: rgba(0, 0, 0, 0.04);
+  --shadow-hover: rgba(0, 0, 0, 0.06);
+
+  /* Semantic – overridden per theme */
+  --accent: #8FAF9A;
+  --accent-hover: #7F9F8A;
+  --accent-light: #E8F0EC;
+  --accent-color: #8FAF9A;
+  --focus-ring: #9DB7A4;
+  --on-accent: #2E2E2E;
+  --sidebar-bg: #F1F4F1;
+  --theme-sidebar-bg: #F1F4F1;
+  --selection-bg: transparent;
+
+  --error: #b8544a;
+  --success: #5a8f6e;
+}
+
+/* ============================================
+   1. Warm Sage (default) – page + accents
+   ============================================ */
+:root,
+[data-theme='light'] {
+  --bg-primary: #F7F6F2;
+  --bg-secondary: #FAF9F6;
+  --bg-tertiary: #F0EFEB;
+  --bg-hover: #EEEDE9;
+  --border-color: #E2E4E1;
+  --border-light: #E5E7E3;
+  --accent: #8FAF9A;
+  --accent-hover: #7F9F8A;
+  --accent-light: #E8F0EC;
+  --accent-color: #8FAF9A;
+  --focus-ring: #9DB7A4;
+  --on-accent: #2E2E2E;
+  --sidebar-bg: #F1F4F1;
+  --theme-sidebar-bg: #F1F4F1;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   2. Ocean – blue (page tint + accents)
+   ============================================ */
+[data-theme='light-ocean'] {
+  --bg-primary: #F4F6F9;
+  --bg-secondary: #F6F9FC;
+  --bg-tertiary: #EEF2F7;
+  --bg-hover: #E6EBF2;
+  --border-color: #DEE4EB;
+  --border-light: #E4E9EF;
+  --accent: #4A90D9;
+  --accent-hover: #3A7BC4;
+  --accent-light: #E3EFF9;
+  --accent-color: #4A90D9;
+  --focus-ring: #5B9FE8;
+  --on-accent: #FAF9F6;
+  --sidebar-bg: #E8F2FA;
+  --theme-sidebar-bg: #E8F2FA;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   3. Violet – purple
+   ============================================ */
+[data-theme='light-violet'] {
+  --bg-primary: #F6F5F9;
+  --bg-secondary: #F8F7FB;
+  --bg-tertiary: #EFEDF4;
+  --bg-hover: #E8E5EF;
+  --border-color: #E2DEE8;
+  --border-light: #E8E4ED;
+  --accent: #7C6BB5;
+  --accent-hover: #6A5A9E;
+  --accent-light: #EDE9F5;
+  --accent-color: #7C6BB5;
+  --focus-ring: #8E7EC4;
+  --on-accent: #FAF9F6;
+  --sidebar-bg: #F3EFF9;
+  --theme-sidebar-bg: #F3EFF9;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   4. Coral – warm coral
+   ============================================ */
+[data-theme='light-coral'] {
+  --bg-primary: #FAF6F5;
+  --bg-secondary: #FCF9F8;
+  --bg-tertiary: #F5EFED;
+  --bg-hover: #F0E8E6;
+  --border-color: #E8E0DE;
+  --border-light: #EDE5E3;
+  --accent: #D97B6B;
+  --accent-hover: #C46A5A;
+  --accent-light: #FAEDEA;
+  --accent-color: #D97B6B;
+  --focus-ring: #E08B7C;
+  --on-accent: #2E2E2E;
+  --sidebar-bg: #FBF0ED;
+  --theme-sidebar-bg: #FBF0ED;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   5. Teal – teal/cyan
+   ============================================ */
+[data-theme='light-teal'] {
+  --bg-primary: #F4F9F8;
+  --bg-secondary: #F6FAF9;
+  --bg-tertiary: #ECF5F4;
+  --bg-hover: #E4EFEE;
+  --border-color: #DCE8E6;
+  --border-light: #E2ECEA;
+  --accent: #3A9B8E;
+  --accent-hover: #2E8A7E;
+  --accent-light: #E4F3F1;
+  --accent-color: #3A9B8E;
+  --focus-ring: #4AAB9E;
+  --on-accent: #FAF9F6;
+  --sidebar-bg: #E8F5F3;
+  --theme-sidebar-bg: #E8F5F3;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   6. Amber – gold/amber
+   ============================================ */
+[data-theme='light-amber'] {
+  --bg-primary: #FAF9F4;
+  --bg-secondary: #FCFBF6;
+  --bg-tertiary: #F5F3EB;
+  --bg-hover: #F0EDE4;
+  --border-color: #E8E6DC;
+  --border-light: #ECEAE2;
+  --accent: #C9A227;
+  --accent-hover: #B38F20;
+  --accent-light: #F9F4E3;
+  --accent-color: #C9A227;
+  --focus-ring: #D4B030;
+  --on-accent: #2E2E2E;
+  --sidebar-bg: #FBF6E8;
+  --theme-sidebar-bg: #FBF6E8;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   7. Rose – soft rose/pink
+   ============================================ */
+[data-theme='light-rose'] {
+  --bg-primary: #FAF6F7;
+  --bg-secondary: #FCF9FA;
+  --bg-tertiary: #F5EFF1;
+  --bg-hover: #F0E8EA;
+  --border-color: #E8E0E2;
+  --border-light: #EDE5E7;
+  --accent: #C97B8B;
+  --accent-hover: #B86A7A;
+  --accent-light: #FAEDF0;
+  --accent-color: #C97B8B;
+  --focus-ring: #D88B9B;
+  --on-accent: #2E2E2E;
+  --sidebar-bg: #FBF0F2;
+  --theme-sidebar-bg: #FBF0F2;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   8. Indigo – indigo blue
+   ============================================ */
+[data-theme='light-indigo'] {
+  --bg-primary: #F5F6F9;
+  --bg-secondary: #F7F8FB;
+  --bg-tertiary: #EEF0F5;
+  --bg-hover: #E6E8F0;
+  --border-color: #DEE0E8;
+  --border-light: #E4E6ED;
+  --accent: #5B6BB8;
+  --accent-hover: #4A5AA3;
+  --accent-light: #E8EBF5;
+  --accent-color: #5B6BB8;
+  --focus-ring: #6D7CC8;
+  --on-accent: #FAF9F6;
+  --sidebar-bg: #EEF0F9;
+  --theme-sidebar-bg: #EEF0F9;
+  --selection-bg: transparent;
+}
+
+/* ============================================
+   Dark theme
+   ============================================ */
+[data-theme='dark'] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1a1a1a;
+  --bg-hover: #222;
+  --text-primary: #e8e8e6;
+  --text-secondary: #a0a0a0;
+  --text-tertiary: #6a6a6a;
+  --border-color: #2a2a2a;
+  --border-light: #333;
+  --shadow: rgba(0, 0, 0, 0.4);
+  --shadow-hover: rgba(0, 0, 0, 0.6);
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-light: #1e3a5f;
+  --accent-color: #3b82f6;
+  --focus-ring: #60a5fa;
+  --on-accent: #ffffff;
+  --sidebar-bg: #0d0d0d;
+  --selection-bg: transparent;
+  --error: #ef4444;
+  --success: #10b981;
+}
+
+/* Focus: visible, not color-only. Subtle animation. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 2px;
+  transition: outline-color 120ms ease, outline-offset 120ms ease;
+}
+
+/* Selection highlight (Olive Mist uses --selection-bg) */
+::selection {
+  background: var(--selection-bg, var(--accent-light));
+  color: var(--text-primary);
+}
+
+body {
+  font-family: var(--font-family-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+    overflow-x: hidden;
+  }
+}
+
+code {
+  font-family: var(--font-family-mono, source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace);
+}

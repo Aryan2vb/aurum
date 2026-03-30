@@ -1,0 +1,103 @@
+/* ReminderList - Minimal grouped list (Attio-style) */
+
+.reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.reminder-list-empty {
+  padding: var(--spacing-xl);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* Group */
+.reminder-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.reminder-group-overdue {
+  border-left: 2px solid var(--color-status-overdue);
+  padding-left: var(--spacing-md);
+  margin-left: calc(-1 * var(--spacing-md));
+}
+
+/* Group header */
+.reminder-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: opacity 0.15s;
+}
+
+.reminder-group-header:hover {
+  opacity: 0.8;
+}
+
+.reminder-group-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reminder-group-count {
+  font-weight: var(--font-weight-normal);
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.reminder-group-overdue .reminder-group-title {
+  color: var(--color-status-overdue);
+}
+
+.reminder-group-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.reminder-group-toggle {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+/* Group items */
+.reminder-group-items {
+  padding-top: var(--spacing-xs);
+}
+
+/* Dark theme */
+[data-theme='dark'] .reminder-list-empty {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .reminder-group-title {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .reminder-group-overdue .reminder-group-title {
+  color: var(--color-status-overdue);
+}
+
+[data-theme='dark'] .reminder-group-meta {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .reminder-group-toggle {
+  color: var(--text-secondary);
+}

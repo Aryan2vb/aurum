@@ -1,0 +1,159 @@
+/* Attio-style Credit Summary Card */
+
+.credit-summary-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.credit-summary-card:hover {
+  border-color: var(--border-light);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .credit-summary-card {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .credit-summary-card:hover {
+  border-color: var(--border-light);
+  box-shadow: var(--shadow-lg);
+}
+
+.credit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-md);
+}
+
+.credit-card-customer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-card-customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-card-customer-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-card-item {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-card-amounts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-md);
+}
+
+.credit-card-amount-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.credit-card-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.credit-card-progress {
+  margin-bottom: var(--spacing-md);
+}
+
+.credit-card-due-date {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.credit-card-overdue {
+  color: var(--color-status-overdue);
+  font-weight: var(--font-weight-medium);
+}
+
+.credit-card-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.credit-card-detailed {
+  padding: var(--spacing-lg);
+}
+
+.credit-card-detailed .credit-card-amounts {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .credit-card-customer-name {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .credit-card-item {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .credit-card-label {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .credit-card-due-date {
+  color: var(--text-secondary);
+}
+
+/* Mobile: full-width cards */
+@media (max-width: 768px) {
+  .credit-summary-card {
+    width: 100%;
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+  }
+
+  .credit-summary-card:hover {
+    transform: none; /* no lift on mobile */
+  }
+
+  .credit-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .credit-card-actions > button {
+    flex: 1;
+    min-width: 120px;
+    justify-content: center;
+  }
+}

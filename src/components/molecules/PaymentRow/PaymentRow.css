@@ -1,0 +1,87 @@
+/* Attio-style Payment Row */
+
+.payment-row {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color var(--transition-base);
+}
+
+.payment-row:hover {
+  background-color: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .payment-row:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.payment-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.payment-row-date {
+  flex: 0 0 120px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.payment-row-amount {
+  flex: 1;
+  font-weight: var(--font-weight-semibold);
+}
+
+.payment-row-method {
+  flex: 0 0 auto;
+}
+
+.payment-row-expand {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.payment-row-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex: 0 0 auto;
+}
+
+.payment-row-details {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.payment-row-detail-item {
+  display: flex;
+  gap: var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.payment-row-detail-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  min-width: 100px;
+}
+
+.payment-row-detail-value {
+  color: var(--text-primary);
+}
+
+.payment-row-detailed {
+  padding: var(--spacing-lg);
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .payment-row-detail-label {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .payment-row-detail-value {
+  color: var(--text-primary);
+}

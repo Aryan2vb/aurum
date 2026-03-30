@@ -1,0 +1,293 @@
+/* Attio-style Credit List Row - Table View */
+
+.credit-list-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr 1fr 100px 50px;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+  min-height: 56px;
+}
+
+.credit-list-row:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.credit-list-row:last-child {
+  border-bottom: none;
+}
+
+.credit-list-cell {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+}
+
+/* Customer & Item Column */
+.credit-list-cell-customer {
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.credit-list-customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-list-customer-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.credit-list-item {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Amount Columns */
+.credit-list-cell-amount,
+.credit-list-cell-remaining {
+  font-family: var(--font-family-mono);
+  justify-content: flex-end;
+}
+
+/* Progress Column */
+.credit-list-cell-progress {
+  min-width: 120px;
+}
+
+.credit-list-progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  width: 100%;
+}
+
+.credit-list-progress-wrapper .progress-bar {
+  flex: 1;
+  min-width: 60px;
+}
+
+.credit-list-progress-text {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  min-width: 35px;
+  text-align: right;
+}
+
+/* Due Date Column */
+.credit-list-cell-due {
+  font-size: var(--font-size-xs);
+}
+
+.credit-list-due-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+}
+
+.credit-list-overdue-badge {
+  padding: 2px 6px;
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-status-overdue);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.credit-list-no-due {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+}
+
+/* Status Column */
+.credit-list-cell-status {
+  justify-content: flex-start;
+}
+
+/* Actions Column */
+.credit-list-cell-actions {
+  justify-content: flex-end;
+}
+
+.credit-list-action-btn {
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.credit-list-row:hover .credit-list-action-btn {
+  opacity: 1;
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .credit-list-row {
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme='dark'] .credit-list-row:hover {
+  background-color: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .credit-list-customer-name {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .credit-list-item {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .credit-list-progress-text {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .credit-list-overdue-badge {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: var(--color-status-overdue);
+}
+
+[data-theme='dark'] .credit-list-no-due {
+  color: var(--text-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 1400px) {
+  .credit-list-row {
+    grid-template-columns: 2fr 1fr 1fr 1.2fr 0.8fr 90px 40px;
+    gap: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 1200px) {
+  .credit-list-row {
+    grid-template-columns: 2fr 1fr 1fr 1fr 80px 40px;
+  }
+  
+  .credit-list-cell-progress {
+    display: none;
+  }
+}
+
+/* 
+ * Native Mobile Layout Overrides
+ * Transforms the table row into a structured, spacious card
+ */
+@media (max-width: 768px) {
+  .credit-list-row {
+    display: flex;
+    flex-wrap: wrap;
+    position: relative;
+    padding: 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    background: var(--bg-secondary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    min-height: auto;
+    gap: 8px;
+  }
+  
+  .credit-list-row:last-child {
+    margin-bottom: 0;
+  }
+
+  [data-theme='dark'] .credit-list-row {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    border-color: var(--border-color);
+  }
+
+  /* 
+   * Top Row: Avatar + Name (Left), Status Pill (Right) 
+   */
+  .credit-list-cell-customer {
+    width: 100%;
+    margin-bottom: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Pull status cell up next to name */
+  .credit-list-cell-status {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    justify-content: flex-end;
+  }
+
+  /* Make customer name prominent */
+  .credit-list-customer-name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  .credit-list-item {
+    font-size: 13px;
+    opacity: 0.8;
+  }
+
+  /* Hide Total Amount and Progress on mobile — focus only on REMAINING */
+  .credit-list-cell-amount,
+  .credit-list-cell-progress {
+    display: none;
+  }
+
+  /* 
+   * Bottom Row: Remaining Amount (Large) + Due Date 
+   */
+  .credit-list-cell-remaining {
+    width: 100%;
+    justify-content: flex-start;
+    margin-top: 8px;
+  }
+
+  .credit-list-cell-remaining .amount-display {
+    font-size: 20px !important;
+    font-weight: 700;
+    color: var(--error); /* Default to emphasis color */
+  }
+
+  .credit-list-cell-due {
+    width: 100%;
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  /* Record Payment (Add) Action Button */
+  .credit-list-cell-actions {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+  }
+  
+  .credit-list-action-btn {
+    opacity: 1; /* Always visible on mobile */
+    background: var(--bg-tertiary);
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+}

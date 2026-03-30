@@ -1,0 +1,223 @@
+/* Enhanced Timeline UI - Matching Reference Design */
+
+.credit-timeline {
+  position: relative;
+  padding: var(--spacing-lg) 0;
+  background-color: transparent;
+}
+
+[data-theme='dark'] .credit-timeline {
+  background-color: transparent;
+}
+
+.credit-timeline-line {
+  position: absolute;
+  left: 20px; /* Center of 40px icon (20px = half of 40px) */
+  top: 20px; /* Start after first icon */
+  bottom: 20px; /* End before last icon */
+  width: 2px;
+  background-color: var(--border-color);
+  z-index: 0;
+}
+
+[data-theme='dark'] .credit-timeline-line {
+  background-color: var(--border-color);
+}
+
+.credit-timeline-event {
+  position: relative;
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-2xl);
+  padding-left: 0;
+}
+
+.credit-timeline-event:last-child {
+  margin-bottom: 0;
+}
+
+.credit-timeline-event-marker {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 40px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0;
+}
+
+/* Large icon containers */
+.credit-timeline-event-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+}
+
+.credit-timeline-event-icon-completed {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.credit-timeline-event-icon-pending {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .credit-timeline-event-icon-completed {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+[data-theme='dark'] .credit-timeline-event-icon-pending {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.credit-timeline-event-content {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+.credit-timeline-event-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+  line-height: 1.4;
+}
+
+[data-theme='dark'] .credit-timeline-event-title {
+  color: #f9fafb;
+}
+
+.credit-timeline-event-date {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+[data-theme='dark'] .credit-timeline-event-date {
+  color: #d1d5db;
+}
+
+.credit-timeline-event-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-sm) 0;
+  line-height: 1.5;
+}
+
+[data-theme='dark'] .credit-timeline-event-description {
+  color: #d1d5db;
+}
+
+.credit-timeline-event-amount {
+  margin-bottom: var(--spacing-sm);
+}
+
+.credit-timeline-event-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-sm);
+}
+
+.credit-timeline-event-meta-item {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: 2px var(--spacing-xs);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+[data-theme='dark'] .credit-timeline-event-meta-item {
+  background-color: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* Action Links */
+.credit-timeline-event-link {
+  display: inline-block;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary-500);
+  text-decoration: none;
+  margin-top: var(--spacing-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: color var(--transition-base);
+}
+
+.credit-timeline-event-link:hover {
+  color: var(--color-primary-600);
+  text-decoration: underline;
+}
+
+[data-theme='dark'] .credit-timeline-event-link {
+  color: var(--color-primary-400);
+}
+
+[data-theme='dark'] .credit-timeline-event-link:hover {
+  color: var(--color-primary-500);
+}
+
+.credit-timeline-event-notes {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border-left: 2px solid var(--border-color);
+}
+
+.credit-timeline-event-notes-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+[data-theme='dark'] .credit-timeline-event-notes {
+  background-color: var(--bg-tertiary);
+  border-left-color: var(--border-color);
+}
+
+[data-theme='dark'] .credit-timeline-event-notes-text {
+  color: var(--text-secondary);
+}
+
+.credit-timeline-empty {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.credit-timeline-compact {
+  padding: var(--spacing-md) 0;
+}
+
+.credit-timeline-compact .credit-timeline-event {
+  margin-bottom: var(--spacing-xl);
+}
+
+.credit-timeline-compact .credit-timeline-event-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.credit-timeline-compact .credit-timeline-event-icon svg {
+  width: 16px;
+  height: 16px;
+}

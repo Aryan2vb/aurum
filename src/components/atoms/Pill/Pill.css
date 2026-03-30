@@ -1,0 +1,32 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ct-text-secondary, #6b7280);
+  background: transparent;
+  border: 1px solid var(--ct-border, #e5e7eb);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.pill:hover {
+  background: var(--ct-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--ct-border, #d1d5db);
+  color: var(--ct-text, #1f2937);
+}
+
+.pill.active {
+  background: var(--ct-accent, var(--accent));
+  color: var(--on-accent);
+  border-color: var(--ct-accent, var(--accent));
+}
+
+.pill.active:hover {
+  background: var(--ct-accent-hover, var(--accent-hover));
+  border-color: var(--ct-accent-hover, var(--accent-hover));
+}

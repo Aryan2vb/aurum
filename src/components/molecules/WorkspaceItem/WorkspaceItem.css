@@ -1,0 +1,20 @@
+.workspace-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.workspace-item:hover {
+  background-color: #f5f5f5;
+}
+
+.workspace-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+

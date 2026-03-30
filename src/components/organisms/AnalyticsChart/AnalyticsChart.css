@@ -1,0 +1,139 @@
+.analytics-chart-widget {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: 24px;
+  transition: background-color 0.3s ease;
+  color: var(--text-primary);
+}
+
+.chart-container {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 140px;
+  min-width: 50px;
+}
+
+.y-axis-label {
+  font-size: 11px;
+  color: #666;
+  text-align: right;
+}
+
+.chart-bars {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex: 1;
+  height: 140px;
+  position: relative;
+}
+
+.bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.bar-striped {
+  background: repeating-linear-gradient(
+    45deg,
+    #e0e0e0,
+    #e0e0e0 4px,
+    #f0f0f0 4px,
+    #f0f0f0 8px
+  );
+}
+
+[data-theme='dark'] .bar-striped {
+  background: repeating-linear-gradient(
+    45deg,
+    #2a2a2a,
+    #2a2a2a 4px,
+    #333333 4px,
+    #333333 8px
+  );
+}
+
+.bar-highlighted {
+  background-color: var(--accent);
+}
+
+/* Keep chart colors consistent regardless of theme - these represent data */
+.bar-highlighted,
+.bar-striped {
+  /* These will not change with theme */
+}
+
+.bar:hover {
+  opacity: 0.8;
+}
+
+.bar-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: pre-line;
+  margin-bottom: 8px;
+  z-index: 10;
+  min-width: 150px;
+  text-align: center;
+}
+
+.bar-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #333;
+}
+
+.bar-label {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    flex-direction: column;
+  }
+
+  .chart-y-axis {
+    flex-direction: row;
+    height: auto;
+    margin-bottom: 8px;
+  }
+
+  .chart-bars {
+    height: 200px;
+  }
+}
+

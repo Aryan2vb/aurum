@@ -1,0 +1,195 @@
+.reminder-date-picker {
+    position: relative;
+    width: 100%;
+}
+
+.reminder-date-picker.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Trigger button */
+.reminder-date-picker-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-tertiary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-align: left;
+}
+
+.reminder-date-picker-trigger:hover {
+    background: var(--color-primary-50);
+    border-color: var(--color-primary-100);
+}
+
+.reminder-date-picker.expanded .reminder-date-picker-trigger {
+    background: var(--color-primary-50);
+    border-color: var(--accent);
+}
+
+.reminder-date-picker-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.reminder-date-picker-value {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-neutral-900);
+}
+
+.reminder-date-picker-icon {
+    font-size: var(--font-size-lg);
+    color: var(--color-neutral-400);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+}
+
+/* Options dropdown */
+.reminder-date-picker-options {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 100;
+    animation: slideDown 0.15s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Presets row */
+.reminder-date-picker-presets {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.reminder-date-picker-preset {
+    flex: 1;
+    min-width: fit-content;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-700);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.reminder-date-picker-preset:hover {
+    background: var(--color-primary-50);
+    border-color: var(--color-primary-300);
+    color: var(--color-primary-600);
+}
+
+.reminder-date-picker-preset.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.reminder-date-picker-preset.custom {
+    background: transparent;
+    border-style: dashed;
+}
+
+.reminder-date-picker-preset.custom:hover,
+.reminder-date-picker-preset.custom.active {
+    background: var(--color-neutral-100);
+    border-style: solid;
+    border-color: var(--color-neutral-400);
+    color: var(--color-neutral-700);
+}
+
+/* Calendar input */
+.reminder-date-picker-calendar {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.reminder-date-picker-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-neutral-900);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.reminder-date-picker-input:hover,
+.reminder-date-picker-input:focus {
+    border-color: var(--accent);
+    outline: none;
+}
+
+/* Dark theme adjustments */
+[data-theme='dark'] .reminder-date-picker-trigger {
+    background: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .reminder-date-picker-trigger:hover {
+background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+[data-theme='dark'] .reminder-date-picker.expanded .reminder-date-picker-trigger {
+    background: var(--accent-light);
+    border-color: var(--accent);
+}
+
+[data-theme='dark'] .reminder-date-picker-value {
+    color: var(--text-primary);
+}
+
+[data-theme='dark'] .reminder-date-picker-options {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme='dark'] .reminder-date-picker-preset {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+}
+
+[data-theme='dark'] .reminder-date-picker-preset:hover {
+    background: var(--accent-light);
+    color: var(--accent);
+}
+
+[data-theme='dark'] .reminder-date-picker-input {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}

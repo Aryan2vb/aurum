@@ -1,0 +1,35 @@
+.view-selector {
+  display: inline-block;
+}
+
+.view-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-selector-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.view-selector-btn.open {
+  background: var(--bg-tertiary);
+}
+
+.view-selector-btn svg:first-child {
+  color: var(--text-secondary);
+}
+
+.view-selector-btn svg:last-child {
+  color: var(--text-muted);
+  margin-left: 2px;
+}

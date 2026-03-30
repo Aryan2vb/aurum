@@ -1,0 +1,27 @@
+/* ============================================
+   Mobile-First Global Baseline
+   Imported after designTokens.css in index.css
+   ============================================ */
+
+/* ─── 1. Momentum scrolling everywhere ─── */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── 2. Disable double-tap zoom on interactive elements ─── */
+button, a, [role="button"] {
+  touch-action: manipulation;
+}
+
+/* ─── 3. Mobile-specific: prevent iOS input zoom + enforce tap targets ─── */
+@media (max-width: 768px) {
+  /* iOS zooms inputs with font-size < 16px — force 16px minimum */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Universal 44px minimum tap target (Apple HIG) */
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+}

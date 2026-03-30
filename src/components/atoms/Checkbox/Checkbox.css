@@ -1,0 +1,99 @@
+/* Attio-style Checkbox */
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.checkbox__box {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkbox__icon {
+  width: 12px;
+  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  color: white;
+}
+
+.checkbox__icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Hover state */
+.checkbox:hover .checkbox__box {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+/* Focus state */
+.checkbox:focus-visible .checkbox__box {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+/* Active/Checked state */
+.checkbox--active .checkbox__box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox--active .checkbox__icon {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox--active:hover .checkbox__box {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Indeterminate state */
+.checkbox--indeterminate .checkbox__box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Disabled state */
+.checkbox--disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.checkbox--disabled .checkbox__box {
+  opacity: 0.4;
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.checkbox--disabled.checkbox--active .checkbox__box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Row hover enhancement - when inside a table row */
+tr:hover .checkbox .checkbox__box {
+  border-color: var(--text-tertiary);
+}
+
+tr:hover .checkbox--active .checkbox__box {
+  border-color: var(--accent);
+}

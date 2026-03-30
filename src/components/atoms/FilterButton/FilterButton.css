@@ -1,0 +1,57 @@
+.filter-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--ct-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.filter-button:hover {
+  background: var(--ct-hover, rgba(0, 0, 0, 0.05));
+  color: var(--ct-text, #1f2937);
+}
+
+.filter-button.active {
+  background: var(--ct-accent-bg, var(--accent-light));
+  color: var(--ct-accent, var(--accent));
+}
+
+.filter-button-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.filter-button:hover .filter-button-icon,
+.filter-button.active .filter-button-icon {
+  opacity: 1;
+}
+
+.filter-button-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.filter-button-label {
+  font-weight: 500;
+}
+
+.filter-button-value {
+  color: var(--ct-accent, var(--accent));
+  font-weight: 500;
+}
+
+.filter-button-placeholder {
+  display: none;
+}

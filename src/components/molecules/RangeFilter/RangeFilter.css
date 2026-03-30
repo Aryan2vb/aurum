@@ -1,0 +1,72 @@
+.range-filter-content {
+  padding: 8px;
+  min-width: 220px;
+}
+
+.range-filter-header {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+
+.range-filter-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-input {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.range-input:focus {
+  border-color: var(--accent-color);
+}
+
+.range-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Hide number input spinners */
+.range-input::-webkit-outer-spin-button,
+.range-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.range-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.range-separator {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.range-filter-clear {
+  width: 100%;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  cursor: pointer;
+  margin-top: 8px;
+  transition: color 0.15s;
+}
+
+.range-filter-clear:hover {
+  color: var(--accent-color);
+}

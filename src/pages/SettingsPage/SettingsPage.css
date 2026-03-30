@@ -1,0 +1,95 @@
+/* Settings – low-eye-strain tokens, subtle animations <150ms */
+
+.settings-page {
+  max-width: 720px;
+}
+
+.settings-section {
+  margin-bottom: 2rem;
+}
+
+.settings-section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+}
+
+.settings-block {
+  margin-bottom: 1.5rem;
+}
+
+.settings-block-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.settings-block-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.theme-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.theme-swatch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.theme-swatch-card:hover {
+  border-color: var(--text-tertiary);
+}
+
+.theme-swatch-card:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.theme-swatch-card--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.theme-swatch-preview {
+  display: flex;
+  height: 56px;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.theme-swatch-accent {
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-swatch-bg {
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-swatch-label {
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* Dark mode block: single card in a row */
+.settings-block:last-child .theme-swatch-card {
+  max-width: 140px;
+}

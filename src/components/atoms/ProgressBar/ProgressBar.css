@@ -1,0 +1,74 @@
+.progress-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+[data-theme='dark'] .progress-bar-wrapper {
+  background-color: var(--bg-tertiary);
+}
+
+.progress-sm .progress-bar-wrapper {
+  height: 4px;
+}
+
+.progress-md .progress-bar-wrapper {
+  height: 8px;
+}
+
+.progress-lg .progress-bar-wrapper {
+  height: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--color-status-active);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-base);
+}
+
+.progress-bar-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.progress-bar-paid {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-status-active);
+}
+
+.progress-bar-separator {
+  color: var(--text-tertiary);
+}
+
+.progress-bar-total {
+  color: var(--text-secondary);
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .progress-bar-label {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .progress-bar-paid {
+  color: var(--color-status-active);
+}
+
+[data-theme='dark'] .progress-bar-separator {
+  color: var(--text-tertiary);
+}
+
+[data-theme='dark'] .progress-bar-total {
+  color: var(--text-secondary);
+}

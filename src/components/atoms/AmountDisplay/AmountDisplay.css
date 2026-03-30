@@ -1,0 +1,61 @@
+.amount-display {
+  font-family: var(--font-family-mono);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  display: inline-block;
+}
+
+.amount-md {
+  font-size: var(--font-size-base);
+}
+
+.amount-sm {
+  font-size: var(--font-size-sm);
+}
+
+.amount-lg {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+}
+
+.amount-emphasis {
+  font-weight: var(--font-weight-bold);
+}
+
+/* Variants */
+.amount-default {
+  color: var(--text-primary);
+}
+
+.amount-positive {
+  color: var(--color-status-active);
+}
+
+.amount-negative {
+  color: var(--color-status-overdue);
+}
+
+.amount-neutral {
+  color: var(--text-secondary);
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .amount-display {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .amount-default {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .amount-positive {
+  color: var(--color-status-active);
+}
+
+[data-theme='dark'] .amount-negative {
+  color: var(--color-status-overdue);
+}
+
+[data-theme='dark'] .amount-neutral {
+  color: var(--text-secondary);
+}

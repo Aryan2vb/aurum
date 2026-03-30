@@ -1,0 +1,45 @@
+# ── Dependencies (rebuilt inside Docker via npm ci) ──
+node_modules
+.npm
+
+# ── Build output (rebuilt inside Docker) ──
+build
+dist
+
+# ── Environment & secrets ──
+.env
+.env.*
+!.env.example
+
+# ── Git ──
+.git
+.gitignore
+
+# ── Dev tooling ──
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+playwright-report/
+test-results/
+
+# ── Editor & OS ──
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+.cursor
+
+# ── Docker files (not needed in context) ──
+docker/
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# ── CI/CD & deploy ──
+.github
+deploy/
+
+# ── Vercel ──
+.vercel

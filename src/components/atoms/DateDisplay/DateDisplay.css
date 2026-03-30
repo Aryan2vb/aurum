@@ -1,0 +1,21 @@
+.date-display {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.date-sm {
+  font-size: var(--font-size-xs);
+}
+
+.date-md {
+  font-size: var(--font-size-sm);
+}
+
+.date-lg {
+  font-size: var(--font-size-base);
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .date-display {
+  color: var(--text-primary);
+}

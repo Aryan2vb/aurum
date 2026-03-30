@@ -1,0 +1,292 @@
+/* Attio-style Credit Detail Page */
+
+.credit-detail-page {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+/* Header - Attio Style */
+.credit-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.credit-detail-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-detail-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-detail-identity-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.credit-detail-title {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-xs) 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.credit-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.credit-detail-item-text {
+  color: var(--text-secondary);
+}
+
+.credit-detail-meta-dot {
+  color: var(--text-tertiary);
+}
+
+.credit-detail-meta-text {
+  color: var(--text-secondary);
+}
+
+.credit-detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+/* Main Content */
+.credit-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.credit-detail-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+/* Card Style - Attio */
+.credit-detail-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.credit-detail-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.credit-detail-card-title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+[data-theme='dark'] .credit-detail-card-title {
+  color: var(--text-primary);
+}
+
+.credit-detail-card-count {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-full);
+}
+
+/* Metrics Grid */
+.credit-detail-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg);
+}
+
+.credit-detail-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.credit-detail-metric-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+[data-theme='dark'] .credit-detail-metric-label {
+  color: var(--text-secondary);
+}
+
+.credit-detail-progress {
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+}
+
+/* Details Grid */
+.credit-detail-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+}
+
+.credit-detail-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.credit-detail-detail-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+[data-theme='dark'] .credit-detail-detail-label {
+  color: var(--text-secondary);
+}
+
+.credit-detail-detail-value {
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+}
+
+.credit-detail-detail-value-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.credit-detail-overdue-indicator {
+  font-size: var(--font-size-xs);
+  color: var(--color-status-overdue);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Description & Notes */
+.credit-detail-description,
+.credit-detail-notes {
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-lg);
+}
+
+.credit-detail-description-title,
+.credit-detail-notes-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.credit-detail-description-text,
+.credit-detail-notes-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Payment History */
+.credit-detail-payments-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.credit-detail-payment-item {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.credit-detail-payment-item:last-child {
+  border-bottom: none;
+}
+
+.credit-detail-empty-state {
+  padding: var(--spacing-2xl);
+  text-align: center;
+}
+
+.credit-detail-empty-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0 0 var(--spacing-md) 0;
+}
+
+/* Loading & Error States */
+.credit-detail-loading,
+.credit-detail-error {
+  padding: var(--spacing-2xl);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.credit-detail-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  align-items: center;
+}
+
+/* Dark Mode Support */
+[data-theme='dark'] .credit-detail-card {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .credit-detail-card-header {
+  background: var(--bg-tertiary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .credit-detail-page {
+    padding: var(--spacing-md);
+  }
+
+  .credit-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .credit-detail-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .credit-detail-metrics,
+  .credit-detail-details-grid {
+    grid-template-columns: 1fr;
+  }
+}

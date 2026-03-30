@@ -1,0 +1,107 @@
+/**
+ * InlineEditableField Styles
+ * 
+ * UX Pattern: Static text that transforms to input on hover/click
+ * Following Attio/Linear design patterns
+ */
+
+/* Row container */
+.editable-field-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 0;
+  gap: 12px;
+}
+
+/* Label styling */
+.editable-field-label {
+  width: 110px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* Value wrapper */
+.editable-field-value-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+/* Input wrapper for edit mode */
+.editable-field-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Input and select styling */
+.editable-field-input {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 13px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  transition: box-shadow 0.15s ease;
+}
+
+.editable-field-input:focus {
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.editable-field-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Saving indicator */
+.editable-field-saving {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* Display mode container */
+.editable-field-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-height: 28px;
+  transition: background-color 0.15s ease;
+}
+
+.editable-field-display.hovered {
+  background: var(--bg-tertiary);
+}
+
+/* Text display */
+.editable-field-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.editable-field-text.placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* Pencil icon */
+.editable-field-pencil {
+  flex-shrink: 0;
+  margin-left: 8px;
+  color: var(--text-tertiary);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.editable-field-pencil.visible {
+  opacity: 1;
+}

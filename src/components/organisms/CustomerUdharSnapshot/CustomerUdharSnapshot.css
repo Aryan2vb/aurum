@@ -1,0 +1,221 @@
+/* CustomerUdharSnapshot - Attio-style Decision Support Panel */
+
+.customer-udhar-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  width: 100%;
+}
+
+/* Empty State */
+.customer-udhar-empty {
+  padding: var(--spacing-2xl);
+  text-align: center;
+}
+
+.customer-udhar-empty-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Indicators Section */
+.customer-udhar-indicators {
+  display: flex;
+  gap: var(--spacing-md);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.customer-udhar-indicator-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  flex: 1;
+}
+
+.customer-udhar-indicator-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Primary Metric Card */
+.customer-udhar-metric-card {
+  padding: var(--spacing-lg);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.customer-udhar-metric-header {
+  margin-bottom: var(--spacing-sm);
+}
+
+.customer-udhar-metric-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.customer-udhar-metric-value {
+  margin-bottom: var(--spacing-xs);
+}
+
+.customer-udhar-metric-subtext {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* Stats Grid */
+.customer-udhar-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.customer-udhar-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.customer-udhar-stat-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.customer-udhar-stat-value {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+/* Historical Summary */
+.customer-udhar-historical {
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.customer-udhar-historical-header {
+  margin-bottom: var(--spacing-sm);
+}
+
+.customer-udhar-historical-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.customer-udhar-historical-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.customer-udhar-historical-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.customer-udhar-historical-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.customer-udhar-historical-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+/* Decision Context */
+.customer-udhar-context {
+  margin-top: var(--spacing-xs);
+}
+
+.customer-udhar-context-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.customer-udhar-context-note.customer-udhar-context-positive {
+  background-color: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.customer-udhar-context-icon {
+  font-size: var(--font-size-base);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.customer-udhar-context-text {
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.customer-udhar-context-positive .customer-udhar-context-text {
+  color: var(--text-primary);
+}
+
+/* Dark Theme */
+[data-theme='dark'] .customer-udhar-metric-card {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .customer-udhar-stats-grid {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .customer-udhar-historical {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .customer-udhar-context-note {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .customer-udhar-context-note.customer-udhar-context-positive {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .customer-udhar-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-udhar-indicators {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+}

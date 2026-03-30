@@ -1,0 +1,127 @@
+/* ── AuthTemplate — Mobile-First Layout ─────────────────────────────────── */
+
+.auth-layout {
+  min-height: 100dvh; /* dvh = device-visible height, respects browser chrome */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  transition: background-color 0.3s ease;
+}
+
+/* ── Brand header strip (mobile) ────────────────────────────────────────── */
+.auth-layout__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px 0;
+}
+
+.auth-brand-logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #d4af37, #a07d20);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-brand-logo svg {
+  width: 20px;
+  height: 20px;
+  fill: #0f0f0f;
+}
+
+.auth-brand-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.auth-brand-name span {
+  color: #d4af37;
+}
+
+/* ── Hero visual strip (mobile only, sits below brand) ───────────────────── */
+.auth-layout__hero {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  margin-top: 16px;
+  flex-shrink: 0;
+}
+
+.auth-layout__hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 15, 15, 0) 0%,
+    var(--bg-primary) 100%
+  );
+  pointer-events: none;
+}
+
+.auth-layout__hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ── Scrollable form panel ───────────────────────────────────────────────── */
+.auth-layout__panel {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4px 20px 40px;
+  /* Ensure it scrolls if content overflows on short screens */
+  overflow-y: auto;
+}
+
+.auth-panel {
+  width: 100%;
+  max-width: 440px;
+}
+
+/* ── Tablet / Desktop: side-by-side layout ───────────────────────────────── */
+@media (min-width: 900px) {
+  .auth-layout {
+    flex-direction: row;
+  }
+
+  .auth-layout__brand {
+    display: none; /* brand shown inside the form on desktop */
+  }
+
+  .auth-layout__hero {
+    flex: 1 1 50%;
+    height: 100dvh;
+    margin-top: 0;
+    position: sticky;
+    top: 0;
+  }
+
+  .auth-layout__hero::after {
+    background: linear-gradient(
+      to right,
+      rgba(15, 15, 15, 0) 0%,
+      var(--bg-primary) 100%
+    );
+  }
+
+  .auth-layout__hero img {
+    border-radius: 0 32px 32px 0;
+  }
+
+  .auth-layout__panel {
+    flex: 1 1 50%;
+    align-items: center;
+    padding: clamp(40px, 6vw, 80px) clamp(32px, 5vw, 64px);
+    overflow-y: auto;
+  }
+}

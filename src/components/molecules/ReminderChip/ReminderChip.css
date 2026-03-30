@@ -1,0 +1,152 @@
+.reminder-chip {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  transition: all var(--transition-base);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.reminder-chip:hover {
+  border-color: var(--color-primary-300);
+  box-shadow: var(--shadow-md);
+}
+
+.reminder-chip.updating {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.reminder-chip-overdue {
+  border-left: 3px solid var(--color-status-overdue);
+}
+
+/* Header */
+.reminder-chip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reminder-chip-customer {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.reminder-chip-name {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-neutral-900);
+}
+
+/* Reminder Summary Section */
+.reminder-chip-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.reminder-chip-expected {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: 0 var(--spacing-md);
+}
+
+.reminder-chip-expected-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-neutral-500);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reminder-chip-expected-value {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-700);
+}
+
+/* Due status */
+.reminder-chip-due {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-600);
+}
+
+.reminder-chip-overdue-text {
+  color: var(--color-status-overdue);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Actions */
+.reminder-chip-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.reminder-chip-whatsapp {
+  color: #25D366 !important;
+  border-color: #25D366 !important;
+}
+
+.reminder-chip-whatsapp:hover {
+  background: rgba(37, 211, 102, 0.1) !important;
+}
+
+.whatsapp-icon {
+  font-size: var(--font-size-sm);
+  margin-right: var(--spacing-xs);
+}
+
+/* Dark theme */
+[data-theme='dark'] .reminder-chip {
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .reminder-chip:hover {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .reminder-chip-name {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .reminder-chip-summary {
+  border-color: var(--border-color);
+}
+
+[data-theme='dark'] .reminder-chip-expected-value {
+  color: var(--text-secondary);
+}
+
+[data-theme='dark'] .reminder-chip-due {
+  color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .reminder-chip-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .reminder-chip-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .reminder-chip-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

@@ -1,0 +1,15 @@
+.select-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.select-form-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.select-form-label .required {
+  color: #ef4444;
+}

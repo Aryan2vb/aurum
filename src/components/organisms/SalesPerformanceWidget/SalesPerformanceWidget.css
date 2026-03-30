@@ -1,0 +1,89 @@
+.sales-performance-widget {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 4px var(--shadow);
+  margin-bottom: 24px;
+  transition: background-color 0.3s ease;
+  color: var(--text-primary);
+}
+
+.widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.widget-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.widget-action-btn:hover {
+  background-color: #f5f5f5;
+}
+
+.performance-content {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.circular-progress {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring {
+  transform: rotate(-90deg);
+}
+
+.progress-text {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.performance-message {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.improve-button {
+  align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .performance-content {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .performance-message {
+    text-align: center;
+  }
+
+  .improve-button {
+    align-self: center;
+  }
+}
+
