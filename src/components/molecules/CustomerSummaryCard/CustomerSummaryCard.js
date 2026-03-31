@@ -20,12 +20,10 @@ const CustomerSummaryCard = ({
   ...props
 }) => {
   const {
-    id,
     name,
     code,
     avatar,
     phone,
-    preferredContactMethod,
   } = customer;
 
   const {
