@@ -388,7 +388,7 @@ const CustomersPage = () => {
   const displayData = useMockData ? mockCustomers : customers;
 
   return (
-    <DashboardTemplate headerTitle="Customers" headerTabs={[]}>
+    <DashboardTemplate>
       <div className="customers-page-wrapper">
         {toast && (
           <Toast

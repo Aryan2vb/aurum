@@ -226,7 +226,7 @@ const ImportExportMenu = ({
   const trigger = ({ isOpen }) => (
     <button className={`import-export-btn ${isOpen ? 'open' : ''}`}>
       <DownloadIcon />
-      <span>Import / Export</span>
+      <span>Import/Export</span>
       <ChevronIcon />
     </button>
   );

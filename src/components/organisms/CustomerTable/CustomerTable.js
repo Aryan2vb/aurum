@@ -16,7 +16,6 @@ import BooleanFilter from '../../molecules/BooleanFilter/BooleanFilter';
 import RangeFilter from '../../molecules/RangeFilter/RangeFilter';
 import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
 import TextFilter from '../../molecules/TextFilter/TextFilter';
-import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
 // Using the new Inspector Panel for both view and create modes
@@ -147,7 +146,6 @@ const CustomerTable = ({
   const [columnVisibility, setColumnVisibility] = useState({});
   const [rowSelection, setRowSelection] = useState({});
   const [columnOrder, setColumnOrder] = useState(defaultColumnOrder);
-  const [currentView, setCurrentView] = useState('all');
   const [isCreateSlideOverOpen, setIsCreateSlideOverOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
   
@@ -339,30 +337,7 @@ const CustomerTable = ({
   return (
     <div className="attio-table-container">
       {/* Header - always visible */}
-      <div className="attio-header">
-        <div className="attio-header-left">
-          <ViewSelector 
-            currentView={currentView}
-            views={[{ id: 'all', label: 'All Customers' }]}
-            onViewChange={setCurrentView}
-          />
-        </div>
-        <div className="attio-header-right">
-          <ImportExportMenu 
-            data={table.getSelectedRowModel().rows.map(row => row.original)}
-            selectedCount={Object.keys(rowSelection).length}
-            filename="customers"
-            onImport={onCSVUpload}
-          />
-          <button 
-            className="attio-primary-btn"
-            onClick={() => setIsCreateSlideOverOpen(true)}
-          >
-            <Icon name="add" size={14} />
-            <span>New Customer</span>
-          </button>
-        </div>
-      </div>
+
 
       {/* Clean SaaS-style Toolbar */}
       <div className="saas-toolbar">
@@ -452,9 +427,24 @@ const CustomerTable = ({
           )}
         </div>
 
-        {/* Right: Count */}
+        {/* Right: Actions & Count */}
         <div className="saas-toolbar-meta">
           <span className="saas-count">{aggregations.count} customers</span>
+          <div className="saas-toolbar-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <ImportExportMenu 
+              data={table.getSelectedRowModel().rows.map(row => row.original)}
+              selectedCount={Object.keys(rowSelection).length}
+              filename="customers"
+              onImport={onCSVUpload}
+            />
+            <button 
+              className="attio-primary-btn new-customer-btn"
+              onClick={() => setIsCreateSlideOverOpen(true)}
+            >
+              <Icon name="add" size={14} />
+              <span>New Customer</span>
+            </button>
+          </div>
         </div>
       </div>
 

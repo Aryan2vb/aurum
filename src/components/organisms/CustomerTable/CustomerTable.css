@@ -1197,159 +1197,12 @@
 /* ============================================
    Mobile Responsiveness Overrides
    ============================================ */
-@media (max-width: 768px) {
-  /* ---- Header Bar ---- */
-  .attio-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 12px;
-    gap: 8px;
-    border-bottom: 1px solid var(--ct-border-light);
-    height: auto;
-  }
+/* ============================================
+   Responsive Design - Tablet & Mobile
+   ============================================ */
 
-  .attio-header-left {
-    display: flex;
-    flex: 1;
-    min-width: 0;
-  }
-
-  /* Right side: keep Import/Export visible, turn New Customer into FAB */
-  .attio-header-right {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  /* Import/Export: show icon-only on mobile */
-  .attio-header-right .import-export-menu .import-export-btn span {
-    display: none;
-  }
-
-  .attio-header-right .import-export-menu .import-export-btn svg:last-child {
-    display: none; /* Hide chevron on mobile */
-  }
-
-  .attio-header-right .import-export-menu .import-export-btn {
-    padding: 8px;
-    min-width: 36px;
-    justify-content: center;
-  }
-
-  /* Convert 'New Customer' button into FAB */
-  .attio-header-right .attio-primary-btn {
-    position: fixed;
-    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
-    right: 16px;
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    z-index: 900;
-  }
-
-  .attio-header-right .attio-primary-btn span {
-    display: none;
-  }
-
-  .attio-header-right .attio-primary-btn svg {
-    width: 24px;
-    height: 24px;
-    margin: 0;
-  }
-
-  /* ---- Toolbar (Search + Filters) ---- */
-  .saas-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 6px 12px;
-    position: relative;
-    z-index: 50;
-    border-bottom: 1px solid var(--ct-border-light);
-  }
-
-  /* Full-width search, but not too tall */
-  .saas-toolbar-search {
-    max-width: 100%;
-    width: 100%;
-    height: 40px;
-    border-radius: 8px;
-  }
-
-  .saas-search-input {
-    font-size: 16px; /* Prevent iOS zoom on focus */
-  }
-
-  /* Filters: SINGLE ROW, horizontal scroll */
-  .saas-toolbar-filters {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 6px;
-    padding-bottom: 2px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .saas-toolbar-filters::-webkit-scrollbar {
-    display: none;
-  }
-
-  /* Compact filter buttons */
-  .saas-toolbar-filters .filter-button {
-    padding: 5px 10px;
-    font-size: 11px;
-    border-radius: 6px;
-    white-space: nowrap;
-    flex-shrink: 0;
-    -webkit-tap-highlight-color: transparent;
-    height: auto;
-  }
-
-  /* Filter icon: smaller */
-  .saas-toolbar-filters .filter-button .filter-button-icon svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  /* Filter dropdowns: pop up in center of screen to avoid clipping */
-  .saas-toolbar-filters .dropdown-menu {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    bottom: auto !important;
-    transform: translate(-50%, -50%) !important;
-    width: calc(100vw - 48px) !important;
-    max-width: 340px;
-    border-radius: 12px;
-    max-height: 70vh;
-    overflow-y: auto;
-    z-index: 9999 !important;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 100vw rgba(0,0,0,0.3) !important; /* The 100vw spread creates a fake backdrop */
-  }
-
-  /* Clear filters button: also compact */
-  .saas-clear-filters {
-    padding: 4px 8px;
-    font-size: 11px;
-    flex-shrink: 0;
-  }
-
-  /* Hide customer count */
-  .saas-toolbar-meta {
-    display: none;
-  }
-
-  /* ---- Table ---- */
+/* ---- Shared Tablet & Mobile (<= 1024px) ---- */
+@media (max-width: 1024px) {
   .attio-table-wrapper {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -1358,32 +1211,6 @@
   /* Reduced min-width so more columns fit */
   .attio-table {
     min-width: 600px;
-  }
-
-  /* Keep checkbox but make it smaller */
-  .attio-th-checkbox,
-  .attio-td-checkbox {
-    width: 32px;
-    padding: 8px 6px;
-    position: static; /* UN-STICK on mobile */
-    box-shadow: none;
-  }
-
-  /* Remove shadow gradient pseudo-elements on mobile */
-  .attio-th-checkbox::after,
-  .attio-td-checkbox::after,
-  .attio-th-pinned::after,
-  .attio-td-pinned::after,
-  .attio-tf-pinned::after {
-    display: none;
-  }
-
-  /* UN-PIN the name column on mobile so it scrolls with the table */
-  .attio-th-pinned,
-  .attio-td-pinned,
-  .attio-tf-pinned {
-    position: static; /* Remove sticky */
-    box-shadow: none;
   }
 
   /* Shrink column padding */
@@ -1397,7 +1224,7 @@
     font-size: 12px;
   }
 
-  /* Smaller name avatar on mobile */
+  /* Smaller name avatar */
   .name-avatar {
     width: 22px;
     height: 22px;
@@ -1408,8 +1235,139 @@
     gap: 6px;
   }
 
-  /* Ensure rows are clickable */
-  .attio-table tbody tr {
-    cursor: pointer;
+  /* Remove shadow gradient pseudo-elements */
+  .attio-th-checkbox::after,
+  .attio-td-checkbox::after,
+  .attio-th-pinned::after,
+  .attio-td-pinned::after,
+  .attio-tf-pinned::after {
+    display: none;
   }
+
+  /* UN-STICK pinned columns if screen is too narrow */
+  @media (max-width: 800px) {
+    .attio-th-checkbox,
+    .attio-td-checkbox,
+    .attio-th-pinned,
+    .attio-td-pinned,
+    .attio-tf-pinned {
+      position: static !important;
+      box-shadow: none !important;
+      width: auto !important;
+    }
+  }
+}
+
+/* ---- Tablet Specific (641px - 1024px) ---- */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .saas-toolbar {
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
+  .saas-toolbar-search {
+    flex: 1;
+    min-width: 200px;
+    order: 1;
+  }
+
+  /* Filters on 2nd row */
+  .saas-toolbar-filters {
+    width: 100%;
+    order: 3;
+    padding-top: 4px;
+    border-top: 1px solid var(--ct-border-light);
+  }
+
+  .saas-toolbar-meta {
+    width: auto;
+    order: 2;
+    margin-left: auto;
+  }
+
+  .saas-toolbar-meta .saas-count {
+    display: none;
+  }
+}
+
+/* ---- Phone Specific (<= 640px) ---- */
+@media (max-width: 640px) {
+  .saas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .saas-toolbar-search {
+    flex: 1;
+    order: 1;
+    height: 40px;
+  }
+
+  .saas-search-input {
+    font-size: 16px;
+  }
+
+  /* Actions on 1st row besides search */
+  .saas-toolbar-meta {
+    width: auto;
+    order: 2;
+    margin-left: 0;
+  }
+
+  .saas-count { display: none; }
+
+  /* Import/Export: Stylized icon button */
+  .saas-toolbar-actions .import-export-menu .import-export-btn span,
+  .saas-toolbar-actions .import-export-menu .import-export-btn svg:last-child {
+    display: none;
+  }
+
+  .saas-toolbar-actions .import-export-menu .import-export-btn {
+    padding: 8px;
+    min-width: 40px;
+    height: 40px;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+
+  /* Filters on 2nd row */
+  .saas-toolbar-filters {
+    width: 100%;
+    order: 3;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 0 2px;
+    border-top: 1px solid var(--ct-border-light);
+    scrollbar-width: none;
+  }
+
+  .saas-toolbar-filters::-webkit-scrollbar { display: none; }
+
+  /* New Customer FAB */
+  .saas-toolbar-actions .attio-primary-btn {
+    position: fixed;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    z-index: 1000;
+  }
+
+  .saas-toolbar-actions .attio-primary-btn span { display: none; }
+  .saas-toolbar-actions .attio-primary-btn svg { width: 24px; height: 24px; }
 }
