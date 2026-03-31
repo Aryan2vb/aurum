@@ -1,7 +1,6 @@
 name: aurum · deploy
 
 on:
-  # Runs after CI passes on main — prevents broken code reaching production
   workflow_run:
     workflows: ["aurum · CI"]
     branches: [main]
@@ -11,14 +10,16 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     name: Deploy → EC2 (dynamic IP)
     runs-on: ubuntu-latest
-    # Only deploy if CI workflow succeeded
+
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
-    # ── OIDC permissions (no stored AWS keys needed) ──────
     permissions:
       id-token: write
       contents: read
@@ -27,20 +28,18 @@ jobs:
       name: production
 
     steps:
-      - uses: actions/checkout@v4
+      # ── 0. Checkout ─────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # ── 1. Authenticate to AWS via OIDC ─────────────────
-      # Zero stored credentials. GitHub exchanges a short-lived
-      # OIDC token for temporary AWS credentials at runtime.
+      # ── 1. AWS OIDC Auth ────────────────────────────────
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # ── 2. Fetch current public IP dynamically ───────────
-      # EC2_INSTANCE_ID never changes on stop/start — only the
-      # public IP does. We query it fresh on every deploy run.
+      # ── 2. Fetch EC2 Public IP ──────────────────────────
       - name: Fetch EC2 public IP
         id: ec2
         run: |
@@ -57,14 +56,15 @@ jobs:
           echo "ip=$IP" >> "$GITHUB_OUTPUT"
           echo "Resolved IP: $IP"
 
-      # ── 3. Wait for SSH to be ready ──────────────────────
-      # If this deploy runs right after an EventBridge start,
-      # the instance may still be booting. Retry for 2 minutes.
-      - name: Wait for SSH readiness
+      # ── 3. Prepare SSH Key ──────────────────────────────
+      - name: Prepare SSH key
         run: |
           echo "${{ secrets.EC2_SSH_KEY }}" > /tmp/deploy_key
           chmod 600 /tmp/deploy_key
 
+      # ── 4. Wait for SSH readiness ───────────────────────
+      - name: Wait for SSH
+        run: |
           for i in $(seq 1 12); do
             if ssh -o StrictHostKeyChecking=no \
                    -o ConnectTimeout=10 \
@@ -77,17 +77,16 @@ jobs:
             echo "Attempt $i/12 — retrying in 10s..."
             sleep 10
           done
-          echo "ERROR: SSH did not become ready in time."
+          echo "ERROR: SSH not ready"
           exit 1
 
-      # ── 4. Deploy ────────────────────────────────────────
+      # ── 5. Deploy (Direct SSH, no external action) ──────
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ steps.ec2.outputs.ip }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+              -i /tmp/deploy_key \
+              ${{ secrets.EC2_USER }}@${{ steps.ec2.outputs.ip }} << 'EOF'
+
             set -e
             cd /opt/aurum
 
@@ -106,12 +105,14 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T backend \
               npx prisma migrate deploy
 
-            echo "── Pruning images ──"
+            echo "── Cleaning up images ──"
             docker image prune -f
 
-            echo "── Done ✓ ──"
+            echo "── Deploy complete ✓ ──"
 
-      # ── 5. Cleanup ───────────────────────────────────────
-      - name: Remove temp SSH key
+          EOF
+
+      # ── 6. Cleanup ──────────────────────────────────────
+      - name: Cleanup SSH key
         if: always()
         run: rm -f /tmp/deploy_key
