@@ -1,0 +1,54 @@
+# /etc/systemd/system/aurum.service
+#
+# Install:
+#   sudo cp aurum.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable aurum.service
+#   sudo systemctl start aurum.service
+#
+# Debug:
+#   sudo systemctl status aurum.service
+#   sudo journalctl -u aurum.service -f
+
+[Unit]
+Description=Aurum — Docker Compose production stack
+Documentation=https://github.com/YOUR_ORG/aurum
+
+# Docker must be running before we start
+Requires=docker.service
+After=docker.service network-online.target
+
+# Retry if Docker wasn't ready yet
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+WorkingDirectory=/opt/aurum
+
+# Load your .env so Docker Compose picks up DATABASE_URL, JWT_SECRET, etc.
+EnvironmentFile=/opt/aurum/.env
+
+# ── Start ──────────────────────────────────────────────────
+ExecStartPre=/usr/bin/docker compose -f docker-compose.prod.yml pull --quiet
+ExecStart=/usr/bin/docker compose    -f docker-compose.prod.yml up -d --remove-orphans
+
+# ── Stop ───────────────────────────────────────────────────
+ExecStop=/usr/bin/docker compose     -f docker-compose.prod.yml down
+
+# ── Reload (systemctl reload aurum) ────────────────────────
+ExecReload=/usr/bin/docker compose   -f docker-compose.prod.yml restart
+
+# ── Resilience ─────────────────────────────────────────────
+# Give containers up to 2 minutes to start on first boot
+TimeoutStartSec=120
+TimeoutStopSec=30
+
+# Restart the unit if start fails (e.g. Docker pull timed out)
+Restart=on-failure
+RestartSec=15s
+
+[Install]
+# Start automatically on every normal boot
+WantedBy=multi-user.target
