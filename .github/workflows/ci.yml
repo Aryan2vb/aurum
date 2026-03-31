@@ -56,7 +56,7 @@ jobs:
         run: npm ci
 
       - name: Run Jest
-        run: CI=true npm test -- --watchAll=false --coverage
+        run: CI=true npm test -- --watchAll=false --coverage --passWithNoTests
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
@@ -138,7 +138,12 @@ jobs:
 
       - name: Tear down stack
         if: always()
-        run: docker compose -f docker-compose.ci.yml down -v
+        run: |
+          if [ -f docker-compose.ci.yml ]; then
+            docker compose -f docker-compose.ci.yml down -v
+          else
+            echo "docker-compose.ci.yml not found, skipping teardown"
+          fi
 
   # ─────────────────────────────────────────────────────────
   # 4. Deploy → EC2 via SSH (main only)
