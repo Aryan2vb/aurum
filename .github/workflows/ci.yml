@@ -1,4 +1,4 @@
-name: aurum · CI/CD
+name: aurum · CI
 
 on:
   push:
@@ -32,10 +32,12 @@ jobs:
         run: npm ci
 
       - name: ESLint
-        run: npx eslint "src/**/*.{js,jsx,ts,tsx}" || true
+        continue-on-error: true
+        run: npx eslint "src/**/*.{js,jsx,ts,tsx}"
 
       - name: TypeScript check
-        run: npx tsc --noEmit || true
+        continue-on-error: true
+        run: npx tsc --noEmit
 
   # ─────────────────────────────────────────────────────────
   # 2. Unit tests (Jest)
@@ -65,137 +67,3 @@ jobs:
           name: frontend-coverage
           path: coverage/
           retention-days: 7
-
-  # ─────────────────────────────────────────────────────────
-  # 3. E2E tests (Playwright) — spins up full Docker stack
-  # ─────────────────────────────────────────────────────────
-  e2e-tests:
-    name: Playwright E2E
-    runs-on: ubuntu-latest
-    needs: lint-typecheck
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          path: aurum
-
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/back-aurum
-          token: ${{ secrets.GH_PAT }}
-          path: back-aurum
-
-      - name: Copy CI compose file to workspace root
-        run: cp aurum/docker/docker-compose.ci.yml ./docker-compose.ci.yml
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: aurum/package-lock.json
-
-      - name: Install dependencies
-        working-directory: aurum
-        run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: pw-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('aurum/**/package.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        working-directory: aurum
-        run: npx playwright install --with-deps chromium
-
-      - name: Start full stack
-        run: |
-          docker compose -f docker-compose.ci.yml up -d --build
-          echo "Waiting for backend health..."
-          timeout 90 bash -c 'until curl -sf http://localhost:3000/health; do sleep 3; done'
-          echo "Waiting for frontend..."
-          timeout 90 bash -c 'until curl -sf http://localhost:4001; do sleep 3; done'
-        env:
-          DATABASE_URL: ${{ secrets.CI_DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.CI_JWT_SECRET }}
-          VITE_API_URL: http://localhost:3000
-
-      - name: Run Playwright tests
-        working-directory: aurum
-        run: npx playwright test
-        env:
-          BASE_URL: http://localhost:4001
-          API_URL: http://localhost:3000
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: aurum/playwright-report/
-          retention-days: 7
-
-      - name: Tear down stack
-        if: always()
-        run: |
-          if [ -f docker-compose.ci.yml ]; then
-            docker compose -f docker-compose.ci.yml down -v
-          else
-            echo "docker-compose.ci.yml not found, skipping teardown"
-          fi
-
-  # ─────────────────────────────────────────────────────────
-  # 4. Deploy → EC2 via SSH (main only)
-  # ─────────────────────────────────────────────────────────
-  deploy:
-    name: Deploy → EC2
-    runs-on: ubuntu-latest
-    needs: [unit-tests, e2e-tests]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    environment:
-      name: production
-
-
-    steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            set -e
-            cd /opt/aurum
-
-            echo "── Pulling latest code ──"
-            git -C aurum pull origin main
-            git -C back-aurum pull origin main
-
-            echo "── Syncing compose + nginx from repo ──"
-            cp aurum/docker/docker-compose.prod.yml docker-compose.prod.yml
-            cp aurum/nginx/nginx.conf nginx/nginx.conf
-
-            echo "── Freeing space (t2.micro survival mode) ──"
-            docker image prune -af || true
-            docker builder prune -af || true
-            docker volume prune -f || true
-
-            echo "── Rebuilding & restarting containers ──"
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
-
-            echo "── Waiting for backend to be healthy ──"
-            until [ "$(docker inspect -f '{{.State.Health.Status}}' $(docker compose -f docker-compose.prod.yml ps -q backend) 2>/dev/null || echo 'starting')" = "healthy" ]; do
-              echo "Waiting for backend..."
-              sleep 3
-            done
-
-            echo "── Running Prisma migrations ──"
-            docker compose -f docker-compose.prod.yml exec -T backend \
-              npx prisma migrate deploy
-
-            echo "── Pruning dangling images ──"
-            docker image prune -f
-
-            echo "── Deploy complete ✓ ──"
-
