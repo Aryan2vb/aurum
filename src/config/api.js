@@ -1,6 +1,6 @@
 const DEFAULT_BASE_URL = process.env.REACT_APP_API_BASE_URL || '/api';
 
-// const DEFAULT_BASE_URL = 'http://10.7.16.238:3000';
+// const DEFAULT_BASE_URL = 'http://65.0.7.192';
 // Remove trailing slashes so paths can be concatenated safely.
 export const API_BASE_URL = DEFAULT_BASE_URL.replace(/\/+$/, '');
 
