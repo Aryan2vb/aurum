@@ -4,6 +4,8 @@
 # access keys. More secure than AWS_ACCESS_KEY_ID secrets.
 # ─────────────────────────────────────────────────────────────
 
+export AWS_PAGER=""
+
 # ── Step 1: Create the OIDC Identity Provider (once per account) ──
 aws iam create-open-id-connect-provider \
   --url https://token.actions.githubusercontent.com \
@@ -20,7 +22,7 @@ cat > /tmp/trust-policy.json << 'EOF'
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::YOUR_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::533924338505:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -28,7 +30,12 @@ cat > /tmp/trust-policy.json << 'EOF'
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:YOUR_GITHUB_ORG/aurum:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:Aryan2vb/aurum:ref:refs/heads/main",
+            "repo:Aryan2vb/aurum:environment:production",
+            "repo:Aryan2vb/back-aurum:ref:refs/heads/main",
+            "repo:Aryan2vb/back-aurum:environment:production"
+          ]
         }
       }
     }
