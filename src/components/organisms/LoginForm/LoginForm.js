@@ -68,7 +68,7 @@ const LoginForm = () => {
           Welcome back
         </Text>
         <Text variant="body" className="auth-form__subtitle">
-          Sign in to your Aurum account
+          Sign in to continue to Aurum
         </Text>
         <div className="auth-tabs">
           <Link to="/signup" className="auth-tabs__btn">Sign up</Link>
@@ -155,7 +155,7 @@ const LoginForm = () => {
         className="auth-form__submit auth-form__submit--primary"
         disabled={loading}
       >
-        {loading ? 'Signing in…' : 'Log in securely'}
+        {loading ? 'Signing in…' : 'Sign in'}
         {!loading && <Icon name="arrowRight" size={17} color="#0F0F0F" />}
       </Button>
 
