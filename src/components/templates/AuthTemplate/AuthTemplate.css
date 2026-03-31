@@ -125,3 +125,43 @@
     overflow-y: auto;
   }
 }
+
+/* ── Minimal Layout overrides ── */
+.auth-layout--minimal {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--bg-primary);
+}
+
+.auth-layout__panel--minimal {
+  width: 100%;
+  max-width: 440px;
+  flex: none;
+  background: var(--bg-surface);
+  border-radius: 20px;
+  padding: 40px;
+  margin: auto;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 10px 40px -10px rgba(0,0,0,0.2);
+}
+
+@media (max-width: 500px) {
+  .auth-layout__panel--minimal {
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    border: none;
+    padding: 24px;
+  }
+}
+
+/* ── Minimal Panel Extra ── */
+.auth-panel__logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
