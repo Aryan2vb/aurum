@@ -68,7 +68,7 @@ const LoginForm = () => {
           Welcome back
         </Text>
         <Text variant="body" className="auth-form__subtitle">
-          Sign in to continue to Aurum
+          Sign in to continue
         </Text>
         <div className="auth-tabs">
           <Link to="/signup" className="auth-tabs__btn">Sign up</Link>

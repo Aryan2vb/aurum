@@ -3,7 +3,7 @@ import AuthTemplate from '../../components/templates/AuthTemplate/AuthTemplate';
 import LoginForm from '../../components/organisms/LoginForm/LoginForm';
 
 const LoginPage = () => (
-  <AuthTemplate>
+  <AuthTemplate minimal={true}>
     <LoginForm />
   </AuthTemplate>
 );

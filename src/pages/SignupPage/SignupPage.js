@@ -3,7 +3,7 @@ import AuthTemplate from '../../components/templates/AuthTemplate/AuthTemplate';
 import SignupForm from '../../components/organisms/SignupForm/SignupForm';
 
 const SignupPage = () => (
-  <AuthTemplate>
+  <AuthTemplate minimal={true}>
     <SignupForm />
   </AuthTemplate>
 );
