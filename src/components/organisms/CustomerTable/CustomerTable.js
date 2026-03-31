@@ -19,8 +19,8 @@ import TextFilter from '../../molecules/TextFilter/TextFilter';
 import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
-// Using the new Inspector Panel for both view and create modes
 import CustomerInspectorPanel from '../CustomerInspectorPanel/CustomerInspectorPanel';
+import { usePermission } from '../../../hooks/usePermission';
 
 // Table-specific
 import { customerColumns, defaultColumnOrder, calculateAge, hasPhone, columnTypes } from './columns';
@@ -143,6 +143,7 @@ const CustomerTable = ({
   useClientSideFiltering = false,
 }) => {
   const navigate = useNavigate();
+  const { can } = usePermission();
   const [sorting, setSorting] = useState([{ id: 'fullName', desc: false }]);
   const [columnVisibility, setColumnVisibility] = useState({});
   const [rowSelection, setRowSelection] = useState({});
@@ -348,19 +349,23 @@ const CustomerTable = ({
           />
         </div>
         <div className="attio-header-right">
-          <ImportExportMenu 
-            data={table.getSelectedRowModel().rows.map(row => row.original)}
-            selectedCount={Object.keys(rowSelection).length}
-            filename="customers"
-            onImport={onCSVUpload}
-          />
-          <button 
-            className="attio-primary-btn"
-            onClick={() => setIsCreateSlideOverOpen(true)}
-          >
-            <Icon name="add" size={14} />
-            <span>New Customer</span>
-          </button>
+          {can('write') && (
+            <>
+              <ImportExportMenu 
+                data={table.getSelectedRowModel().rows.map(row => row.original)}
+                selectedCount={Object.keys(rowSelection).length}
+                filename="customers"
+                onImport={onCSVUpload}
+              />
+              <button 
+                className="attio-primary-btn"
+                onClick={() => setIsCreateSlideOverOpen(true)}
+              >
+                <Icon name="add" size={14} />
+                <span>New Customer</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

@@ -5,6 +5,7 @@ import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import LoginPage from './pages/LoginPage/LoginPage';
 import SignupPage from './pages/SignupPage/SignupPage';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
+
 import CustomersPage from './pages/CustomersPage/CustomersPage';
 import CustomerProfilePage from './pages/CustomerProfilePage/CustomerProfilePage';
 import CreditsListPage from './pages/CreditsListPage/CreditsListPage';
@@ -43,6 +44,7 @@ function App() {
                 </PublicRoute>
               }
             />
+
             <Route
               path="/dashboard"
               element={
