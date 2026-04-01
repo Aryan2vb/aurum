@@ -2,9 +2,8 @@
 .customers-page-wrapper {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 80px);
+  height: 100%;
   margin: -24px;
-  margin-top: 0; /* Prevent overlapping with DashboardHeader */
   overflow: hidden;
   border-radius: 0;
 }
@@ -21,7 +20,7 @@
 @media (max-width: 768px) {
   .customers-page-wrapper {
     height: auto; /* Let content determine height, avoid fixed viewport calcs */
-    min-height: calc(100vh - 100px);
+    min-height: calc(100vh - 64px - env(safe-area-inset-bottom, 0px));
     margin: -12px -16px;
     margin-top: 0;
     overflow: visible; /* Allow filter dropdowns to render outside */

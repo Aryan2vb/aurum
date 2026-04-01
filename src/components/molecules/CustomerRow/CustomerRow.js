@@ -1,6 +1,5 @@
 import React from 'react';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
-import AvatarCell from '../../atoms/AvatarCell/AvatarCell';
 import NameCell from '../../atoms/NameCell/NameCell';
 import EmailCell from '../../atoms/EmailCell/EmailCell';
 import './CustomerRow.css';
