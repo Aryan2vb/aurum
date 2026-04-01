@@ -52,6 +52,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
     { iconName: 'customer', label: 'Customers', path: '/customers', color: '#3b82f6' },
     { iconName: 'udhar', label: 'Udhar', path: '/credits', color: '#f59e0b' },
     { iconName: 'reminder', label: 'Reminders', path: '/reminders', color: '#10b981' },
+    { iconName: 'invoice', label: 'Invoices', path: '/invoices', color: '#14b8a6' },
   ];
 
   // Collapsed sidebar (on desktop only)

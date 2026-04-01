@@ -18,6 +18,8 @@ import RemindersPage from './pages/RemindersPage/RemindersPage';
 import SettingsPage from './pages/SettingsPage/SettingsPage';
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import PublicRoute from './components/PublicRoute/PublicRoute';
+import InvoicesPage from './pages/InvoicesPage/InvoicesPage';
+import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import './App.css';
 
 function App() {
@@ -133,6 +135,24 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* INVOICE ROUTES */}
+            <Route
+              path="/invoices"
+              element={
+                <ProtectedRoute>
+                  <InvoicesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/invoices/new"
+              element={
+                <ProtectedRoute>
+                  <CreateInvoicePage />
+                </ProtectedRoute>
+              }
+            />
+            
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

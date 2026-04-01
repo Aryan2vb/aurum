@@ -113,6 +113,7 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     contact: FiMessageCircle,
     location: FiMapPin,
     sidebar: FiSidebar,
+    invoice: FiFileText,
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;
