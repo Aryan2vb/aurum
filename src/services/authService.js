@@ -8,6 +8,8 @@ export const clearSession = () => {
   localStorage.removeItem('authToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('userEmail');
+  localStorage.removeItem('userFullName');
+  localStorage.removeItem('userRole');
   localStorage.removeItem('organizationName');
 };
 
@@ -85,6 +87,15 @@ export const whoami = async () => {
   if (organizationName) {
     localStorage.setItem('organizationName', organizationName);
   }
+  
+  if (payload?.fullName) {
+    localStorage.setItem('userFullName', payload.fullName);
+  }
+
+  if (payload?.organization?.role) {
+    localStorage.setItem('userRole', payload.organization.role);
+  }
 
   return payload;
 };
+
