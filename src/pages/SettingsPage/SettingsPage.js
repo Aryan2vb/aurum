@@ -20,6 +20,7 @@ const SettingsPage = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('STAFF');
   const [formStatus, setFormStatus] = useState({ loading: false, error: null, success: null });
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
@@ -38,10 +39,16 @@ const SettingsPage = () => {
     catch (e) { alert(e.message || 'Failed'); }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Remove this member?')) return;
-    try { await removeOrganizationMember(id); await fetchMembers(); }
-    catch (e) { alert(e.message || 'Failed'); }
+  const currentUserEmail = localStorage.getItem('userEmail');
+
+  const handleDelete = async (m) => {
+    if (m.role === 'OWNER' && m.email === currentUserEmail) {
+      alert('Owners cannot remove themselves from the organization.');
+      return;
+    }
+    
+    try { await removeOrganizationMember(m.id); await fetchMembers(); }
+    catch (e) { alert(e.message || 'Failed to remove member'); }
   };
 
   const reset = () => {
@@ -108,7 +115,7 @@ const SettingsPage = () => {
                       <span className="m-email">{m.email}</span>
                     </div>
                     <div className="m-meta">
-                      {can('manage-roles') ? (
+                      {can('manage-roles') && !(m.role === 'OWNER' && m.email === currentUserEmail) ? (
                         <select className="m-role-select" value={m.role}
                           onChange={(e) => handleRoleChange(m.id, e.target.value)}>
                           <option value="OWNER">Owner</option>
@@ -124,10 +131,26 @@ const SettingsPage = () => {
                           month: 'short', day: 'numeric', year: 'numeric',
                         })}
                       </span>
-                      {can('delete') && (
-                        <button className="m-remove" onClick={() => handleDelete(m.id)}>
-                          Remove
-                        </button>
+                      {can('delete') && m.role !== 'OWNER' && (
+                        <div className="m-remove-action">
+                          <button 
+                            className={confirmDeleteId === m.id ? 's-btn s-btn-danger' : 'm-remove'}
+                            style={{ padding: confirmDeleteId === m.id ? '2px 8px' : '2px 6px' }}
+                            onClick={() => {
+                              if (confirmDeleteId === m.id) {
+                                handleDelete(m);
+                                setConfirmDeleteId(null);
+                              } else {
+                                setConfirmDeleteId(m.id);
+                                setTimeout(() => {
+                                  setConfirmDeleteId(current => current === m.id ? null : current);
+                                }, 3000);
+                              }
+                            }}
+                          >
+                            {confirmDeleteId === m.id ? 'Confirm Remove' : 'Remove'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
