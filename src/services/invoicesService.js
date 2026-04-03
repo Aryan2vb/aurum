@@ -120,10 +120,20 @@ export const upsertInvoiceSettings = async (settingsData) => {
 // FILE RETRIEVAL URLs
 // ============================================
 
-export const getInvoiceHtmlUrl = (invoiceId) => {
-  return buildApiUrl(`/invoices/${invoiceId}/html`);
+export const getInvoiceHtmlUrl = (invoiceId, signature) => {
+  return buildApiUrl(`/invoices/${invoiceId}/html${signature ? `?signature=${signature}` : ''}`);
 };
 
-export const getInvoicePdfUrl = (invoiceId) => {
-  return buildApiUrl(`/invoices/${invoiceId}/pdf`);
+export const getInvoicePdfUrl = (invoiceId, signature) => {
+  return buildApiUrl(`/invoices/${invoiceId}/pdf${signature ? `?signature=${signature}` : ''}`);
+};
+
+export const getInvoiceViewToken = async (invoiceId) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/sign`), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
 };

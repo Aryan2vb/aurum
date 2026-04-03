@@ -2,7 +2,7 @@
   padding: 1.5rem;
   height: calc(100vh - 80px); /* Adjust based on your header height */
   overflow-y: auto;
-  background-color: #f8fafc;
+  background-color: #F7F6F2;
 }
 
 .pageHeader {

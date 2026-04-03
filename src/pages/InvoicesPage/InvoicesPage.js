@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import Icon from '../../components/atoms/Icon/Icon';
-import { getInvoices, getInvoiceHtmlUrl } from '../../services/invoicesService';
+import { getInvoices, getInvoiceHtmlUrl, getInvoiceViewToken } from '../../services/invoicesService';
 import styles from './InvoicesPage.module.css';
 
 const InvoicesPage = () => {
@@ -33,8 +33,22 @@ const InvoicesPage = () => {
     return styles[status.toLowerCase()] || '';
   };
 
+  const handleViewInvoice = async (invoiceId) => {
+    try {
+      const response = await getInvoiceViewToken(invoiceId);
+      if (response && response.signature) {
+        const url = getInvoiceHtmlUrl(invoiceId, response.signature);
+        window.open(url, '_blank');
+      } else {
+        alert('Failed to generate secure view link');
+      }
+    } catch (error) {
+      console.error('Failed to view invoice', error);
+    }
+  };
+
   return (
-    <DashboardTemplate headerTitle="Invoices">
+    <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
       <div className={styles.container}>
         <div className={styles.pageHeader}>
           <h2>Invoices Overview</h2>
@@ -113,7 +127,7 @@ const InvoicesPage = () => {
                         <td>
                           <button 
                             className={styles.viewBtn}
-                            onClick={() => window.open(getInvoiceHtmlUrl(inv.id), '_blank')}
+                            onClick={() => handleViewInvoice(inv.id)}
                           >
                             <Icon name="eye" size={14} /> View
                           </button>
