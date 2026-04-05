@@ -7,7 +7,15 @@ import { parseResponse } from './authService';
 
 export const getInvoices = async (params = {}) => {
   const token = localStorage.getItem('authToken');
-  const queryParams = new URLSearchParams(params);
+  const queryParams = new URLSearchParams();
+  
+  // Clean up params and add to query string
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null) {
+      queryParams.append(key, params[key]);
+    }
+  });
+
   const response = await fetch(buildApiUrl(`/invoices?${queryParams.toString()}`), {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -114,6 +122,10 @@ export const upsertInvoiceSettings = async (settingsData) => {
     body: JSON.stringify(settingsData),
   });
   return parseResponse(response);
+};
+
+export const getInvoiceSettingsPreviewUrl = () => {
+  return buildApiUrl('/invoices/settings/preview');
 };
 
 // ============================================

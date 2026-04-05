@@ -27,128 +27,68 @@ const ChevronIcon = () => (
 );
 
 /**
- * Flatten nested customer object into a single-level object for export
- * This exports ALL data from the API response
- */
-const flattenCustomerData = (customer) => {
-  const flattened = {
-    // Basic info
-    id: customer.id || '',
-    customerCode: customer.customerCode || '',
-    fullName: customer.fullName || '',
-    gender: customer.gender || '',
-    dateOfBirth: customer.dateOfBirth || '',
-    status: customer.status || '',
-    createdAt: customer.createdAt || '',
-    updatedAt: customer.updatedAt || '',
-    
-    // Created by
-    createdById: customer.createdBy?.id || '',
-    createdByEmail: customer.createdBy?.email || '',
-    createdByName: customer.createdBy?.name || '',
-    
-    // Updated by
-    updatedById: customer.updatedBy?.id || '',
-    updatedByEmail: customer.updatedBy?.email || '',
-    updatedByName: customer.updatedBy?.name || '',
-  };
-
-  // Contact details (flatten first contact)
-  const contact = customer.contactDetails?.[0] || {};
-  flattened.contactDetailId = contact.id || '';
-  flattened.primaryPhone = contact.primaryPhone || '';
-  flattened.secondaryPhone = contact.secondaryPhone || '';
-  flattened.preferredContactMethod = contact.preferredContactMethod || '';
-  flattened.contactNotes = contact.notes || '';
-
-  // Locations (flatten all locations with numbered prefix)
-  const locations = customer.locations || [];
-  locations.forEach((loc, idx) => {
-    const prefix = `location${idx + 1}_`;
-    flattened[`${prefix}id`] = loc.id || '';
-    flattened[`${prefix}type`] = loc.type || '';
-    flattened[`${prefix}addressLine1`] = loc.addressLine1 || '';
-    flattened[`${prefix}addressLine2`] = loc.addressLine2 || '';
-    flattened[`${prefix}city`] = loc.city || '';
-    flattened[`${prefix}state`] = loc.state || '';
-    flattened[`${prefix}postalCode`] = loc.postalCode || '';
-    flattened[`${prefix}country`] = loc.country || '';
-    flattened[`${prefix}isPrimary`] = loc.isPrimary ? 'Yes' : 'No';
-    flattened[`${prefix}landmark`] = loc.landmark || '';
-  });
-
-  // Social contexts (flatten all with numbered prefix)
-  const socialContexts = customer.socialContexts || [];
-  socialContexts.forEach((sc, idx) => {
-    const prefix = `socialContext${idx + 1}_`;
-    flattened[`${prefix}id`] = sc.id || '';
-    flattened[`${prefix}platform`] = sc.platform || '';
-    flattened[`${prefix}handle`] = sc.handle || '';
-    flattened[`${prefix}profileUrl`] = sc.profileUrl || '';
-  });
-
-  // Documents (flatten all with numbered prefix)
-  const documents = customer.documents || [];
-  documents.forEach((doc, idx) => {
-    const prefix = `document${idx + 1}_`;
-    flattened[`${prefix}id`] = doc.id || '';
-    flattened[`${prefix}type`] = doc.type || '';
-    flattened[`${prefix}number`] = doc.number || '';
-    flattened[`${prefix}issuedAt`] = doc.issuedAt || '';
-    flattened[`${prefix}expiresAt`] = doc.expiresAt || '';
-  });
-
-  // Accounts (flatten all with numbered prefix)
-  const accounts = customer.accounts || [];
-  accounts.forEach((acc, idx) => {
-    const prefix = `account${idx + 1}_`;
-    flattened[`${prefix}id`] = acc.id || '';
-    flattened[`${prefix}type`] = acc.type || '';
-    flattened[`${prefix}accountNumber`] = acc.accountNumber || '';
-    flattened[`${prefix}bankName`] = acc.bankName || '';
-    flattened[`${prefix}ifscCode`] = acc.ifscCode || '';
-    flattened[`${prefix}isPrimary`] = acc.isPrimary ? 'Yes' : 'No';
-  });
-
-  // Meta tracking (flatten all with numbered prefix)
-  const metaTrackings = customer.metaTrackings || [];
-  metaTrackings.forEach((meta, idx) => {
-    const prefix = `metaTracking${idx + 1}_`;
-    flattened[`${prefix}id`] = meta.id || '';
-    flattened[`${prefix}key`] = meta.key || '';
-    flattened[`${prefix}value`] = meta.value || '';
-  });
-
-  return flattened;
-};
-
-/**
- * Import/Export menu component
+ * Generic Import/Export menu component
  * @param {Object} props
- * @param {Array} props.data - Data to export (selected customers)
+ * @param {Array} props.data - Data to export
  * @param {string} props.filename - Base filename for exports
- * @param {function} props.onImport - Import handler (receives file)
+ * @param {string} props.sheetName - Name of the worksheet in Excel
+ * @param {function} props.onImport - Import handler (receives file). If null, import is hidden.
+ * @param {function} props.flattenRow - Function to flatten a single row. Can return an object or array of objects.
+ * @param {function} props.onExportTrigger - Optional async function to fetch data for export.
+ * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
+ * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
  */
 const ImportExportMenu = ({ 
   data = [], 
   filename = 'export',
+  sheetName = 'Sheet1',
   onImport,
-  selectedCount = 0
+  flattenRow,
+  onExportTrigger,
+  isLoading = false,
+  selectedCount = 0,
+  resourceName = 'items'
 }) => {
   const hasSelection = selectedCount > 0;
 
-  const exportToCSV = (close) => {
+  const getFlattenedData = async () => {
+    let dataToExport = data;
+    
+    if (onExportTrigger) {
+      const fetchedData = await onExportTrigger();
+      if (!fetchedData || (Array.isArray(fetchedData) && fetchedData.length === 0)) {
+        return [];
+      }
+      dataToExport = fetchedData;
+    }
+
+    if (!flattenRow) {
+      return dataToExport;
+    }
+    
+    // Some flattening functions (like for invoices) might return an array of rows per original item
+    // We flatten everything into a single array
+    return dataToExport.flatMap(item => {
+      const result = flattenRow(item);
+      return Array.isArray(result) ? result : [result];
+    });
+  };
+
+  const exportToCSV = async (close) => {
     if (!hasSelection) {
-      alert('Please select at least one customer to export');
+      alert(`Please select at least one ${resourceName} to export`);
       close();
       return;
     }
 
-    // Flatten all customer data
-    const flattenedData = data.map(flattenCustomerData);
+    const flattenedData = await getFlattenedData();
+    if (flattenedData.length === 0) {
+       close();
+       return;
+    }
     
-    // Get all unique headers across all customers
+    // Get all unique headers across all items
     const headersSet = new Set();
     flattenedData.forEach(item => {
       Object.keys(item).forEach(key => headersSet.add(key));
@@ -175,20 +115,23 @@ const ImportExportMenu = ({
     close();
   };
 
-  const exportToExcel = (close) => {
+  const exportToExcel = async (close) => {
     if (!hasSelection) {
-      alert('Please select at least one customer to export');
+      alert(`Please select at least one ${resourceName} to export`);
       close();
       return;
     }
 
-    // Flatten all customer data
-    const flattenedData = data.map(flattenCustomerData);
+    const flattenedData = await getFlattenedData();
+    if (flattenedData.length === 0) {
+      close();
+      return;
+    }
 
     // Create workbook and worksheet
     const worksheet = XLSX.utils.json_to_sheet(flattenedData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Auto-size columns
     const colWidths = [];
@@ -224,16 +167,20 @@ const ImportExportMenu = ({
   };
 
   const trigger = ({ isOpen }) => (
-    <button className={`import-export-btn ${isOpen ? 'open' : ''}`}>
-      <DownloadIcon />
-      <span>Import / Export</span>
-      <ChevronIcon />
+    <button className={`import-export-btn ${isOpen ? 'open' : ''} ${isLoading ? 'loading' : ''}`} disabled={isLoading}>
+      {isLoading ? (
+        <span className="btn-spinner" />
+      ) : (
+        <DownloadIcon />
+      )}
+      <span>{isLoading ? 'Preparing...' : (onImport ? 'Import / Export' : 'Export')}</span>
+      {!isLoading && <ChevronIcon />}
     </button>
   );
 
   const exportLabel = hasSelection 
     ? `Export ${selectedCount} selected as` 
-    : 'Select customers to export';
+    : `Select ${resourceName} to export`;
 
   return (
     <Dropdown className="import-export-menu" trigger={trigger} align="right">
@@ -253,10 +200,14 @@ const ImportExportMenu = ({
           >
             {exportLabel} XLSX
           </DropdownItem>
-          <DropdownDivider />
-          <DropdownItem icon={<UploadIcon />} onClick={() => handleImportClick(close)}>
-            Import CSV
-          </DropdownItem>
+          {onImport && (
+            <>
+              <DropdownDivider />
+              <DropdownItem icon={<UploadIcon />} onClick={() => handleImportClick(close)}>
+                Import CSV
+              </DropdownItem>
+            </>
+          )}
         </>
       )}
     </Dropdown>

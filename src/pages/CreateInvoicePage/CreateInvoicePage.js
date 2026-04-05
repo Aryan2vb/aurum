@@ -40,6 +40,10 @@ const defaultInvoiceState = {
       unit: "GMS",
       rate: 9924.49,
       makingCharges: 500,
+      metalType: "GOLD",
+      grossWeight: 5.00,
+      netWeight: 4.77,
+      huid: "",
       amount: 47638.51
     }
   ],
@@ -182,6 +186,10 @@ const CreateInvoicePage = () => {
         unit: "GMS",
         rate: 0,
         makingCharges: 0,
+        metalType: "GOLD",
+        grossWeight: 0,
+        netWeight: 0,
+        huid: "",
         amount: 0
       }]
     }));
@@ -208,6 +216,12 @@ const CreateInvoicePage = () => {
           quantity: parseFloat(item.quantity),
           unit: item.unit,
           rate: parseFloat(item.rate),
+          makingCharges: parseFloat(item.makingCharges || 0),
+          metalType: item.metalType,
+          grossWeight: parseFloat(item.grossWeight || 0),
+          netWeight: parseFloat(item.netWeight || 0),
+          purity: item.purity,
+          huid: item.huid,
           amount: (parseFloat(item.quantity) * parseFloat(item.rate)) + parseFloat(item.makingCharges)
         })),
         templateType: theme,
@@ -300,12 +314,33 @@ const CreateInvoicePage = () => {
                     <Input type="number" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
                   </div>
                   <div className={styles.fieldHalf}>
-                    <label>Rate (₹)</label>
-                    <Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', e.target.value)} />
+                    <label>Metal Type</label>
+                    <div className={styles.metalToggle}>
+                      <button 
+                        className={item.metalType === 'GOLD' ? styles.activeMetal : ''} 
+                        onClick={() => updateItem(index, 'metalType', 'GOLD')}
+                      >Gold</button>
+                      <button 
+                        className={item.metalType === 'SILVER' ? styles.activeMetal : ''} 
+                        onClick={() => updateItem(index, 'metalType', 'SILVER')}
+                      >Silver</button>
+                    </div>
                   </div>
                   <div className={styles.fieldHalf}>
-                    <label>Making Chg (₹)</label>
-                    <Input type="number" value={item.makingCharges} onChange={(e) => updateItem(index, 'makingCharges', e.target.value)} />
+                    <label>Purity</label>
+                    <Input value={item.purity || ''} onChange={(e) => updateItem(index, 'purity', e.target.value)} placeholder="e.g. 22K or 925" />
+                  </div>
+                  <div className={styles.fieldHalf}>
+                    <label>Net Weight (gms)</label>
+                    <Input type="number" value={item.netWeight} onChange={(e) => updateItem(index, 'netWeight', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldHalf}>
+                    <label>Gross Wt (gms)</label>
+                    <Input type="number" value={item.grossWeight} onChange={(e) => updateItem(index, 'grossWeight', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldHalf}>
+                    <label>HUID</label>
+                    <Input value={item.huid || ''} onChange={(e) => updateItem(index, 'huid', e.target.value)} />
                   </div>
                 </div>
               </div>

@@ -1,0 +1,394 @@
+/* ============================================
+   Attio-style Invoice Table - Reusing styles from CustomerTable
+   ============================================ */
+
+.attio-table-container {
+  --ct-bg: var(--bg-secondary);
+  --ct-bg-secondary: var(--bg-tertiary);
+  --ct-bg-tertiary: var(--bg-hover);
+  --ct-border: var(--border-color);
+  --ct-border-light: var(--border-light);
+  --ct-text: var(--text-primary);
+  --ct-text-secondary: var(--text-secondary);
+  --ct-text-muted: var(--text-tertiary);
+  --ct-accent: var(--accent);
+  --ct-accent-bg: var(--accent-light);
+  --ct-accent-hover: var(--accent-hover);
+  --ct-hover: var(--bg-hover);
+  --ct-selected: var(--accent-light);
+  --ct-success: var(--success);
+  --ct-success-bg: var(--accent-light);
+  --ct-danger: var(--error);
+  --ct-danger-bg: rgba(184, 84, 74, 0.1);
+  --ct-shadow: var(--shadow);
+  
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ct-bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ct-text);
+}
+
+[data-theme='dark'] .attio-table-container {
+  --ct-bg: #0f0f0f;
+  --ct-bg-secondary: #141414;
+  --ct-bg-tertiary: #1a1a1a;
+  --ct-border: #262626;
+  --ct-border-light: #1f1f1f;
+  --ct-text: #e5e5e5;
+  --ct-text-secondary: #888888;
+  --ct-text-muted: #505050;
+  --ct-hover: #1a1a1a;
+  --ct-selected: var(--accent-light);
+  --ct-shadow: rgba(0, 0, 0, 0.4);
+}
+
+/* Header */
+.attio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--ct-bg);
+  border-bottom: 1px solid var(--ct-border-light);
+}
+
+.attio-header-left, .attio-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* SaaS Toolbar */
+.saas-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--ct-bg);
+  border-bottom: 1px solid var(--ct-border-light);
+}
+
+.saas-toolbar-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--ct-bg-secondary);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  min-width: 240px;
+  max-width: 320px;
+  transition: all 0.12s ease;
+}
+
+.saas-toolbar-search:focus-within {
+  background: var(--ct-bg);
+  border-color: var(--ct-accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.saas-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ct-text);
+  outline: none;
+}
+
+.saas-search-clear {
+  color: var(--ct-text-muted);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+}
+
+.saas-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.saas-clear-filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--ct-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.saas-clear-filters:hover {
+  background: var(--ct-hover);
+  color: var(--ct-text);
+}
+
+.saas-toolbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.saas-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ct-text-secondary);
+}
+
+/* Table Wrapper */
+.attio-table-wrapper {
+  flex: 1;
+  overflow: auto;
+}
+
+.attio-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.attio-th {
+  padding: 9px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ct-text-muted);
+  background: var(--ct-bg);
+  white-space: nowrap;
+  border-right: 1px solid var(--ct-border-light);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.attio-th-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.attio-td {
+  padding: 11px 16px;
+  font-size: 13px;
+  color: var(--ct-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--ct-border-light);
+}
+
+.attio-td-pinned, .attio-th-pinned {
+  position: sticky;
+  left: 40px;
+  background: var(--ct-bg);
+  z-index: 4;
+}
+
+.attio-td-checkbox, .attio-th-checkbox {
+  width: 40px;
+  padding: 11px 10px;
+  position: sticky;
+  left: 0;
+  background: var(--ct-bg);
+  z-index: 5;
+}
+
+.attio-row-selected {
+  background: var(--ct-selected) !important;
+}
+
+.attio-status-badge {
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Footer (Calculations) */
+.attio-tf {
+  background: var(--ct-bg-secondary);
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ct-text-secondary);
+  border-top: 1px solid var(--ct-border);
+}
+
+.attio-tf-pinned {
+  position: sticky;
+  left: 40px;
+  background: var(--ct-bg-secondary);
+  z-index: 4;
+}
+
+.attio-tf-checkbox {
+  position: sticky;
+  left: 0;
+  background: var(--ct-bg-secondary);
+  z-index: 4;
+}
+
+.attio-tf-value {
+  font-family: monospace;
+  font-size: 13px;
+  color: var(--ct-text);
+}
+
+/* User Cell */
+.attio-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attio-user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Icon Button */
+.attio-icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--ct-border);
+  border-radius: 4px;
+  color: var(--ct-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.attio-icon-btn:hover {
+  background: var(--ct-bg-tertiary);
+  color: var(--ct-text);
+  border-color: var(--ct-text-muted);
+}
+
+/* Skeleton */
+.skeleton-cell {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.skeleton-bar {
+  height: 12px;
+  background: var(--ct-bg-tertiary);
+  border-radius: 4px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+.attio-empty {
+  padding: 64px;
+  text-align: center;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--ct-text-muted);
+}
+
+/* Ledger Toggle */
+.ledger-toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--ct-border-light);
+}
+
+.toggle-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ct-text-secondary);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 20px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--ct-accent);
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px var(--ct-accent);
+}
+
+input:checked + .slider:before {
+  transform: translateX(14px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}

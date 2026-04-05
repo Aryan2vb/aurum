@@ -3,14 +3,14 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tabs {
   display: flex;
   gap: 0.5rem;
-  background: #f1f5f9;
+  background: var(--bg-tertiary);
   padding: 0.25rem;
   border-radius: 0.5rem;
 }
@@ -19,7 +19,7 @@
   padding: 0.5rem 1rem;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--text-secondary);
   font-weight: 500;
   cursor: pointer;
   border-radius: 0.375rem;
@@ -27,14 +27,14 @@
 }
 
 .tabs button.activeTab {
-  background: white;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px var(--shadow);
 }
 
 .saveBtn {
-  background: #2563eb;
-  color: white;
+  background: var(--accent);
+  color: var(--on-accent);
   border: none;
   padding: 0.5rem 1.25rem;
   border-radius: 0.375rem;
@@ -43,11 +43,11 @@
 }
 
 .saveBtn:hover {
-  background: #1d4ed8;
+  background: var(--accent-hover);
 }
 
 .saveBtn:disabled {
-  background: #94a3b8;
+  background: var(--text-tertiary);
   cursor: not-allowed;
 }
 
@@ -72,21 +72,21 @@
   flex: 0.9;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px var(--shadow);
   overflow: hidden;
 }
 
 .paneHeader {
   padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .iframeContainer {
   flex: 1;
-  background: #e2e8f0;
+  background: var(--bg-tertiary);
   padding: 1rem;
   overflow: auto;
 }
@@ -97,23 +97,23 @@
   min-height: 800px;
   background: white;
   border: none;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 6px var(--shadow);
 }
 
 /* Form Styles */
 .formSection {
-  background: white;
+  background: var(--bg-secondary);
   padding: 1.5rem;
   border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px var(--shadow);
+  border: 1px solid var(--border-color);
 }
 
 .sectionTitle {
   margin: 0 0 1.25rem 0;
   font-size: 1.1rem;
-  color: #0f172a;
-  border-bottom: 2px solid #f1f5f9;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.5rem;
 }
 
@@ -139,22 +139,22 @@
 .fieldHalf label, .fieldFull label {
   font-size: 0.8rem;
   font-weight: 500;
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .select {
   padding: 0.6rem;
   border-radius: 0.375rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-color);
   font-size: 0.9rem;
-  color: #1e293b;
+  color: var(--text-primary);
   outline: none;
-  background: white;
+  background: var(--bg-secondary);
 }
 
 .itemRow {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   padding: 1.25rem;
   margin-bottom: 1rem;
@@ -170,12 +170,12 @@
 .itemRowHeader h4 {
   margin: 0;
   font-size: 0.9rem;
-  color: #475569;
+  color: var(--text-secondary);
 }
 
 .removeBtn {
   background: transparent;
-  color: #ef4444;
+  color: var(--error);
   border: none;
   cursor: pointer;
   padding: 0.25rem;
@@ -183,7 +183,8 @@
 }
 
 .removeBtn:hover {
-  background: #fee2e2;
+  background: var(--error);
+  color: white;
 }
 
 /* Customer Search Styles */
@@ -196,7 +197,7 @@
   top: 100%;
   left: 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-tertiary);
   margin-top: 0.5rem;
 }
 
@@ -205,10 +206,10 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 15px -3px var(--shadow);
   z-index: 10;
   margin-top: 0.25rem;
   max-height: 250px;
@@ -221,11 +222,11 @@
   gap: 1rem;
   padding: 0.75rem 1rem;
   cursor: pointer;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .searchResultItem:hover {
-  background: #f8fafc;
+  background: var(--bg-hover);
 }
 
 .searchResultInfo {
@@ -235,12 +236,12 @@
 
 .searchResultInfo strong {
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--text-primary);
 }
 
 .searchResultInfo span {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-secondary);
 }
 
 .selectedCustomer {
@@ -248,7 +249,35 @@
   align-items: center;
   gap: 1rem;
   padding: 1rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 0.5rem;
+}
+
+/* Metal Toggle Styles */
+.metalToggle {
+  display: flex;
+  background: var(--bg-tertiary);
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.metalToggle button {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.metalToggle button.activeMetal {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px var(--shadow);
 }

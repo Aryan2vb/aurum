@@ -1,146 +1,170 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
-import Avatar from '../../components/atoms/Avatar/Avatar';
-import Icon from '../../components/atoms/Icon/Icon';
-import { getInvoices, getInvoiceHtmlUrl, getInvoiceViewToken } from '../../services/invoicesService';
-import styles from './InvoicesPage.module.css';
+import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
+import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
+import SummaryCard from '../../components/molecules/SummaryCard/SummaryCard';
+import { getInvoices } from '../../services/invoicesService';
+import './InvoicesPage.css';
+
+// Format currency
+const formatCurrency = (amount) => {
+  if (amount === undefined || amount === null) return '—';
+  return `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const InvoicesPage = () => {
-  const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showItems, setShowItems] = useState(false);
+  
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filters, setFilters] = useState({
+    status: null,
+    dateFrom: null,
+    dateTo: null,
+  });
 
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [pagination, setPagination] = useState(null);
+
+  // Debounce search
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1); // Reset to first page on search
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
-      const response = await getInvoices();
+      setLoading(true);
+      const response = await getInvoices({
+        search: debouncedSearch,
+        status: filters.status,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+        page,
+        limit: pageSize,
+        sortBy: 'invoiceDate',
+        sortOrder: 'desc',
+        includeItems: showItems,
+      });
+
       if (response && response.data) {
-        setInvoices(response.data || []);
+        const mappedData = response.data.map((invoice) => ({
+          ...invoice,
+          financialDetails: {
+            totalAmount: invoice.totalAmount,
+            paidAmount: invoice.paidAmount,
+            balance: invoice.remainingBalance,
+          },
+        }));
+        setInvoices(mappedData);
+        setPagination(response.meta);
       }
     } catch (error) {
       console.error('Failed to fetch invoices', error);
     } finally {
       setLoading(false);
     }
+  }, [debouncedSearch, filters, page, pageSize, showItems]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  // Calculate stats from invoices
+  const stats = useMemo(() => {
+    const totalReceivables = invoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0);
+    const unpaidBalance = invoices.reduce((sum, inv) => sum + (Number(inv.financialDetails?.balance) || 0), 0);
+    const gstCollected = invoices.reduce((sum, inv) => sum + (Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0)), 0);
+    
+    // Count overdue (for demonstration, using simplified logic)
+    const overdueCount = invoices.filter(inv => Number(inv.financialDetails?.balance) > 0 && inv.status !== 'PAID').length;
+
+    return {
+      totalReceivables: formatCurrency(totalReceivables),
+      unpaidBalance: formatCurrency(unpaidBalance),
+      gstCollected: formatCurrency(gstCollected),
+      overdueCount
+    };
+  }, [invoices]);
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters);
+    setPage(1); // Reset to first page on filter change
   };
 
-  const getStatusClass = (status) => {
-    if (!status) return '';
-    return styles[status.toLowerCase()] || '';
+  const handleViewInvoice = (invoiceId) => {
+    setSelectedInvoiceId(invoiceId);
+    setIsModalOpen(true);
   };
 
-  const handleViewInvoice = async (invoiceId) => {
-    try {
-      const response = await getInvoiceViewToken(invoiceId);
-      if (response && response.signature) {
-        const url = getInvoiceHtmlUrl(invoiceId, response.signature);
-        window.open(url, '_blank');
-      } else {
-        alert('Failed to generate secure view link');
-      }
-    } catch (error) {
-      console.error('Failed to view invoice', error);
-    }
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedInvoiceId(null);
   };
 
   return (
     <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
-      <div className={styles.container}>
-        <div className={styles.pageHeader}>
-          <h2>Invoices Overview</h2>
-          <button 
-            className={styles.createBtn} 
-            onClick={() => navigate('/invoices/new')}
-          >
-            <Icon name="add" size={16} /> Create Invoice
-          </button>
+      <div className="invoices-page-container">
+        <div className="stats-grid">
+          <SummaryCard 
+            title="Total Receivables" 
+            value={stats.totalReceivables} 
+            trend="+12.4%" 
+            trendType="up" 
+            icon="payments" 
+            iconColor="#2563eb" 
+          />
+          <SummaryCard 
+            title="Unpaid Balance" 
+            value={stats.unpaidBalance} 
+            trend={`${stats.overdueCount} Overdue`} 
+            trendType="warning" 
+            icon="pending_actions" 
+            iconColor="#dc2626" 
+          />
+          <SummaryCard 
+            title="GST Collected (Total)" 
+            value={stats.gstCollected} 
+            trend="Active" 
+            trendType="info" 
+            icon="account_balance_wallet" 
+            iconColor="#059669" 
+          />
         </div>
         
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>
-            Loading invoices...
-          </div>
-        ) : (
-          <div className={styles.tableCard}>
-            <div className={styles.tableHeader}>
-               <h3>Recent Invoices</h3>
-            </div>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Invoice No</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoices.length === 0 ? (
-                  <tr>
-                    <td colSpan="6">
-                      <div className={styles.emptyState}>
-                        <div className={styles.emptyIcon}>
-                          <Icon name="fileText" size={24} />
-                        </div>
-                        <p>No invoices found. Create your first invoice!</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  invoices.map(inv => {
-                    const customerName = inv.customer?.fullName || 'Unknown Customer';
-                    const customerCode = inv.customer?.customerCode || 'GUEST';
-                    
-                    return (
-                      <tr key={inv.id}>
-                        <td>
-                          <span style={{ fontWeight: '500', color: '#0f172a' }}>
-                            {inv.invoiceNumber}
-                          </span>
-                        </td>
-                        <td>
-                          <div className={styles.identityCell}>
-                            <Avatar name={customerName} size="sm" />
-                            <div className={styles.identityInfo}>
-                              <strong>{customerName}</strong>
-                              <span>Code: {customerCode}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ color: '#475569' }}>
-                          {new Date(inv.invoiceDate || inv.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </td>
-                        <td className={styles.amountCell}>
-                          ₹{inv.totalAmount?.toLocaleString('en-IN') || 0}
-                        </td>
-                        <td>
-                          <span className={`${styles.badge} ${getStatusClass(inv.status)}`}>
-                            {inv.status || 'UNKNOWN'}
-                          </span>
-                        </td>
-                        <td>
-                          <button 
-                            className={styles.viewBtn}
-                            onClick={() => handleViewInvoice(inv.id)}
-                          >
-                            <Icon name="eye" size={14} /> View
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <InvoiceTable 
+          data={invoices}
+          isLoading={loading}
+          onViewInvoice={handleViewInvoice}
+          pagination={pagination}
+          currentPage={page}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filters={filters}
+          onFiltersChange={handleFiltersChange}
+          showItems={showItems}
+          onToggleShowItems={() => setShowItems(!showItems)}
+        />
       </div>
+
+      <InvoiceDetailModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        invoiceId={selectedInvoiceId}
+      />
     </DashboardTemplate>
   );
 };
