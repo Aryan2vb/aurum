@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
+import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken } from '../../../services/invoicesService';
 import './InvoiceDetailModal.css';
 
@@ -29,13 +30,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (isOpen && invoiceId) {
-      fetchInvoiceDetails();
-    }
-  }, [isOpen, invoiceId]);
-
-  const fetchInvoiceDetails = async () => {
+  const fetchInvoiceDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -49,7 +44,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [invoiceId]);
+
+  useEffect(() => {
+    if (isOpen && invoiceId) {
+      fetchInvoiceDetails();
+    }
+  }, [isOpen, invoiceId, fetchInvoiceDetails]);
 
   const handleViewHtml = async () => {
     try {
@@ -103,9 +104,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
                 </div>
                 <div className="meta-item">
                   <span className="meta-label">Status</span>
-                  <span className={`status-badge ${invoice.status?.toLowerCase()}`}>
-                    {invoice.status}
-                  </span>
+                  <StatusPill status={invoice.status} />
                 </div>
                 <div className="meta-item">
                   <span className="meta-label">Financial Year</span>
