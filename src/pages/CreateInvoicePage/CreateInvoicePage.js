@@ -54,6 +54,7 @@ const defaultInvoiceState = {
     sgstAmount: 714.58,
     totalTaxAmount: 1429.16
   },
+  hallmarkCharges: 0,
   hsnSummary: [],
   roundOff: 0,
   totalAmount: 49068,
@@ -80,13 +81,16 @@ const CreateInvoicePage = () => {
     // Generate HTML preview whenever data or theme changes
     const runGeneration = () => {
       // Recalculate amounts before preview
-      let subtotal = 0;
+      let itemsSubtotal = 0;
       const updatedItems = invoiceData.items.map(item => {
-        const amount = (parseFloat(item.quantity || 0) * parseFloat(item.rate || 0)) + parseFloat(item.makingCharges || 0);
-        subtotal += amount;
+        const amount = parseFloat(item.quantity || 0) * (parseFloat(item.rate || 0) + parseFloat(item.makingCharges || 0));
+        itemsSubtotal += amount;
         return { ...item, amount };
       });
-      
+
+      const hallmark = parseFloat(invoiceData.hallmarkCharges || 0);
+      const subtotal = itemsSubtotal + hallmark;
+
       const taxAmt = Math.round(subtotal * (invoiceData.taxes.cgstRate / 100) * 100) / 100;
       const totalTax = taxAmt * 2;
       const gross = subtotal + totalTax;
@@ -222,9 +226,10 @@ const CreateInvoicePage = () => {
           netWeight: parseFloat(item.netWeight || 0),
           purity: item.purity,
           huid: item.huid,
-          amount: (parseFloat(item.quantity) * parseFloat(item.rate)) + parseFloat(item.makingCharges)
+          amount: parseFloat(item.quantity) * (parseFloat(item.rate) + parseFloat(item.makingCharges || 0))
         })),
         templateType: theme,
+        hallmarkCharges: parseFloat(invoiceData.hallmarkCharges || 0),
         notes: invoiceData.declaration
       };
       
@@ -339,6 +344,14 @@ const CreateInvoicePage = () => {
                     <Input type="number" value={item.grossWeight} onChange={(e) => updateItem(index, 'grossWeight', e.target.value)} />
                   </div>
                   <div className={styles.fieldHalf}>
+                    <label>Rate (per gm)</label>
+                    <Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldHalf}>
+                    <label>Making Charges</label>
+                    <Input type="number" value={item.makingCharges} onChange={(e) => updateItem(index, 'makingCharges', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldHalf}>
                     <label>HUID</label>
                     <Input value={item.huid || ''} onChange={(e) => updateItem(index, 'huid', e.target.value)} />
                   </div>
@@ -359,6 +372,10 @@ const CreateInvoicePage = () => {
                    <option value="BANK TRANSFER">Bank Transfer</option>
                    <option value="CREDIT">Udhar / Credit</option>
                  </select>
+              </div>
+              <div className={styles.fieldHalf}>
+                 <label>Hallmark Charges (₹)</label>
+                 <Input type="number" value={invoiceData.hallmarkCharges} onChange={(e) => setInvoiceData({...invoiceData, hallmarkCharges: e.target.value})} placeholder="0" />
               </div>
               <div className={styles.fieldHalf}>
                  <label>Tax Rate (CGST %)</label>

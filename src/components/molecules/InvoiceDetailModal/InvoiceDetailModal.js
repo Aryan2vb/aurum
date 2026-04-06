@@ -175,7 +175,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
                         <tr key={item.id || index}>
                           <td>{index + 1}</td>
                           <td>{item.description || '—'}</td>
-                          <td>{item.type || '—'}</td>
+                          <td>{item.metalType || '—'}</td>
                           <td>{item.purity || '—'}</td>
                           <td>{item.hsnSac || '—'}</td>
                           <td>{item.netWeight ? `${item.netWeight}g` : '—'}</td>

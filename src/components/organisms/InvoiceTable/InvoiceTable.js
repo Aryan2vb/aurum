@@ -149,6 +149,7 @@ const InvoiceTable = ({
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
   const [exporting, setExporting] = useState(false);
+  const tableRef = React.useRef(null);
 
   // Process data for the table based on showItems toggle
   const processedData = useMemo(() => {
@@ -279,31 +280,27 @@ const InvoiceTable = ({
   const handleDeepExport = async () => {
     try {
       setExporting(true);
-      const selectedIds = Object.keys(rowSelection);
-      
-      // If we have selected IDs, we fetch specifically those (or filter from a larger fetch)
-      // For now, let's just fetch ALL filtered invoices with items included as per user request
+      const selectedRows = tableRef.current?.getSelectedRowModel().rows ?? [];
+      const selectedInvoiceIds = new Set(
+        selectedRows.map(r => r.original.invoiceId || r.original.id)
+      );
+
       const response = await getInvoices({
         ...filters,
         search: searchQuery,
-        limit: 1000, // Large enough for export
-        includeItems: true
+        limit: 1000,
+        includeItems: true,
       });
 
       if (response && response.data) {
-        // Map data to expected flattening format
         const mappedData = response.data.map((invoice) => ({
           ...invoice,
           remainingBalance: Number(invoice.totalAmount) - Number(invoice.paidAmount),
-          items: invoice.items // line items are now included
         }));
 
-        // Filter for specific selections if any
-        const dataToExport = selectedIds.length > 0 
-          ? mappedData.filter(inv => selectedIds.includes(inv.id))
+        return selectedInvoiceIds.size > 0
+          ? mappedData.filter(inv => selectedInvoiceIds.has(inv.id))
           : mappedData;
-
-        return dataToExport;
       }
       return [];
     } catch (error) {
@@ -315,6 +312,23 @@ const InvoiceTable = ({
   };
 
   const columns = useMemo(() => [
+    columnHelper.display({
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={table.getIsAllRowsSelected()}
+          indeterminate={table.getIsSomeRowsSelected()}
+          onChange={table.getToggleAllRowsSelectedHandler()}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onChange={row.getToggleSelectedHandler()}
+        />
+      ),
+      size: 40,
+    }),
     columnHelper.accessor('sn', {
       header: 'S.N',
       cell: info => info.getValue(),
@@ -453,6 +467,7 @@ const InvoiceTable = ({
     getFilteredRowModel: getFilteredRowModel(),
     enableRowSelection: true,
   });
+  tableRef.current = table;
 
   return (
     <div className="attio-table-container">
@@ -469,7 +484,7 @@ const InvoiceTable = ({
           {can('write') && (
             <ImportExportMenu 
               data={[]} // Will be fetched on click for deep export
-              selectedCount={Object.keys(rowSelection).length || data.length}
+              selectedCount={Object.keys(rowSelection).length}
               filename="invoices"
               sheetName="Invoices"
               resourceName="invoices"
@@ -600,10 +615,11 @@ const InvoiceTable = ({
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
-                <td className="attio-tf">
+                {/* select + sn + invoiceNumber + date + customer + lastName + address + phone + metal + hsn + itemName = 11 cols before gold wt */}
+                <td className="attio-tf" colSpan={3}>
                   <span className="attio-tf-value">{aggregations.count} total</span>
                 </td>
-                <td className="attio-tf" colSpan={10} />
+                <td className="attio-tf" colSpan={8} />
                 <td className="attio-tf">
                   <span className="attio-tf-value">{Number(aggregations.goldWt).toFixed(3)}</span>
                 </td>

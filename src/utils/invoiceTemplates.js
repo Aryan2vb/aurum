@@ -19,9 +19,10 @@ export function generateInvoiceHtml(data) {
     const hallmarkingCharge = data.hallmarkingCharge !== undefined ? data.hallmarkingCharge : 0;
 
     const itemRows = items.map(item => {
+        const effectiveRate = parseFloat(item.rate || 0) + parseFloat(item.makingCharges || 0);
         const rateDisplay =
             item.makingCharges && item.makingCharges > 0
-                ? `<strong>${formatCurrency(item.rate)}</strong><br/><span class="text-sm" style="font-size:11px;">+ ${formatCurrency(item.makingCharges)} Making Charge</span>`
+                ? `<strong>${formatCurrency(effectiveRate)}</strong><br/><span class="text-sm" style="font-size:11px;">(${formatCurrency(item.rate)} + ${formatCurrency(item.makingCharges)}/gm labour)</span>`
                 : formatCurrency(item.rate);
 
         const descLines = (item.description || '').split('\n');
@@ -431,7 +432,7 @@ export function generateJewelleryInvoiceHtml(data) {
             <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) + ' GM' : (item.quantity || 0) + ' ' + (item.unit || '')}</td>
             <td class="ctr">${item.purity || '-'}</td>
             <td class="rgt">${fmt(item.rate || 0)}</td>
-            <td class="rgt">${item.makingCharges ? fmt(item.makingCharges) : '-'}</td>
+            <td class="rgt">${item.makingCharges ? fmt(parseFloat(item.makingCharges) * parseFloat(item.quantity || 0)) : '-'}</td>
             <td class="rgt">${item.huid ? '45.00' : '-'}</td>
             <td class="rgt">${fmt(item.amount || 0)}</td>
         </tr>`).join('');
