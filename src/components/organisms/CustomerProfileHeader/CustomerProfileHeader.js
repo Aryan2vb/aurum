@@ -117,12 +117,6 @@ const CustomerProfileHeader = ({
             <span>Call</span>
           </button>
         )}
-        <button className="quick-action-btn" onClick={onRecordPayment}>
-          <div className="quick-action-icon payment">
-            <Icon name="credit" size={22} color="white" />
-          </div>
-          <span>Payment</span>
-        </button>
         <button className="quick-action-btn" onClick={onNewCredit}>
           <div className="quick-action-icon add">
             <Icon name="add" size={22} color="white" />

@@ -24,6 +24,7 @@ import { usePermission } from '../../../hooks/usePermission';
 
 // Table-specific
 import { customerColumns, defaultColumnOrder, calculateAge, hasPhone, columnTypes } from './columns';
+import { flattenCustomerData } from '../../../utils/exportUtils';
 import './CustomerTable.css';
 
 const ColumnTypeIcon = ({ type }) => {
@@ -355,6 +356,9 @@ const CustomerTable = ({
                 data={table.getSelectedRowModel().rows.map(row => row.original)}
                 selectedCount={Object.keys(rowSelection).length}
                 filename="customers"
+                sheetName="Customers"
+                resourceName="customers"
+                flattenRow={flattenCustomerData}
                 onImport={onCSVUpload}
               />
               <button 

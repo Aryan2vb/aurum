@@ -1,0 +1,22 @@
+.invoices-page-container {
+  padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  overflow-y: auto;
+}
+
+/* Import FAB styles */
+@import './InvoicesPageFAB.css';
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Ensure the modal is properly styled if needed, but usually it's global */

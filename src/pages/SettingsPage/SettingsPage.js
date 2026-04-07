@@ -7,6 +7,11 @@ import {
   updateOrganizationMemberRole,
   removeOrganizationMember,
 } from '../../services/organizationService';
+import {
+  getInvoiceSettings,
+  upsertInvoiceSettings,
+  getInvoiceSettingsPreviewUrl,
+} from '../../services/invoicesService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
@@ -21,6 +26,38 @@ const SettingsPage = () => {
   const [role, setRole] = useState('STAFF');
   const [formStatus, setFormStatus] = useState({ loading: false, error: null, success: null });
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [invoiceSettingsLoading, setInvoiceSettingsLoading] = useState(false);
+  const [invoiceSettingsForm, setInvoiceSettingsForm] = useState({
+    companyName: '',
+    address: '',
+    gstin: '',
+    state: '',
+    stateCode: '',
+    phone: '',
+    email: '',
+    pan: '',
+    mantra: '',
+    logoUrl: '',
+    bisLogoUrl: '',
+    bankName: '',
+    bankBranch: '',
+    bankAccountName: '',
+    bankAccountNumber: '',
+    bankIfsc: '',
+    defaultTaxType: 'CGST_SGST',
+    defaultCgstRate: 1.5,
+    defaultSgstRate: 1.5,
+    defaultIgstRate: 3,
+    defaultTemplate: 'default',
+    declaration: '',
+    termsOfDelivery: '',
+    invoiceNumberPrefix: 'INV',
+    startingSequence: 1,
+  });
+  const [invoiceSettingsStatus, setInvoiceSettingsStatus] = useState({ loading: false, error: null, success: null });
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
@@ -78,6 +115,87 @@ const SettingsPage = () => {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userEmail');
     window.location.href = '/login';
+  };
+
+  // Invoice Settings
+  useEffect(() => {
+    fetchInvoiceSettings();
+  }, []);
+
+  const fetchInvoiceSettings = async () => {
+    setInvoiceSettingsLoading(true);
+    try {
+      const settings = await getInvoiceSettings();
+      if (settings) {
+        setInvoiceSettingsForm({
+          companyName: settings.companyName || '',
+          address: settings.address || '',
+          gstin: settings.gstin || '',
+          state: settings.state || '',
+          stateCode: settings.stateCode || '',
+          phone: settings.phone || '',
+          email: settings.email || '',
+          pan: settings.pan || '',
+          mantra: settings.mantra || '',
+          logoUrl: settings.logoUrl || '',
+          bisLogoUrl: settings.bisLogoUrl || '',
+          bankName: settings.bankName || '',
+          bankBranch: settings.bankBranch || '',
+          bankAccountName: settings.bankAccountName || '',
+          bankAccountNumber: settings.bankAccountNumber || '',
+          bankIfsc: settings.bankIfsc || '',
+          defaultTaxType: settings.defaultTaxType === 'GST' ? 'CGST_SGST' : (settings.defaultTaxType || 'CGST_SGST'),
+          defaultCgstRate: typeof settings.defaultCgstRate === 'number' ? settings.defaultCgstRate : parseFloat(settings.defaultCgstRate) || 1.5,
+          defaultSgstRate: typeof settings.defaultSgstRate === 'number' ? settings.defaultSgstRate : parseFloat(settings.defaultSgstRate) || 1.5,
+          defaultIgstRate: typeof settings.defaultIgstRate === 'number' ? settings.defaultIgstRate : parseFloat(settings.defaultIgstRate) || 3,
+          defaultTemplate: settings.defaultTemplate || 'default',
+          declaration: settings.declaration || '',
+          termsOfDelivery: settings.termsOfDelivery || '',
+          invoiceNumberPrefix: settings.invoiceNumberPrefix || 'INV',
+          startingSequence: typeof settings.startingSequence === 'number' ? settings.startingSequence : parseInt(settings.startingSequence) || 1,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to fetch invoice settings:', e);
+    } finally {
+      setInvoiceSettingsLoading(false);
+    }
+  };
+
+  const handleInvoiceSettingsChange = (field, value) => {
+    setInvoiceSettingsForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveInvoiceSettings = async () => {
+    setInvoiceSettingsStatus({ loading: true, error: null, success: null });
+    try {
+      await upsertInvoiceSettings(invoiceSettingsForm);
+      setInvoiceSettingsStatus({ loading: false, error: null, success: 'Settings saved!' });
+      await fetchInvoiceSettings();
+      setTimeout(() => setInvoiceSettingsStatus(s => ({ ...s, success: null })), 3000);
+    } catch (err) {
+      setInvoiceSettingsStatus({ loading: false, error: err.message || 'Failed to save', success: null });
+    }
+  };
+
+  const handlePreview = async () => {
+    setPreviewLoading(true);
+    setShowPreview(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(getInvoiceSettingsPreviewUrl(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) throw new Error('Failed to load preview');
+      const html = await response.text();
+      setPreviewHtml(html);
+    } catch (err) {
+      setPreviewHtml(`<html><body style="padding:20px;color:red">Error: ${err.message}</body></html>`);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   return (
@@ -156,6 +274,313 @@ const SettingsPage = () => {
                   </div>
                 ))
               )}
+            </div>
+          </section>
+        )}
+
+        {/* ────────── INVOICE SETTINGS ────────── */}
+        {can('admin') && (
+          <section className="settings-section">
+            <div className="s-card">
+              <div className="s-card-header">
+                <div>
+                  <div className="s-card-title">Invoice Settings</div>
+                  <div className="s-card-subtitle">Configure your invoice template & company details</div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="s-btn s-btn-ghost" onClick={handlePreview}>Preview</button>
+                  <button 
+                    className="s-btn s-btn-primary" 
+                    onClick={handleSaveInvoiceSettings}
+                    disabled={invoiceSettingsStatus.loading}
+                  >
+                    {invoiceSettingsStatus.loading ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="invoice-settings-body">
+                {invoiceSettingsLoading ? (
+                  <div className="m-empty">Loading settings…</div>
+                ) : (
+                  <>
+                    {/* Company Details */}
+                    <div className="settings-group">
+                      <h4 className="settings-group-title">Company Details</h4>
+                      <div className="settings-row">
+                        <div className="s-field">
+                          <label className="s-field-label">Company Name *</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.companyName}
+                            onChange={(e) => handleInvoiceSettingsChange('companyName', e.target.value)}
+                            placeholder="Your Company Name"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">GSTIN *</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.gstin}
+                            onChange={(e) => handleInvoiceSettingsChange('gstin', e.target.value)}
+                            placeholder="22AAAAA0000A1Z5"
+                          />
+                        </div>
+                      </div>
+                      <div className="s-field" style={{ marginTop: '12px' }}>
+                        <label className="s-field-label">Address *</label>
+                        <textarea 
+                          className="s-field-input"
+                          rows="2"
+                          value={invoiceSettingsForm.address}
+                          onChange={(e) => handleInvoiceSettingsChange('address', e.target.value)}
+                          placeholder="Full address with PIN code"
+                        />
+                      </div>
+                      <div className="settings-row" style={{ marginTop: '12px' }}>
+                        <div className="s-field">
+                          <label className="s-field-label">State *</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.state}
+                            onChange={(e) => handleInvoiceSettingsChange('state', e.target.value)}
+                            placeholder="Madhya Pradesh"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">State Code *</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.stateCode}
+                            onChange={(e) => handleInvoiceSettingsChange('stateCode', e.target.value)}
+                            placeholder="22"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Phone</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.phone}
+                            onChange={(e) => handleInvoiceSettingsChange('phone', e.target.value)}
+                            placeholder="+91 98765 43210"
+                          />
+                        </div>
+                      </div>
+                      <div className="settings-row" style={{ marginTop: '12px' }}>
+                        <div className="s-field">
+                          <label className="s-field-label">Email</label>
+                          <input 
+                            type="email" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.email}
+                            onChange={(e) => handleInvoiceSettingsChange('email', e.target.value)}
+                            placeholder="contact@company.com"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">PAN</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.pan}
+                            onChange={(e) => handleInvoiceSettingsChange('pan', e.target.value)}
+                            placeholder="AAAAA0000A"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Mantra/Tagline</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.mantra}
+                            onChange={(e) => handleInvoiceSettingsChange('mantra', e.target.value)}
+                            placeholder="ॐ भूर्भुवः स्वः"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bank Details */}
+                    <div className="settings-group">
+                      <h4 className="settings-group-title">Bank Details</h4>
+                      <div className="settings-row">
+                        <div className="s-field">
+                          <label className="s-field-label">Bank Name</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.bankName}
+                            onChange={(e) => handleInvoiceSettingsChange('bankName', e.target.value)}
+                            placeholder="State Bank of India"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Branch</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.bankBranch}
+                            onChange={(e) => handleInvoiceSettingsChange('bankBranch', e.target.value)}
+                            placeholder="Main Branch"
+                          />
+                        </div>
+                      </div>
+                      <div className="settings-row" style={{ marginTop: '12px' }}>
+                        <div className="s-field">
+                          <label className="s-field-label">Account Name</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.bankAccountName}
+                            onChange={(e) => handleInvoiceSettingsChange('bankAccountName', e.target.value)}
+                            placeholder="Your Company Name"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Account Number</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.bankAccountNumber}
+                            onChange={(e) => handleInvoiceSettingsChange('bankAccountNumber', e.target.value)}
+                            placeholder="12345678901"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">IFSC Code</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.bankIfsc}
+                            onChange={(e) => handleInvoiceSettingsChange('bankIfsc', e.target.value)}
+                            placeholder="SBIN0001234"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tax & Invoice Defaults */}
+                    <div className="settings-group">
+                      <h4 className="settings-group-title">Tax & Invoice Defaults</h4>
+                      <div className="settings-row">
+                        <div className="s-field">
+                          <label className="s-field-label">Default Tax Type</label>
+                          <select 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.defaultTaxType}
+                            onChange={(e) => handleInvoiceSettingsChange('defaultTaxType', e.target.value)}
+                          >
+                            <option value="CGST_SGST">GST (CGST+SGST)</option>
+                            <option value="IGST">IGST</option>
+                            <option value="NONE">No Tax</option>
+                          </select>
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">CGST Rate (%)</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            min="0"
+                            className="s-field-input"
+                            value={invoiceSettingsForm.defaultCgstRate}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              handleInvoiceSettingsChange('defaultCgstRate', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">SGST Rate (%)</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            min="0"
+                            className="s-field-input"
+                            value={invoiceSettingsForm.defaultSgstRate}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              handleInvoiceSettingsChange('defaultSgstRate', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">IGST Rate (%)</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            min="0"
+                            className="s-field-input"
+                            value={invoiceSettingsForm.defaultIgstRate}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              handleInvoiceSettingsChange('defaultIgstRate', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="settings-row" style={{ marginTop: '12px' }}>
+                        <div className="s-field">
+                          <label className="s-field-label">Template</label>
+                          <select 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.defaultTemplate}
+                            onChange={(e) => handleInvoiceSettingsChange('defaultTemplate', e.target.value)}
+                          >
+                            <option value="default">Standard</option>
+                            <option value="jewellery">Jewellery</option>
+                            <option value="modern">Modern</option>
+                          </select>
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Invoice Prefix</label>
+                          <input 
+                            type="text" 
+                            className="s-field-input"
+                            value={invoiceSettingsForm.invoiceNumberPrefix}
+                            onChange={(e) => handleInvoiceSettingsChange('invoiceNumberPrefix', e.target.value)}
+                            placeholder="INV"
+                          />
+                        </div>
+                        <div className="s-field">
+                          <label className="s-field-label">Starting Sequence</label>
+                          <input 
+                            type="number" 
+                            min="1"
+                            className="s-field-input"
+                            value={invoiceSettingsForm.startingSequence}
+                            onChange={(e) => {
+                              const val = e.target.value === '' ? 1 : parseInt(e.target.value);
+                              handleInvoiceSettingsChange('startingSequence', isNaN(val) ? 1 : Math.max(1, val));
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="s-field" style={{ marginTop: '12px' }}>
+                        <label className="s-field-label">Declaration / Terms</label>
+                        <textarea 
+                          className="s-field-input"
+                          rows="3"
+                          value={invoiceSettingsForm.declaration}
+                          onChange={(e) => handleInvoiceSettingsChange('declaration', e.target.value)}
+                          placeholder="Terms and conditions to appear on invoice"
+                        />
+                      </div>
+                    </div>
+
+                    {invoiceSettingsStatus.error && (
+                      <div className="s-feedback-err" style={{ marginTop: '12px' }}>{invoiceSettingsStatus.error}</div>
+                    )}
+                    {invoiceSettingsStatus.success && (
+                      <div className="s-feedback-ok" style={{ marginTop: '12px' }}>{invoiceSettingsStatus.success}</div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </section>
         )}
@@ -246,6 +671,30 @@ const SettingsPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ────────── INVOICE PREVIEW MODAL ────────── */}
+      {showPreview && (
+        <div className="preview-overlay" onClick={() => setShowPreview(false)}>
+          <div className="preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <span className="preview-title">Invoice Preview</span>
+              <button className="preview-close" onClick={() => setShowPreview(false)}>✕</button>
+            </div>
+            <div className="preview-body">
+              {previewLoading ? (
+                <div className="m-empty" style={{ padding: '40px' }}>Loading preview…</div>
+              ) : (
+                <iframe 
+                  className="preview-frame"
+                  srcDoc={previewHtml || '<html><body></body></html>'}
+                  title="Invoice Preview"
+                  sandbox="allow-same-origin"
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

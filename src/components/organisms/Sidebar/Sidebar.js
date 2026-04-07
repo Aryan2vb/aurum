@@ -52,6 +52,9 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
     { iconName: 'customer', label: 'Customers', path: '/customers', color: '#3b82f6' },
     { iconName: 'udhar', label: 'Udhar', path: '/credits', color: '#f59e0b' },
     { iconName: 'reminder', label: 'Reminders', path: '/reminders', color: '#10b981' },
+    { iconName: 'invoice', label: 'Invoice Table', path: '/invoices', color: '#14b8a6' },
+    { iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' },
+    { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#8b5cf6' },
   ];
 
   // Collapsed sidebar (on desktop only)
