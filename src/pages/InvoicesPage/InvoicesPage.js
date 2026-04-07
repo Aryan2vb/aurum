@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
 import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
 import SummaryCard from '../../components/molecules/SummaryCard/SummaryCard';
+import Icon from '../../components/atoms/Icon/Icon';
 import { getInvoices } from '../../services/invoicesService';
 import './InvoicesPage.css';
 
@@ -13,11 +15,13 @@ const formatCurrency = (amount) => {
 };
 
 const InvoicesPage = () => {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showItems, setShowItems] = useState(false);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,6 +119,35 @@ const InvoicesPage = () => {
   return (
     <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
       <div className="invoices-page-container">
+        {/* Floating Action Button */}
+        <div className="floating-actions">
+          <div className="fab-container">
+            <button 
+              className="fab-main" 
+              onClick={() => setShowCreateMenu(!showCreateMenu)}
+            >
+              <Icon name="add" size={24} />
+            </button>
+            {showCreateMenu && (
+              <div className="fab-menu">
+                <button 
+                  className="fab-item desktop"
+                  onClick={() => navigate('/invoices/new')}
+                >
+                  <Icon name="computer" size={16} />
+                  <span>Desktop</span>
+                </button>
+                <button 
+                  className="fab-item mobile"
+                  onClick={() => navigate('/invoices/new/mobile')}
+                >
+                  <Icon name="phone" size={16} />
+                  <span>Mobile</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
         <div className="stats-grid">
           <SummaryCard 
             title="Total Receivables" 

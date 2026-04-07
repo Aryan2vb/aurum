@@ -7,65 +7,56 @@ import Button from '../../components/atoms/Button/Button';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice } from '../../services/invoicesService';
+import { createInvoice, createDraft, getInvoiceSettings } from '../../services/invoicesService';
 import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
+import { calcInvoiceTotals } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePage.module.css';
 
 const defaultInvoiceState = {
   company: {
-    name: "RAMAKRISHANA ORNAMENTS",
-    address: "NEAR JAGAUTA MATA MANDIR, MAIN MARKET, SEMARIYA, REWA, 486445",
-    gstin: "23AJNPS3243DIZC",
-    state: "MADHYA PRADESH",
-    stateCode: "23"
+    name: "",
+    address: "",
+    gstin: "",
+    state: "",
+    stateCode: ""
   },
   buyer: {
     name: "",
     address: "",
     phone: "",
     state: "",
-    stateCode: "06"
+    stateCode: ""
   },
   metadata: {
     invoiceNo: "Auto-Generated",
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     modeOfPayment: "UPI"
   },
-  items: [
-    {
-      slNo: 1,
-      description: "GOLD JEWELLERY\\nOne Pc Gents Ring Gold",
-      hsnSac: "71131910",
-      quantity: 4.77,
-      unit: "GMS",
-      rate: 9924.49,
-      makingCharges: 500,
-      metalType: "GOLD",
-      grossWeight: 5.00,
-      netWeight: 4.77,
-      huid: "",
-      amount: 47638.51
-    }
-  ],
+  items: [],
   taxes: {
     cgstRate: 1.5,
-    cgstAmount: 714.58,
+    cgstAmount: 0,
     sgstRate: 1.5,
-    sgstAmount: 714.58,
-    totalTaxAmount: 1429.16
+    sgstAmount: 0,
+    totalTaxAmount: 0
   },
   hallmarkCharges: 0,
   hsnSummary: [],
   roundOff: 0,
-  totalAmount: 49068,
-  amountInWords: "Indian Rupees Forty Nine Thousand Sixty Eight Only",
-  taxAmountInWords: "Indian Rupees One Thousand Four Hundred Twenty Nine Only",
+  totalAmount: 0,
+  amountInWords: '',
+  taxAmountInWords: '',
   declaration: "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct."
 };
+
+const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
   const [theme, setTheme] = useState('classic');
+  const [step, setStep] = useState(1);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
   const [loading, setLoading] = useState(false);
   const [invoiceData, setInvoiceData] = useState(defaultInvoiceState);
   const [previewHtml, setPreviewHtml] = useState('');
@@ -77,54 +68,79 @@ const CreateInvoicePage = () => {
   const [searching, setSearching] = useState(false);
   const searchDebounceTimerRef = useRef(null);
 
+  // Fetch invoice settings on component mount
   useEffect(() => {
-    // Generate HTML preview whenever data or theme changes
+    const fetchSettings = async () => {
+      try {
+        const settings = await getInvoiceSettings();
+        
+        // Update invoice data with fetched company settings
+        setInvoiceData(prev => ({
+          ...prev,
+          company: {
+            name: settings.companyName || '',
+            address: settings.address || '',
+            gstin: settings.gstin || '',
+            state: settings.state || '',
+            stateCode: settings.stateCode || ''
+          },
+          taxes: {
+            cgstRate: settings.defaultCgstRate || 1.5,
+            cgstAmount: 0,
+            sgstRate: settings.defaultSgstRate || 1.5,
+            sgstAmount: 0,
+            totalTaxAmount: 0
+          },
+          declaration: settings.declaration || prev.declaration,
+          metadata: {
+            ...prev.metadata,
+            modeOfPayment: "UPI" // Keep default payment mode
+          }
+        }));
+        
+        // Set theme based on settings
+        if (settings.defaultTemplate) {
+          setTheme(settings.defaultTemplate);
+        }
+      } catch (error) {
+        console.error('Failed to fetch invoice settings:', error);
+        // Keep default values if settings fetch fails
+      } finally {
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  // Live totals for Calculation Hub
+  const calc = React.useMemo(() =>
+    calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
+  [invoiceData, paidAmount]);
+
+  useEffect(() => {
     const runGeneration = () => {
-      // Recalculate amounts before preview
-      let itemsSubtotal = 0;
-      const updatedItems = invoiceData.items.map(item => {
-        const amount = parseFloat(item.quantity || 0) * (parseFloat(item.rate || 0) + parseFloat(item.makingCharges || 0));
-        itemsSubtotal += amount;
-        return { ...item, amount };
-      });
-
-      const hallmark = parseFloat(invoiceData.hallmarkCharges || 0);
-      const subtotal = itemsSubtotal + hallmark;
-
-      const taxAmt = Math.round(subtotal * (invoiceData.taxes.cgstRate / 100) * 100) / 100;
-      const totalTax = taxAmt * 2;
-      const gross = subtotal + totalTax;
-      const roundedGross = Math.round(gross);
-      
+      const { hydratedItems, subtotal, cgst, sgst, roundOff, total } = calcInvoiceTotals(
+        invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate
+      );
       const hydratedData = {
         ...invoiceData,
-        items: updatedItems,
-        taxes: {
-          ...invoiceData.taxes,
-          cgstAmount: taxAmt,
-          sgstAmount: taxAmt,
-          totalTaxAmount: totalTax
-        },
+        items: hydratedItems,
+        taxes: { ...invoiceData.taxes, cgstAmount: cgst, sgstAmount: sgst, totalTaxAmount: cgst + sgst },
         hsnSummary: [{
-          hsnSac: updatedItems[0]?.hsnSac || '71131910',
+          hsnSac: hydratedItems[0]?.hsnSac || '71131910',
           taxableValue: subtotal,
-          cgstRate: invoiceData.taxes.cgstRate,
-          cgstAmount: taxAmt,
-          sgstRate: invoiceData.taxes.sgstRate,
-          sgstAmount: taxAmt,
-          totalTaxAmount: totalTax
+          cgstRate: invoiceData.taxes.cgstRate, cgstAmount: cgst,
+          sgstRate: invoiceData.taxes.sgstRate, sgstAmount: sgst,
+          totalTaxAmount: cgst + sgst,
         }],
-        roundOff: roundedGross - gross,
-        totalAmount: roundedGross,
+        roundOff,
+        totalAmount: total,
       };
-
       try {
         if (theme === 'modern') setPreviewHtml(generateModernInvoiceHtml(hydratedData));
         else if (theme === 'jewellery') setPreviewHtml(generateJewelleryInvoiceHtml(hydratedData));
         else setPreviewHtml(generateInvoiceHtml(hydratedData));
-      } catch (e) {
-        console.error('Preview error', e);
-      }
+      } catch (e) { console.error('Preview error', e); }
     };
     runGeneration();
   }, [invoiceData, theme]);
@@ -191,7 +207,11 @@ const CreateInvoicePage = () => {
         rate: 0,
         makingCharges: 0,
         metalType: "GOLD",
+        purity: "22K",
         grossWeight: 0,
+        stoneWeight: 0,
+        makingChargesType: 'FLAT_PER_ITEM',
+        stoneCharges: 0,
         netWeight: 0,
         huid: "",
         amount: 0
@@ -205,40 +225,87 @@ const CreateInvoicePage = () => {
     setInvoiceData({ ...invoiceData, items: newItems });
   };
 
-  const handleSave = async () => {
-    if (!selectedCustomerId) {
-      alert('Please select a customer first.');
-      return;
-    }
-    try {
-      setLoading(true);
-      const payload = {
-        customerId: selectedCustomerId,
-        items: invoiceData.items.map(item => ({
-          description: item.description,
-          hsnSac: item.hsnSac,
-          quantity: parseFloat(item.quantity),
-          unit: item.unit,
-          rate: parseFloat(item.rate),
-          makingCharges: parseFloat(item.makingCharges || 0),
-          metalType: item.metalType,
-          grossWeight: parseFloat(item.grossWeight || 0),
-          netWeight: parseFloat(item.netWeight || 0),
-          purity: item.purity,
-          huid: item.huid,
-          amount: parseFloat(item.quantity) * (parseFloat(item.rate) + parseFloat(item.makingCharges || 0))
-        })),
-        templateType: theme,
-        hallmarkCharges: parseFloat(invoiceData.hallmarkCharges || 0),
-        notes: invoiceData.declaration
+  const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
+
+  const buildPayload = () => ({
+    customerId: selectedCustomerId,
+    placeOfSupply: invoiceData.buyer.stateCode || '07',
+    invoiceDate: invoiceData.metadata.invoiceDate || new Date().toISOString().slice(0, 10),
+    templateType: theme,
+    modeOfPayment: invoiceData.metadata.modeOfPayment,
+    metalRateSource: 'manual',
+    metalRateDate: new Date().toISOString(),
+    taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
+    cgstRate: invoiceData.taxes.cgstRate,
+    sgstRate: invoiceData.taxes.sgstRate,
+    igstRate: 0,
+    buyerAddress: invoiceData.buyer.address || '',
+    buyerState: invoiceData.buyer.state || '',
+    buyerStateCode: invoiceData.buyer.stateCode || '',
+    autoCreateUdhar: isCredit ? true : autoCreateUdhar,
+    paidAmount: parseFloat(paidAmount) || 0,
+    notes: invoiceData.declaration,
+    deliveryNote: invoiceData.metadata.deliveryNote || '',
+    dispatchDocNo: invoiceData.metadata.dispatchDocNo || '',
+    destination: invoiceData.metadata.destination || '',
+    termsOfDelivery: invoiceData.metadata.termsOfDelivery || '',
+    items: invoiceData.items.map(item => {
+      const purityLabel = item.purity || '22K';
+      const purityNum = parseFloat(purityLabel.replace(/[Kk]/, ''));
+      const isKarat = purityLabel.toUpperCase().includes('K');
+      const purityBasis = isKarat ? 24 : 1000;
+      const purityValue = isKarat ? purityNum : purityNum / 10;
+      return {
+        description: item.description,
+        hsnSac: item.hsnSac,
+        quantity: parseFloat(item.quantity) || 1,
+        unit: item.unit || 'PCS',
+        metalType: item.metalType || 'GOLD',
+        metalRate: parseFloat(item.rate) || 0,
+        purityLabel,
+        purityValue,
+        purityBasis,
+        grossWeight: parseFloat(item.grossWeight) || 0,
+        stoneWeight: parseFloat(item.stoneWeight) || 0,
+        makingCharges: parseFloat(item.makingCharges) || 0,
+        makingChargesType: item.makingChargesType || 'FLAT_PER_ITEM',
+        stoneCharges: parseFloat(item.stoneCharges) || 0,
+        isHallmarked: !!item.huid,
+        huid: item.huid || undefined,
+        taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
+        cgstRate: invoiceData.taxes.cgstRate,
+        sgstRate: invoiceData.taxes.sgstRate,
+        igstRate: 0,
       };
-      
-      const response = await createInvoice(payload);
-      if (response && response.id) {
-        navigate('/invoices');
-      } else {
-        alert('Failed to save invoice.');
-      }
+    }),
+  });
+
+  const canSubmit = selectedCustomerId &&
+    invoiceData.items.length > 0 &&
+    invoiceData.items.every(i => i.description && i.hsnSac && parseFloat(i.grossWeight) > 0 && parseFloat(i.rate) > 0);
+
+  const handleSaveDraft = async () => {
+    if (!selectedCustomerId) { alert('Please select a customer first.'); return; }
+    try {
+      setLoading('draft');
+      const response = await createDraft(buildPayload());
+      if (response?.id) navigate(`/invoices`);
+      else alert('Failed to save draft.');
+    } catch (error) {
+      console.error(error);
+      alert('Network/Server error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!selectedCustomerId) { alert('Please select a customer first.'); return; }
+    try {
+      setLoading('confirm');
+      const response = await createInvoice(buildPayload());
+      if (response?.id) navigate(`/invoices`);
+      else alert('Failed to create invoice.');
     } catch (error) {
       console.error(error);
       alert('Network/Server error');
@@ -248,21 +315,26 @@ const CreateInvoicePage = () => {
   };
 
   return (
-    <DashboardTemplate headerTitle="Create Invoice">
-      <div className={styles.headerToolbar}>
-        <div className={styles.tabs}>
-           <button className={theme === 'classic' ? styles.activeTab : ''} onClick={() => setTheme('classic')}>Classic (Standard)</button>
-           <button className={theme === 'modern' ? styles.activeTab : ''} onClick={() => setTheme('modern')}>Modern (A4)</button>
-           <button className={theme === 'jewellery' ? styles.activeTab : ''} onClick={() => setTheme('jewellery')}>Jewellery (Special)</button>
-        </div>
-        <button className={styles.saveBtn} onClick={handleSave} disabled={loading}>{loading ? 'Saving...' : 'Save & Print Invoice'}</button>
-      </div>
+    <DashboardTemplate headerTitle="Create Invoice"  headerTabs={[]}>
 
       <div className={styles.splitView}>
         <div className={styles.formPane}>
           
-          <div className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>1. Select Customer</h3>
+          {/* Step Indicator */}
+          <div className={styles.stepper}>
+            {[{n:1,label:'CUSTOMER'},{n:2,label:'LINE ITEMS'},{n:3,label:'TAX & TOTAL'}].map(({n, label}, i, arr) => (
+              <React.Fragment key={n}>
+                <button className={`${styles.stepItem} ${step === n ? styles.stepActive : ''} ${step > n ? styles.stepDone : ''}`} onClick={() => setStep(n)}>
+                  <span className={styles.stepNum}>{n}</span>
+                  <span className={styles.stepLabel}>{label}</span>
+                </button>
+                {i < arr.length - 1 && <div className={`${styles.stepLine} ${step > n ? styles.stepLineDone : ''}`} />}
+              </React.Fragment>
+            ))}
+          </div>
+          
+          {step === 1 && <div className={styles.formSection}>
+            <h3 className={styles.sectionTitle}>Select Customer</h3>
             {!invoiceData.buyer.name ? (
               <div className={styles.searchBox}>
                 <SearchBar placeholder="Search customer by name or phone..." value={searchQuery} onChange={handleSearch} />
@@ -295,75 +367,74 @@ const CreateInvoicePage = () => {
                 <Button variant="ghost" size="small" onClick={() => { setSelectedCustomerId(''); setInvoiceData(prev => ({...prev, buyer: { ...prev.buyer, name: '' }})); }}>Change</Button>
               </div>
             )}
-          </div>
+          </div>}
 
-          <div className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>2. Items</h3>
+          {step === 1 && (
+            <button className={styles.stepNextBtn} onClick={() => setStep(2)}>Next: Line Items →</button>
+          )}
+
+          {step === 2 && <div className={styles.formSection}>
+            <h3 className={styles.sectionTitle}>Line Items</h3>
+            {invoiceData.items.length === 0 && (
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.875rem', textAlign: 'center', padding: '1rem 0' }}>No items yet. Add your first item below.</p>
+            )}
             {invoiceData.items.map((item, index) => (
               <div key={index} className={styles.itemRow}>
                 <div className={styles.itemRowHeader}>
                   <h4>Item {index + 1}</h4>
                   <button className={styles.removeBtn} onClick={() => removeItem(index)}><Icon name="close" size={14} /></button>
                 </div>
-                <div className={styles.fieldGrid}>
-                  <div className={styles.fieldFull}>
-                    <label>Description</label>
-                    <Input value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} placeholder="e.g. 22K Gold Chain" />
+
+                {/* Row 1: Description */}
+                <Input value={item.description} onChange={(e) => updateItem(index, 'description', e.target.value)} placeholder="Description (e.g. 22K Gold Chain)" />
+
+                {/* Row 2: Metal + Purity + Rate */}
+                <div className={styles.itemRow3}>
+                  <div className={styles.metalToggle}>
+                    {['GOLD','SILVER','PLATINUM'].map(m => (
+                      <button key={m} className={item.metalType === m ? styles.activeMetal : ''} onClick={() => updateItem(index, 'metalType', m)}>{m[0]+m.slice(1).toLowerCase()}</button>
+                    ))}
                   </div>
-                  <div className={styles.fieldHalf}>
-                    <label>HSN/SAC</label>
-                    <Input value={item.hsnSac} onChange={(e) => updateItem(index, 'hsnSac', e.target.value)} />
+                  <Input value={item.purity || ''} onChange={(e) => updateItem(index, 'purity', e.target.value)} placeholder="Purity (22K)" style={{ width: 80 }} />
+                  <Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', e.target.value)} placeholder="Rate ₹/gm" />
+                </div>
+
+                {/* Row 3: Gross Wt + Stone Wt + HSN */}
+                <div className={styles.itemRow3}>
+                  <Input type="number" value={item.grossWeight} onChange={(e) => updateItem(index, 'grossWeight', e.target.value)} placeholder="Gross wt (g)" />
+                  <Input type="number" value={item.stoneWeight} onChange={(e) => updateItem(index, 'stoneWeight', e.target.value)} placeholder="Stone wt (g)" />
+                  <Input value={item.hsnSac} onChange={(e) => updateItem(index, 'hsnSac', e.target.value)} placeholder="HSN/SAC" />
+                </div>
+
+                {/* Row 4: Making charges */}
+                <div className={styles.itemRow3}>
+                  <div className={styles.metalToggle}>
+                    {[['FLAT_PER_ITEM','Flat'],['PER_GRAM','/gm'],['PERCENTAGE_ON_METAL','%']].map(([val, label]) => (
+                      <button key={val} className={item.makingChargesType === val ? styles.activeMetal : ''} onClick={() => updateItem(index, 'makingChargesType', val)}>{label}</button>
+                    ))}
                   </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Quantity</label>
-                    <Input type="number" value={item.quantity} onChange={(e) => updateItem(index, 'quantity', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Metal Type</label>
-                    <div className={styles.metalToggle}>
-                      <button 
-                        className={item.metalType === 'GOLD' ? styles.activeMetal : ''} 
-                        onClick={() => updateItem(index, 'metalType', 'GOLD')}
-                      >Gold</button>
-                      <button 
-                        className={item.metalType === 'SILVER' ? styles.activeMetal : ''} 
-                        onClick={() => updateItem(index, 'metalType', 'SILVER')}
-                      >Silver</button>
-                    </div>
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Purity</label>
-                    <Input value={item.purity || ''} onChange={(e) => updateItem(index, 'purity', e.target.value)} placeholder="e.g. 22K or 925" />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Net Weight (gms)</label>
-                    <Input type="number" value={item.netWeight} onChange={(e) => updateItem(index, 'netWeight', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Gross Wt (gms)</label>
-                    <Input type="number" value={item.grossWeight} onChange={(e) => updateItem(index, 'grossWeight', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Rate (per gm)</label>
-                    <Input type="number" value={item.rate} onChange={(e) => updateItem(index, 'rate', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>Making Charges</label>
-                    <Input type="number" value={item.makingCharges} onChange={(e) => updateItem(index, 'makingCharges', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldHalf}>
-                    <label>HUID</label>
-                    <Input value={item.huid || ''} onChange={(e) => updateItem(index, 'huid', e.target.value)} />
-                  </div>
+                  <Input type="number" value={item.makingCharges} onChange={(e) => updateItem(index, 'makingCharges', e.target.value)} placeholder="Making charges" />
+                  <Input value={item.huid || ''} onChange={(e) => updateItem(index, 'huid', e.target.value)} placeholder="HUID (optional)" />
                 </div>
               </div>
             ))}
-            <Button variant="secondary" onClick={addItem} style={{ width: '100%', marginTop: '10px' }}><Icon name="add" size={16} /> Add Another Item</Button>
-          </div>
+            <Button variant="secondary" onClick={addItem} style={{ width: '100%', marginTop: '10px' }}><Icon name="add" size={16} /> {invoiceData.items.length === 0 ? 'Add Item' : 'Add Another Item'}</Button>
+          </div>}
 
-          <div className={styles.formSection}>
-            <h3 className={styles.sectionTitle}>3. Invoice Metadata</h3>
+          {step === 2 && (
+            <div className={styles.stepNavRow}>
+              <button className={styles.stepBackBtn} onClick={() => setStep(1)}>← Back</button>
+              <button className={styles.stepNextBtn} onClick={() => setStep(3)}>Next: Tax & Total →</button>
+            </div>
+          )}
+
+          {step === 3 && <div className={styles.formSection}>
+            <h3 className={styles.sectionTitle}>Tax & Total</h3>
             <div className={styles.fieldGrid}>
+              <div className={styles.fieldHalf}>
+                 <label>Place of Supply (State Code)</label>
+                 <Input value={invoiceData.buyer.stateCode} onChange={(e) => setInvoiceData({...invoiceData, buyer: {...invoiceData.buyer, stateCode: e.target.value}})} placeholder="e.g. 07" />
+              </div>
               <div className={styles.fieldHalf}>
                  <label>Payment Mode</label>
                  <select className={styles.select} value={invoiceData.metadata.modeOfPayment} onChange={(e) => setInvoiceData({...invoiceData, metadata: {...invoiceData.metadata, modeOfPayment: e.target.value}})}>
@@ -386,13 +457,101 @@ const CreateInvoicePage = () => {
                  <Input value={invoiceData.declaration} onChange={(e) => setInvoiceData({...invoiceData, declaration: e.target.value})} />
               </div>
             </div>
+          </div>}
+
+          {step === 3 && (
+            <button className={styles.stepBackBtn} onClick={() => setStep(2)}>← Back to Line Items</button>
+          )}
+
+          {/* Calculation Hub */}
+          <div className={styles.calcHub}>
+            <div className={styles.calcHubHeader}>
+              <span className={styles.calcHubTitle}>Calculation Hub</span>
+              <span className={styles.calcHubIcon}>⊞</span>
+            </div>
+            <div className={styles.calcRow}>
+              <span>Subtotal (Metal + Making)</span>
+              <span>{fmt(calc.subtotal)}</span>
+            </div>
+            <div className={`${styles.calcRow} ${styles.calcTax}`}>
+              <span>CGST ({invoiceData.taxes.cgstRate}%) <span className={styles.taxDot}>●</span></span>
+              <span>{fmt(calc.cgst)}</span>
+            </div>
+            <div className={`${styles.calcRow} ${styles.calcTax}`}>
+              <span>SGST ({invoiceData.taxes.sgstRate}%) <span className={styles.taxDot}>●</span></span>
+              <span>{fmt(calc.sgst)}</span>
+            </div>
+            <div className={`${styles.calcRow} ${styles.calcMuted}`}>
+              <span>Total Taxable Amount</span>
+              <span>{fmt(calc.taxable)}</span>
+            </div>
+            <div className={styles.calcRow}>
+              <span>Round Off</span>
+              <span>{calc.roundOff >= 0 ? '+' : ''}{fmt(calc.roundOff)}</span>
+            </div>
+            <div className={styles.calcDivider} />
+            <div className={styles.calcPayable}>
+              <span className={styles.calcPayableLabel}>PAYABLE AMOUNT</span>
+              <span className={styles.calcPayableAmount}>{fmt(calc.total)}</span>
+            </div>
+            {!isCredit && (
+              <div className={styles.calcPaidRow}>
+                <label className={styles.calcPaidLabel}>Amount Received (₹)</label>
+                <input
+                  type="number"
+                  className={styles.calcPaidInput}
+                  value={paidAmount}
+                  min={0}
+                  max={calc.total}
+                  onChange={e => setPaidAmount(Math.min(parseFloat(e.target.value) || 0, calc.total))}
+                />
+                <div className={styles.calcOutstanding}>
+                  <span>Outstanding</span>
+                  <span style={{ color: calc.outstanding > 0 ? '#f59e0b' : '#10b981' }}>{fmt(calc.outstanding)}</span>
+                </div>
+                {calc.outstanding > 0 && (
+                  <label className={styles.calcUdharToggle}>
+                    <input
+                      type="checkbox"
+                      checked={autoCreateUdhar}
+                      onChange={e => setAutoCreateUdhar(e.target.checked)}
+                    />
+                    <span>Create udhar for {fmt(calc.outstanding)} balance</span>
+                  </label>
+                )}
+              </div>
+            )}
+            {isCredit && (
+              <div className={styles.calcCreditNote}>Credit terms apply — udhar will be created</div>
+            )}
           </div>
-          
-        </div>
+
+          {/* Actions */}
+          <div className={styles.actionPanel}>
+            <button className={styles.finalizeBtn} onClick={handleConfirm} disabled={!!loading || !canSubmit}>
+              <Icon name="file" size={16} color="white" /> {loading === 'confirm' ? 'Confirming...' : 'Finalize, Pay & Print'}
+            </button>
+            <button className={styles.draftBtn} onClick={handleSaveDraft} disabled={!!loading || !canSubmit}>
+              <Icon name="edit" size={16} /> {loading === 'draft' ? 'Saving...' : 'Hold / Draft Invoice'}
+            </button>
+            <div className={styles.actionRow}>
+              <button className={styles.actionBtn} onClick={() => {}}>
+                <Icon name="share" size={18} /><span>SHARE</span>
+              </button>
+              <button className={styles.actionBtn} onClick={() => {}}>
+                <Icon name="eye" size={18} /><span>PREVIEW</span>
+              </button>
+              <button className={`${styles.actionBtn} ${styles.actionBtnDiscard}`} onClick={() => navigate('/invoices')}>
+                <Icon name="close" size={18} color="#ef4444" /><span>DISCARD</span>
+              </button>
+            </div>
+          </div>
+        </div>{/* end formPane */}
         <div className={styles.previewPane}>
-          <div className={styles.paneHeader}>
-            <h3 style={{ margin: 0, fontSize: '15px' }}>Live Preview</h3>
-            <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>Edits map directly to this document format.</p>
+          <div className={styles.previewTabs}>
+            <button className={theme === 'classic' ? styles.activeTab : ''} onClick={() => setTheme('classic')}>Classic</button>
+            <button className={theme === 'modern' ? styles.activeTab : ''} onClick={() => setTheme('modern')}>Modern</button>
+            <button className={theme === 'jewellery' ? styles.activeTab : ''} onClick={() => setTheme('jewellery')}>Jewellery</button>
           </div>
           <div className={styles.iframeContainer}>
             <iframe srcDoc={previewHtml} title="Invoice Preview" />

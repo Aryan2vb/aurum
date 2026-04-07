@@ -33,6 +33,18 @@
 }
 
 .saveBtn {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.saveBtn:hover { background: var(--bg-hover); }
+
+.confirmBtn {
   background: var(--accent);
   color: var(--on-accent);
   border: none;
@@ -42,12 +54,11 @@
   cursor: pointer;
 }
 
-.saveBtn:hover {
-  background: var(--accent-hover);
-}
+.confirmBtn:hover { background: var(--accent-hover); }
 
-.saveBtn:disabled {
-  background: var(--text-tertiary);
+.saveBtn:disabled,
+.confirmBtn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -78,10 +89,32 @@
   overflow: hidden;
 }
 
-.paneHeader {
-  padding: 1rem;
+.previewTabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
+}
+
+.previewTabs button {
+  padding: 0.35rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.15s;
+}
+
+.previewTabs button:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.previewTabs button.activeTab {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .iframeContainer {
@@ -156,8 +189,18 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.itemRow3 {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .itemRowHeader {
@@ -281,3 +324,308 @@
   color: var(--text-primary);
   box-shadow: 0 1px 2px var(--shadow);
 }
+
+/* ── Calculation Hub ── */
+.calcHub {
+  background: #1a1a2e;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  color: #e8e8e6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.calcHubHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.calcHubTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.calcHubIcon {
+  font-size: 1rem;
+  color: #a0a0c0;
+}
+
+.calcRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #c8c8d8;
+}
+
+.calcTax {
+  color: #f0c040;
+  font-weight: 500;
+}
+
+.taxDot { font-size: 0.6rem; }
+
+.calcMuted {
+  font-size: 0.75rem;
+  color: #7878a0;
+}
+
+.calcDivider {
+  border-top: 1px solid #2a2a4a;
+  margin: 0.25rem 0;
+}
+
+.calcPayable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.calcPayableLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7878a0;
+}
+
+.calcPayableAmount {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.calcPaidRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 0.5rem;
+  border-top: 1px solid #2a2a4a;
+}
+
+.calcPaidLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7878a0;
+}
+
+.calcPaidInput {
+  background: #2a2a4a;
+  border: 1px solid #3a3a5a;
+  border-radius: 0.375rem;
+  color: #fff;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.9rem;
+  outline: none;
+  width: 100%;
+}
+.calcPaidInput:focus { border-color: #5a5aaa; }
+
+.calcOutstanding {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #a0a0c0;
+  margin-top: 2px;
+}
+
+.calcUdharToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #f0c040;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.calcCreditNote {
+  font-size: 0.75rem;
+  color: #f0c040;
+  padding-top: 0.5rem;
+  border-top: 1px solid #2a2a4a;
+}
+
+/* ── Action Panel ── */
+.actionPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.finalizeBtn {
+  width: 100%;
+  padding: 0.9rem;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.15s;
+}
+.finalizeBtn:hover { background: #2a2a4e; }
+.finalizeBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.draftBtn {
+  width: 100%;
+  padding: 0.9rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: background 0.15s;
+}
+.draftBtn:hover { background: var(--bg-hover); }
+.draftBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.actionRow {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 0.25rem;
+}
+
+.actionBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+.actionBtn:hover { background: var(--bg-hover); }
+.actionBtn span:first-child { font-size: 1.1rem; }
+
+.actionBtnDiscard { color: #ef4444; }
+
+/* ── Stepper ── */
+.stepper {
+  display: flex;
+  align-items: center;
+  padding: 1rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.stepItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.stepNum {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stepLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+.stepActive .stepNum {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.stepActive .stepLabel {
+  color: var(--text-primary);
+}
+
+.stepDone .stepNum {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.stepDone .stepLabel {
+  color: var(--text-secondary);
+}
+
+.stepLine {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+  margin: 0 0.75rem;
+  margin-bottom: 1.4rem;
+  transition: background 0.15s;
+}
+
+.stepLineDone {
+  background: var(--accent);
+}
+
+/* ── Step nav buttons ── */
+.stepNextBtn {
+  width: 100%;
+  padding: 0.75rem;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.stepNextBtn:hover { background: #2a2a4e; }
+
+.stepBackBtn {
+  padding: 0.6rem 1rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.stepBackBtn:hover { background: var(--bg-hover); }
+
+.stepNavRow {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.stepNavRow .stepNextBtn { flex: 1; }

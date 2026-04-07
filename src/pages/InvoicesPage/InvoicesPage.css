@@ -7,6 +7,9 @@
   overflow-y: auto;
 }
 
+/* Import FAB styles */
+@import './InvoicesPageFAB.css';
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

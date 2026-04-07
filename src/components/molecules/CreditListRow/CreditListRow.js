@@ -102,17 +102,19 @@ const CreditListRow = ({
 
       {/* Actions */}
       <div className="credit-list-cell credit-list-cell-actions">
-        <Button
-          variant="ghost"
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRecordPayment?.(credit);
-          }}
-          className="credit-list-action-btn"
-        >
-          <Icon name="add" size={14} />
-        </Button>
+        {onRecordPayment && (
+          <Button
+            variant="ghost"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRecordPayment(credit);
+            }}
+            className="credit-list-action-btn"
+          >
+            <Icon name="add" size={14} />
+          </Button>
+        )}
       </div>
     </div>
   );

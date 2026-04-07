@@ -20,6 +20,8 @@ import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
 import PublicRoute from './components/PublicRoute/PublicRoute';
 import InvoicesPage from './pages/InvoicesPage/InvoicesPage';
 import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
+import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
+import ReportsPage from './pages/ReportsPage/ReportsPage';
 import './App.css';
 
 function App() {
@@ -152,7 +154,23 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/invoices/new/mobile"
+              element={
+                <ProtectedRoute>
+                  <CreateInvoicePageMobile />
+                </ProtectedRoute>
+              }
+            />
             
+            <Route
+              path="/reports"
+              element={
+                <ProtectedRoute>
+                  <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>

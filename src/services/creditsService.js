@@ -118,6 +118,42 @@ export const getDueReminders = async (days = 7) => {
 };
 
 /**
+ * Get customer statement
+ */
+export const getCustomerStatement = async (customerId) => {
+  const url = buildApiUrl(`/reports/customer-statement/${customerId}`);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  return parseResponse(response);
+};
+
+/**
+ * Get customer ledger entries
+ */
+export const getCustomerLedger = async (customerId) => {
+  const url = buildApiUrl(`/credits/customer/${customerId}/ledger`);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  return parseResponse(response);
+};
+
+/**
+ * Get customer udhar entries
+ */
+export const getCustomerUdhar = async (customerId) => {
+  const url = buildApiUrl(`/credits/customer/${customerId}/udhar`);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getAuthHeaders(),
+  });
+  return parseResponse(response);
+};
+
+/**
  * Get customer credit summary
  */
 export const getCustomerCreditSummary = async (customerId) => {

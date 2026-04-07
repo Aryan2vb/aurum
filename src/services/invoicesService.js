@@ -60,6 +60,19 @@ export const createDraft = async (invoiceData) => {
   return parseResponse(response);
 };
 
+export const finalizeInvoice = async (invoiceId, data = {}) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/finalize`), {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return parseResponse(response);
+};
+
 export const recordPayment = async (invoiceId, paymentData) => {
   const token = localStorage.getItem('authToken');
   const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/payment`), {
@@ -82,6 +95,37 @@ export const sendInvoice = async (invoiceId, sendData) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(sendData),
+  });
+  return parseResponse(response);
+};
+
+export const getNegotiationPreview = async (invoiceId, targetAmount) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/negotiate/preview?targetAmount=${targetAmount}`), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return parseResponse(response);
+};
+
+export const commitNegotiation = async (invoiceId, targetAmount, negotiationNote) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/negotiate/commit`), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targetAmount, ...(negotiationNote && { negotiationNote }) }),
+  });
+  return parseResponse(response);
+};
+
+export const updateInvoice = async (invoiceId, updateData) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}`), {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updateData),
   });
   return parseResponse(response);
 };

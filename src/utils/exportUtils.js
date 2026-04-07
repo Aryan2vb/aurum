@@ -67,11 +67,11 @@ export const flattenInvoiceData = (invoice) => {
     status: invoice.status || '',
     
     // Customer Info
-    customerName: invoice.customer?.fullName || invoice.buyerSnapshot?.data?.name || '',
+    customerName: invoice.customer?.fullName || invoice.buyerSnapshot?.name || '',
     customerCode: invoice.customer?.customerCode || '',
-    customerPhone: invoice.customer?.contactDetails?.[0]?.primaryPhone || invoice.buyerSnapshot?.data?.phone || '',
-    customerAddress: invoice.buyerSnapshot?.data?.address || '',
-    customerGstin: invoice.buyerSnapshot?.data?.gstin || '',
+    customerPhone: invoice.customer?.contactDetails?.[0]?.primaryPhone || invoice.buyerSnapshot?.phone || '',
+    customerAddress: invoice.buyerSnapshot?.address || '',
+    customerGstin: invoice.buyerSnapshot?.gstin || '',
 
     // Financial Info
     taxType: invoice.taxType || '',
@@ -84,7 +84,7 @@ export const flattenInvoiceData = (invoice) => {
     paidAmount: invoice.paidAmount || '',
     balance: invoice.remainingBalance || 0,
     paymentMode: invoice.modeOfPayment || '',
-    bankName: invoice.companySnapshot?.data?.bankDetails?.bankName || '',
+    bankName: invoice.companySnapshot?.bankDetails?.bankName || '',
 
     itemCount: invoice._count?.items || 0,
     notes: invoice.notes || '',
@@ -101,12 +101,12 @@ export const flattenInvoiceData = (invoice) => {
       itemHsnSac: item.hsnSac || '',
       itemQuantity: item.quantity,
       itemUnit: item.unit || 'GMS',
-      itemPurity: item.purity || '',
+      itemPurity: item.purityLabel || item.purity || '',
       itemGrossWeight: item.grossWeight || '',
       itemNetWeightGold: item.metalType !== 'SILVER' ? (item.netWeight || 0) : 0,
       itemNetWeightSilver: item.metalType === 'SILVER' ? (item.netWeight || 0) : 0,
-      itemMetalRate: item.rate,
-      itemMakingCharges: item.makingCharges || '',
+      itemMetalRate: item.effectiveRate || item.metalRate || '',
+      itemMakingCharges: item.makingChargesAmount || item.makingCharges || '',
       itemHuid: item.huid || '',
       itemTaxableAmount: item.taxableAmount,
       itemTotalAmount: item.totalAmount,

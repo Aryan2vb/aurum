@@ -287,3 +287,190 @@
   background: var(--bg-hover);
   border-color: var(--text-tertiary);
 }
+
+.action-btn.danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.action-btn.danger:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+.action-btn.danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Negotiation ── */
+.negotiate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.negotiate-body {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.negotiate-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.negotiate-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.negotiate-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  width: 100%;
+}
+.negotiate-input:focus { border-color: var(--accent); }
+
+.negotiate-preview-btn {
+  padding: 0.5rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.negotiate-preview-btn:hover { background: var(--bg-hover); }
+.negotiate-preview-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.negotiate-error { font-size: 0.8rem; color: var(--error); margin: 0; }
+
+.negotiate-preview {
+  background: var(--bg-tertiary);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.negotiate-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.negotiate-preview-total {
+  font-weight: 700;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.negotiate-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 2px 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.negotiate-item-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+
+.negotiate-commit-btn {
+  margin-top: 0.25rem;
+  padding: 0.6rem;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.negotiate-commit-btn:hover { background: #2a2a4e; }
+.negotiate-commit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.negotiate-done {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.negotiate-note {
+  width: 100%;
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* ── Redesigned top row ── */
+.invoice-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--spacing-md);
+}
+
+.invoice-top-customer { display: flex; flex-direction: column; gap: 3px; }
+
+.invoice-customer-name { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+
+.invoice-customer-name-btn {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--border-color);
+  transition: color var(--transition-fast);
+}
+.invoice-customer-name-btn:hover { color: var(--accent); }
+
+.invoice-customer-meta { font-size: 0.82rem; color: var(--text-secondary); }
+
+.invoice-top-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.invoice-meta-row { display: flex; gap: 0.5rem; font-size: 0.82rem; }
+.invoice-meta-row span:first-child { color: var(--text-tertiary); }
+.invoice-meta-row span:last-child { color: var(--text-primary); font-weight: 500; }

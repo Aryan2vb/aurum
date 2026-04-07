@@ -159,25 +159,25 @@ const InvoiceTable = ({
       data.forEach((invoice, invIdx) => {
         const items = invoice.items || [];
         items.forEach((item, itemIdx) => {
+          const itemAmount = parseFloat(item.taxableAmount || item.totalAmount || 0);
           flatRows.push({
             ...invoice,
             ...item,
-            id: `${invoice.id}-${item.id || itemIdx}`, // Unique ID for table row
-            invoiceId: invoice.id, // Keep reference to parent
+            id: `${invoice.id}-${item.id || itemIdx}`,
+            invoiceId: invoice.id,
             isSubRow: true,
             sn: flatRows.length + 1,
-            // Map individual item fields to ledger columns
             ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
             ledgerItemName: item.description,
+            purity: item.purityLabel || item.purity || '',
             ledgerGrossWeight: item.grossWeight || 0,
-            ledgerNetWeightGold: item.metalType !== 'SILVER' ? (item.netWeight || 0) : 0,
-            ledgerNetWeightSilver: item.metalType === 'SILVER' ? (item.netWeight || 0) : 0,
-            ledgerMetalRate: item.rate || 0,
-            ledgerLabourTotal: (item.makingCharges || 0),
-            ledgerAmount: item.amount || 0,
-            // Split based on parent invoice
-            ledgerBank: (invoice.modeOfPayment !== 'CASH') ? (item.amount || 0) : 0,
-            ledgerCash: (invoice.modeOfPayment === 'CASH') ? (item.amount || 0) : 0,
+            ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
+            ledgerNetWeightSilver: item.metalType === 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
+            ledgerMetalRate: item.effectiveRate || item.metalRate || 0,
+            ledgerLabourTotal: parseFloat(item.makingChargesAmount || item.makingCharges || 0),
+            ledgerAmount: itemAmount,
+            ledgerBank: invoice.modeOfPayment !== 'CASH' ? itemAmount : 0,
+            ledgerCash: invoice.modeOfPayment === 'CASH' ? itemAmount : 0,
           });
         });
       });
@@ -203,7 +203,7 @@ const InvoiceTable = ({
         .filter(i => i.metalType === 'SILVER')
         .reduce((sum, i) => sum + (Number(i.netWeight) || 0), 0);
 
-      const labourTotal = items.reduce((sum, i) => sum + (Number(i.makingCharges) || 0), 0);
+      const labourTotal = items.reduce((sum, i) => sum + (Number(i.makingChargesAmount || i.makingCharges) || 0), 0);
 
       return {
         ...invoice,
@@ -220,44 +220,28 @@ const InvoiceTable = ({
     });
   }, [data, showItems]);
 
-  // Aggregations
+  // Aggregations — always from base invoice data for accuracy
   const aggregations = useMemo(() => {
-    let totalValue = 0;
-    let goldWt = 0;
-    let silverWt = 0;
-    let totalGst = 0;
-    let totalBank = 0;
-    let totalCash = 0;
-    
-    // Always aggregate from the base data to keep sums accurate regardless of view
+    let totalValue = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0;
+
     data.forEach(inv => {
       totalValue += Number(inv.totalAmount || 0);
-      totalGst += (Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0));
-      
-      if (inv.modeOfPayment === 'CASH') {
-        totalCash += Number(inv.totalAmount || 0);
-      } else {
-        totalBank += Number(inv.totalAmount || 0);
-      }
-      
-      if (inv.items) {
-        inv.items.forEach(item => {
-          if (item.metalType === 'SILVER') silverWt += Number(item.netWeight || 0);
-          else goldWt += Number(item.netWeight || 0);
-        });
-      }
+      totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0);
+      if (inv.modeOfPayment === 'CASH') totalCash += Number(inv.totalAmount || 0);
+      else totalBank += Number(inv.totalAmount || 0);
+      (inv.items || []).forEach(item => {
+        if (item.metalType === 'SILVER') silverWt += Number(item.netWeight || 0);
+        else goldWt += Number(item.netWeight || 0);
+      });
     });
 
     return {
-      count: data.length,
+      count: showItems ? processedData.length : data.length,
+      label: showItems ? 'items' : 'invoices',
       total: totalValue,
-      goldWt,
-      silverWt,
-      totalGst,
-      totalBank,
-      totalCash
+      goldWt, silverWt, totalGst, totalBank, totalCash,
     };
-  }, [data]);
+  }, [data, showItems, processedData]);
 
   const clearAllFilters = useCallback(() => {
     onFiltersChange({
@@ -344,25 +328,25 @@ const InvoiceTable = ({
       cell: info => formatDate(info.getValue()),
       size: 90,
     }),
-    columnHelper.accessor(row => row.customer?.fullName || row.buyerSnapshot?.data?.name || '', {
+    columnHelper.accessor(row => row.customer?.fullName || row.buyerSnapshot?.name || '', {
       id: 'customer',
       header: 'Customer Name',
       size: 160,
     }),
     columnHelper.accessor(row => {
-      const name = row.customer?.fullName || row.buyerSnapshot?.data?.name || '';
+      const name = row.customer?.fullName || row.buyerSnapshot?.name || '';
       return name.split(' ').slice(1).join(' ') || '';
     }, {
       id: 'lastName',
       header: 'Last Name',
       size: 100,
     }),
-    columnHelper.accessor(row => row.buyerSnapshot?.data?.address || row.customer?.locations?.[0]?.addressLine1 || '', {
+    columnHelper.accessor(row => row.buyerSnapshot?.address || '', {
       id: 'address',
       header: 'Address',
       size: 150,
     }),
-    columnHelper.accessor(row => row.buyerSnapshot?.data?.phone || row.customer?.contactDetails?.[0]?.primaryPhone || '', {
+    columnHelper.accessor(row => row.buyerSnapshot?.phone || row.customer?.contactDetails?.[0]?.primaryPhone || '', {
       id: 'phone',
       header: 'Contact No.',
       size: 110,
@@ -553,7 +537,7 @@ const InvoiceTable = ({
         </div>
 
         <div className="saas-toolbar-meta">
-          <span className="saas-count">{aggregations.count} invoices</span>
+          <span className="saas-count">{aggregations.count} {aggregations.label}</span>
         </div>
       </div>
 
@@ -615,32 +599,23 @@ const InvoiceTable = ({
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
-                {/* select + sn + invoiceNumber + date + customer + lastName + address + phone + metal + hsn + itemName = 11 cols before gold wt */}
-                <td className="attio-tf" colSpan={3}>
-                  <span className="attio-tf-value">{aggregations.count} total</span>
-                </td>
-                <td className="attio-tf" colSpan={8} />
-                <td className="attio-tf">
-                  <span className="attio-tf-value">{Number(aggregations.goldWt).toFixed(3)}</span>
-                </td>
-                <td className="attio-tf">
-                  <span className="attio-tf-value">{Number(aggregations.silverWt).toFixed(3)}</span>
-                </td>
-                <td className="attio-tf" colSpan={5} />
-                <td className="attio-tf">
-                  <span className="attio-tf-value">{formatCurrency(aggregations.totalGst)}</span>
-                </td>
-                <td className="attio-tf" />
-                <td className="attio-tf">
-                  <span className="attio-tf-value fw-600">{formatCurrency(aggregations.total)}</span>
-                </td>
-                <td className="attio-tf">
-                  <span className="attio-tf-value">{formatCurrency(aggregations.totalBank)}</span>
-                </td>
-                <td className="attio-tf">
-                  <span className="attio-tf-value">{formatCurrency(aggregations.totalCash)}</span>
-                </td>
-                <td className="attio-tf" />
+                {table.getAllColumns().map((col) => {
+                  const totals = {
+                    sn: `${aggregations.count} ${aggregations.label}`,
+                    ledgerNetWeightGold: Number(aggregations.goldWt).toFixed(3),
+                    ledgerNetWeightSilver: Number(aggregations.silverWt).toFixed(3),
+                    ledgerGst: formatCurrency(aggregations.totalGst),
+                    totalAmount: formatCurrency(aggregations.total),
+                    ledgerBank: formatCurrency(aggregations.totalBank),
+                    ledgerCash: formatCurrency(aggregations.totalCash),
+                  };
+                  const val = totals[col.id];
+                  return (
+                    <td key={col.id} className="attio-tf">
+                      {val && <span className={`attio-tf-value${col.id === 'totalAmount' ? ' fw-600' : ''}`}>{val}</span>}
+                    </td>
+                  );
+                })}
               </tr>
             </tfoot>
           )}

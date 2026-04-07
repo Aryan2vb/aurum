@@ -1,3 +1,5 @@
+import { calcItemAmount } from './invoiceCalc';
+
 export function generateInvoiceHtml(data) {
     const {
         company,
@@ -19,11 +21,10 @@ export function generateInvoiceHtml(data) {
     const hallmarkingCharge = data.hallmarkingCharge !== undefined ? data.hallmarkingCharge : 0;
 
     const itemRows = items.map(item => {
-        const effectiveRate = parseFloat(item.rate || 0) + parseFloat(item.makingCharges || 0);
-        const rateDisplay =
-            item.makingCharges && item.makingCharges > 0
-                ? `<strong>${formatCurrency(effectiveRate)}</strong><br/><span class="text-sm" style="font-size:11px;">(${formatCurrency(item.rate)} + ${formatCurrency(item.makingCharges)}/gm labour)</span>`
-                : formatCurrency(item.rate);
+        const { effectiveRate, makingChargesAmount } = calcItemAmount(item);
+        const rateDisplay = makingChargesAmount > 0
+            ? `<strong>${formatCurrency(effectiveRate)}</strong><br/><span style="font-size:11px;">+ ${formatCurrency(makingChargesAmount)} Making Charge</span>`
+            : formatCurrency(effectiveRate);
 
         const descLines = (item.description || '').split('\n');
         const huidLine = item.huid ? `<br/><span class="text-sm"><strong>HUID:</strong> ${item.huid}</span>` : '';
