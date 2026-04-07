@@ -451,13 +451,8 @@ const CreateInvoicePageMobile = () => {
 
                   <div className={styles.row3}>
                     <Input
-                      placeholder="Purity (22K)"
-                      value={item.purity}
-                      onChange={(e) => updateItem(index, 'purity', e.target.value)}
-                    />
-                    <Input
                       type="number"
-                      placeholder="Rate ₹/gm"
+                      placeholder="Metal Rate ₹/gm"
                       value={item.rate}
                       onChange={(e) => updateItem(index, 'rate', e.target.value)}
                     />

@@ -114,6 +114,7 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     location: FiMapPin,
     sidebar: FiSidebar,
     invoice: FiFileText,
+    payment: FiCreditCard,
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;

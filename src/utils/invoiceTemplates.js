@@ -33,7 +33,6 @@ export function generateInvoiceHtml(data) {
       <td class="text-center">${item.slNo}</td>
       <td><strong>${descLines[0] || ''}</strong>${descLines.slice(1).map(l => `<br/><span class="text-sm">${l}</span>`).join('')}${huidLine}</td>
       <td class="text-center">${item.hsnSac || ''}</td>
-      <td class="text-center">${item.purity || ''}</td>
       <td class="text-right">${item.grossWeight ? formatCurrency(item.grossWeight) + ' GMS' : ''}</td>
       <td class="text-right">${item.netWeight ? formatCurrency(item.netWeight) + ' GMS' : ''}</td>
       <td class="text-right">${rateDisplay}</td>
@@ -142,22 +141,21 @@ export function generateInvoiceHtml(data) {
         <th class="text-center" style="width:35px;">Sl<br/>No.</th>
         <th class="text-left">Description of Goods</th>
         <th class="text-center" style="width:80px;">HSN/SAC</th>
-        <th class="text-center" style="width:50px;">Purity</th>
         <th class="text-center" style="width:70px;">Gross<br/>Weight</th>
         <th class="text-center" style="width:70px;">Net<br/>Weight</th>
-        <th class="text-center" style="width:70px;">Rate</th>
-        <th class="text-right" style="width:90px;">Amount</th>
+        <th class="text-center" style="width:100px;">Rate</th>
+        <th class="text-right" style="width:100px;">Amount</th>
       </tr></thead>
       <tbody>
         ${itemRows}
-        <tr class="tax-row"><td class="text-right font-bold">Taxable Value:</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold">${formatCurrency(totalTaxableValue)}</td></tr>
-        ${hallmarkingCharge > 0 ? `<tr class="tax-row"><td class="text-right">Hallmarking Charges:</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(hallmarkingCharge)}</td></tr>` : ''}
-        <tr class="tax-row"><td></td><td class="text-right font-bold">CGST(${taxes.cgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.cgstAmount || 0)}</td></tr>
-        <tr class="tax-row"><td></td><td class="text-right font-bold">SGST(${taxes.sgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.sgstAmount || 0)}</td></tr>
-        ${taxes.igstRate && taxes.igstRate > 0 ? `<tr class="tax-row"><td></td><td class="text-right font-bold">IGST(${taxes.igstRate}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.igstAmount || 0)}</td></tr>` : ''}
-        <tr class="tax-row"><td>Less:</td><td class="text-right font-bold">ROUND OFF</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${roundOff >= 0 ? '' : '(-)'}${formatCurrency(Math.abs(roundOff || 0))}</td></tr>
-        ${Array(3).fill('<tr style="height:16px;"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('')}
-        <tr class="total-row"><td></td><td class="text-right">Total</td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold text-lg">₹${formatCurrency(totalAmount || 0)}</td></tr>
+        <tr class="tax-row"><td class="text-right font-bold">Taxable Value:</td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold">${formatCurrency(totalTaxableValue)}</td></tr>
+        ${hallmarkingCharge > 0 ? `<tr class="tax-row"><td class="text-right">Hallmarking Charges:</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(hallmarkingCharge)}</td></tr>` : ''}
+        <tr class="tax-row"><td></td><td class="text-right font-bold">CGST(${taxes.cgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.cgstAmount || 0)}</td></tr>
+        <tr class="tax-row"><td></td><td class="text-right font-bold">SGST(${taxes.sgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.sgstAmount || 0)}</td></tr>
+        ${taxes.igstRate && taxes.igstRate > 0 ? `<tr class="tax-row"><td></td><td class="text-right font-bold">IGST(${taxes.igstRate}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.igstAmount || 0)}</td></tr>` : ''}
+        <tr class="tax-row"><td>Less:</td><td class="text-right font-bold">ROUND OFF</td><td></td><td></td><td></td><td></td><td class="text-right">${roundOff >= 0 ? '' : '(-)'}${formatCurrency(Math.abs(roundOff || 0))}</td></tr>
+        ${Array(3).fill('<tr style="height:16px;"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('')}
+        <tr class="total-row"><td></td><td class="text-right">Total</td><td></td><td></td><td></td><td></td><td class="text-right font-bold text-lg">₹${formatCurrency(totalAmount || 0)}</td></tr>
       </tbody>
     </table>
     <div class="border border-t-0 px-2 py-1"><span>Amount Chargeable (in words)</span><span style="float:right;">E. &amp; O.E</span></div>
@@ -431,7 +429,6 @@ export function generateJewelleryInvoiceHtml(data) {
             <td class="ctr">${item.quantity || 0}</td>
             <td class="ctr">${item.hsnSac || ''}</td>
             <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) + ' GM' : (item.quantity || 0) + ' ' + (item.unit || '')}</td>
-            <td class="ctr">${item.purity || '-'}</td>
             <td class="rgt">${fmt(item.rate || 0)}</td>
             <td class="rgt">${item.makingCharges ? fmt(parseFloat(item.makingCharges) * parseFloat(item.quantity || 0)) : '-'}</td>
             <td class="rgt">${item.huid ? '45.00' : '-'}</td>
@@ -439,7 +436,7 @@ export function generateJewelleryInvoiceHtml(data) {
         </tr>`).join('');
 
     const emptyRows = Array(Math.max(0, 6 - items.length))
-        .fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>')
+        .fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>')
         .join('');
 
     const termsDefault = `1. All disputes are subject to REWA Jurisdiction Only.
@@ -537,11 +534,10 @@ export function generateJewelleryInvoiceHtml(data) {
         </div>
         <table class="items-table">
             <thead><tr>
-                <th class="lft" style="width:120px;">PROD DESC</th>
+                <th class="lft" style="width:180px;">PROD DESC</th>
                 <th style="width:40px;">QTY</th>
                 <th style="width:70px;">HSN</th>
                 <th style="width:85px;">GS WT</th>
-                <th style="width:60px;">PURITY</th>
                 <th style="width:80px;">RATE</th>
                 <th style="width:65px;">MKG</th>
                 <th style="width:50px;">HMC</th>

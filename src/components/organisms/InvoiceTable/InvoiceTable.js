@@ -92,6 +92,8 @@ const STATUS_COLORS = {
 // SKELETON LOADING
 // ============================================
 const SKELETON_COLUMNS = [
+  { id: 'sn' },
+  { id: 'actions' },
   { id: 'invoiceNumber' },
   { id: 'date' },
   { id: 'customer' },
@@ -116,7 +118,7 @@ const SkeletonRows = ({ rows = 10, columns }) => (
         {columns.map((col, colIdx) => (
           <td 
             key={col.id} 
-            className={`attio-td ${colIdx === 0 ? 'attio-td-pinned' : ''}`}
+            className={`attio-td ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-td-pinned-${col.id}` : ''}`}
           >
             <SkeletonCell width={['40%', '60%', '80%'][(rowIdx + colIdx) % 3]} />
           </td>
@@ -142,8 +144,10 @@ const InvoiceTable = ({
   onSearchChange,
   filters = {},
   onFiltersChange,
+  onRecordPayment,
   showItems = false,
   onToggleShowItems,
+  navigate,
 }) => {
   const { can } = usePermission('invoices');
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
@@ -169,7 +173,7 @@ const InvoiceTable = ({
             sn: flatRows.length + 1,
             ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
             ledgerItemName: item.description,
-            purity: item.purityLabel || item.purity || '',
+
             ledgerGrossWeight: item.grossWeight || 0,
             ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
             ledgerNetWeightSilver: item.metalType === 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
@@ -318,6 +322,55 @@ const InvoiceTable = ({
       cell: info => info.getValue(),
       size: 50,
     }),
+    columnHelper.display({
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => {
+        const inv = row.original;
+        const status = (inv.status || '').toUpperCase();
+        const isDraft = status === 'DRAFT';
+        const hasBalance = (status === 'UNPAID' || status === 'PARTIAL');
+        
+        return (
+          <div className="attio-actions-cell compact">
+            <button 
+              className="attio-icon-btn view-btn compact" 
+              onClick={() => onViewInvoice?.(inv.invoiceId || inv.id)}
+              title="View"
+            >
+              <Icon name="eye" size={14} />
+            </button>
+            
+            {isDraft && (
+              <button 
+                className="attio-icon-btn edit-btn compact" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/invoices/edit/${inv.id}`);
+                }}
+                title="Edit"
+              >
+                <Icon name="edit" size={14} />
+              </button>
+            )}
+
+            {hasBalance && (
+              <button 
+                className="attio-icon-btn payment-btn compact" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRecordPayment?.(inv);
+                }}
+                title="Pay"
+              >
+                <Icon name="payment" size={14} />
+              </button>
+            )}
+          </div>
+        );
+      },
+      size: 100,
+    }),
     columnHelper.accessor('invoiceNumber', {
       header: 'Invoice No.',
       cell: info => <span className="attio-td-value">{info.getValue() || 'DRAFT'}</span>,
@@ -364,10 +417,7 @@ const InvoiceTable = ({
       header: 'Item Name',
       size: 180,
     }),
-    columnHelper.accessor('purity', {
-      header: 'Purity',
-      size: 80,
-    }),
+
     columnHelper.accessor('ledgerNetWeightGold', {
       header: 'Net Wt. Gold',
       cell: info => Number(info.getValue() || 0).toFixed(3),
@@ -428,17 +478,7 @@ const InvoiceTable = ({
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-    columnHelper.display({
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => (
-        <button className="attio-icon-btn" onClick={() => onViewInvoice?.(row.original.invoiceId || row.original.id)}>
-          <Icon name="eye" size={14} />
-        </button>
-      ),
-      size: 60,
-    }),
-  ], [onViewInvoice]);
+  ], [onViewInvoice, onRecordPayment, navigate]);
 
   const table = useReactTable({
     data: processedData,
@@ -552,7 +592,7 @@ const InvoiceTable = ({
                   return (
                     <th
                       key={header.id}
-                      className={`attio-th ${idx === 0 ? 'attio-th-checkbox' : ''} ${header.id === 'invoiceNumber' ? 'attio-th-pinned' : ''}`}
+                      className={`attio-th ${idx === 0 ? 'attio-th-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(header.id) ? `attio-th-pinned-${header.id}` : ''}`}
                       style={{ width: header.getSize() }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
@@ -587,7 +627,7 @@ const InvoiceTable = ({
               table.getRowModel().rows.map(row => (
                 <tr key={row.id} className={row.getIsSelected() ? 'attio-row-selected' : ''}>
                   {row.getVisibleCells().map((cell, idx) => (
-                    <td key={cell.id} className={`attio-td ${idx === 0 ? 'attio-td-checkbox' : ''} ${cell.column.id === 'invoiceNumber' ? 'attio-td-pinned' : ''}`}>
+                    <td key={cell.id} className={`attio-td ${idx === 0 ? 'attio-td-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(cell.column.id) ? `attio-td-pinned-${cell.column.id}` : ''}`}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -611,7 +651,7 @@ const InvoiceTable = ({
                   };
                   const val = totals[col.id];
                   return (
-                    <td key={col.id} className="attio-tf">
+                    <td key={col.id} className={`attio-tf ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
                       {val && <span className={`attio-tf-value${col.id === 'totalAmount' ? ' fw-600' : ''}`}>{val}</span>}
                     </td>
                   );

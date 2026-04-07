@@ -101,7 +101,7 @@ export const flattenInvoiceData = (invoice) => {
       itemHsnSac: item.hsnSac || '',
       itemQuantity: item.quantity,
       itemUnit: item.unit || 'GMS',
-      itemPurity: item.purityLabel || item.purity || '',
+
       itemGrossWeight: item.grossWeight || '',
       itemNetWeightGold: item.metalType !== 'SILVER' ? (item.netWeight || 0) : 0,
       itemNetWeightSilver: item.metalType === 'SILVER' ? (item.netWeight || 0) : 0,

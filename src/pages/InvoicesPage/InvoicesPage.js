@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
+import RecordPaymentModal from '../../components/molecules/RecordPaymentModal/RecordPaymentModal';
 import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
 import SummaryCard from '../../components/molecules/SummaryCard/SummaryCard';
 import Icon from '../../components/atoms/Icon/Icon';
@@ -20,6 +21,8 @@ const InvoicesPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedPaymentInvoice, setSelectedPaymentInvoice] = useState(null);
   const [showItems, setShowItems] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   
@@ -116,6 +119,16 @@ const InvoicesPage = () => {
     setSelectedInvoiceId(null);
   };
 
+  const handleRecordPayment = (invoice) => {
+    setSelectedPaymentInvoice(invoice);
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleClosePaymentModal = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedPaymentInvoice(null);
+  };
+
   return (
     <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
       <div className="invoices-page-container">
@@ -179,6 +192,7 @@ const InvoicesPage = () => {
           data={invoices}
           isLoading={loading}
           onViewInvoice={handleViewInvoice}
+          onRecordPayment={handleRecordPayment}
           pagination={pagination}
           currentPage={page}
           pageSize={pageSize}
@@ -190,6 +204,7 @@ const InvoicesPage = () => {
           onFiltersChange={handleFiltersChange}
           showItems={showItems}
           onToggleShowItems={() => setShowItems(!showItems)}
+          navigate={navigate}
         />
       </div>
 
@@ -197,6 +212,14 @@ const InvoicesPage = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         invoiceId={selectedInvoiceId}
+        onRecordPayment={handleRecordPayment}
+      />
+
+      <RecordPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={handleClosePaymentModal}
+        invoice={selectedPaymentInvoice}
+        onRefresh={fetchInvoices}
       />
     </DashboardTemplate>
   );

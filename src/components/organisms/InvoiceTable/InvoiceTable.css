@@ -190,9 +190,23 @@
   border-right: 1px solid var(--ct-border-light);
 }
 
-.attio-td-pinned, .attio-th-pinned {
+.attio-td-pinned-sn, .attio-th-pinned-sn {
   position: sticky;
   left: 40px;
+  background: var(--ct-bg);
+  z-index: 4;
+}
+
+.attio-td-pinned-actions, .attio-th-pinned-actions {
+  position: sticky;
+  left: 90px;
+  background: var(--ct-bg);
+  z-index: 4;
+}
+
+.attio-td-pinned-invoiceNumber, .attio-th-pinned-invoiceNumber {
+  position: sticky;
+  left: 190px;
   background: var(--ct-bg);
   z-index: 4;
 }
@@ -228,9 +242,23 @@
   border-top: 1px solid var(--ct-border);
 }
 
-.attio-tf-pinned {
+.attio-tf-pinned-sn {
   position: sticky;
   left: 40px;
+  background: var(--ct-bg-secondary);
+  z-index: 4;
+}
+
+.attio-tf-pinned-actions {
+  position: sticky;
+  left: 90px;
+  background: var(--ct-bg-secondary);
+  z-index: 4;
+}
+
+.attio-tf-pinned-invoiceNumber {
+  position: sticky;
+  left: 190px;
   background: var(--ct-bg-secondary);
   z-index: 4;
 }
@@ -287,6 +315,41 @@
   background: var(--ct-bg-tertiary);
   color: var(--ct-text);
   border-color: var(--ct-text-muted);
+}
+
+.attio-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+.attio-actions-cell.compact {
+  gap: 4px;
+  padding: 0;
+}
+
+.attio-icon-btn.compact {
+  padding: 4px;
+  min-width: 28px;
+  justify-content: center;
+}
+
+.attio-td-actions {
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.attio-icon-btn.edit-btn:hover {
+  color: #2563eb;
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.attio-icon-btn.payment-btn:hover {
+  color: #059669;
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.1);
 }
 
 /* Skeleton */

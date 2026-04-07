@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice, createDraft, getInvoiceSettings } from '../../services/invoicesService';
+import { createInvoice, createDraft, getInvoiceSettings, getInvoiceById, updateInvoice, finalizeInvoice } from '../../services/invoicesService';
 import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
-import { calcInvoiceTotals } from '../../utils/invoiceCalc';
+import { calcInvoiceTotals, parsePurity } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePage.module.css';
 
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -41,6 +41,7 @@ const paymentModes = ['UPI', 'CASH', 'BANK_TRANSFER', 'CREDIT'];
 
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [theme, setTheme] = useState('classic');
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -62,14 +63,16 @@ const CreateInvoicePage = () => {
     declaration: 'We declare that this invoice shows the actual price of the goods described.',
     items: [defaultItem()],
     company: { name: '', address: '', gstin: '', state: '', stateCode: '' },
+    status: 'DRAFT',
   });
 
   const [previewHtml, setPreviewHtml] = useState('');
 
-  // Fetch settings on mount
+  // Fetch settings or existing invoice
   useEffect(() => {
-    getInvoiceSettings()
-      .then(settings => {
+    const loadData = async () => {
+      try {
+        const settings = await getInvoiceSettings();
         setInvoiceData(prev => ({
           ...prev,
           company: {
@@ -80,46 +83,113 @@ const CreateInvoicePage = () => {
             stateCode: settings.stateCode || '',
           },
           taxes: {
+            ...prev.taxes,
             cgstRate: settings.defaultCgstRate ?? 1.5,
             sgstRate: settings.defaultSgstRate ?? 1.5,
+            taxType: settings.defaultTaxType || prev.taxes.taxType,
           },
           declaration: settings.declaration || prev.declaration,
         }));
         if (settings.defaultTemplate) setTheme(settings.defaultTemplate);
-      })
-      .catch(console.error);
-  }, []);
+
+        if (id) {
+          const inv = await getInvoiceById(id);
+          setSelectedCustomerId(inv.customerId);
+          setPaidAmount(inv.paidAmount || 0);
+          setInvoiceDate(inv.invoiceDate?.slice(0, 10));
+          setInvoiceData(prev => ({
+            ...prev,
+            items: inv.items.map(i => ({
+              ...i,
+              rate: i.metalRate,
+              makingCharges: i.makingCharges,
+              purity: i.purityLabel,
+            })),
+            metadata: {
+              ...prev.metadata,
+              modeOfPayment: inv.modeOfPayment || 'UPI',
+              deliveryNote: inv.deliveryNote || '',
+              destination: inv.destination || '',
+            },
+            buyer: {
+              name: inv.buyerSnapshot?.name || inv.customer?.fullName || '',
+              phone: inv.buyerSnapshot?.phone || inv.customer?.contactDetails?.[0]?.primaryPhone || '',
+              address: inv.buyerSnapshot?.address || (inv.customer?.locations?.[0] ? `${inv.customer.locations[0].village || ''} ${inv.customer.locations[0].district || ''}`.trim() : ''),
+              stateCode: inv.buyerSnapshot?.stateCode || inv.customer?.locations?.[0]?.stateCode || '',
+            },
+            status: inv.status,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to load invoice/settings', err);
+      }
+    };
+    loadData();
+  }, [id]);
 
   const calc = useMemo(() =>
     calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
   [invoiceData, paidAmount]);
 
-  // Regenerate preview on data change
+  // Regenerate preview on data change — uses calcInvoiceTotals (single source of truth)
   useEffect(() => {
-    const hydratedItems = invoiceData.items.map(item => {
-      const netWeight = (parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0);
-      const metalValue = netWeight * (parseFloat(item.rate) || 0);
-      const makingAmount = item.makingChargesType === 'PER_GRAM'
-        ? (parseFloat(item.makingCharges) || 0) * netWeight
-        : item.makingChargesType === 'PERCENTAGE_ON_METAL'
-        ? (metalValue * (parseFloat(item.makingCharges) || 0)) / 100
-        : parseFloat(item.makingCharges) || 0;
-      const amount = metalValue + makingAmount + (parseFloat(item.stoneCharges) || 0) + (item.huid ? 45 : 0);
-      return { ...item, netWeight, amount };
+    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
+
+    const hydratedItems = previewCalc.hydratedItems.map((item, idx) => ({
+      ...item,
+      slNo: idx + 1,
+      hsnSac: item.hsnSac || '71131910',
+      quantity: item.quantity || 1,
+      unit: item.unit || 'GMS',
+      purity: item.purity || '22K',
+    }));
+
+    const hsnSummaryMap = {};
+    hydratedItems.forEach(item => {
+      const hsn = item.hsnSac || '71131910';
+      if (!hsnSummaryMap[hsn]) {
+        hsnSummaryMap[hsn] = {
+          hsnSac: hsn,
+          taxableValue: 0,
+          cgstRate: invoiceData.taxes?.cgstRate || 1.5,
+          sgstRate: invoiceData.taxes?.sgstRate || 1.5,
+          igstRate: invoiceData.taxes?.igstRate || 0,
+          cgstAmount: 0,
+          sgstAmount: 0,
+          igstAmount: 0,
+          totalTaxAmount: 0
+        };
+      }
+      hsnSummaryMap[hsn].taxableValue += (item.amount || 0);
     });
 
-    const subtotal = hydratedItems.reduce((s, i) => s + i.amount, 0);
-    const cgst = subtotal * (invoiceData.taxes.cgstRate / 100);
-    const sgst = subtotal * (invoiceData.taxes.sgstRate / 100);
-    const total = subtotal + cgst + sgst + (parseFloat(invoiceData.hallmarkCharges) || 0);
-    const roundOff = Math.round(total) - total;
+    const hsnSummary = Object.values(hsnSummaryMap).map(s => {
+      s.cgstAmount = (s.taxableValue * s.cgstRate) / 100;
+      s.sgstAmount = (s.taxableValue * s.sgstRate) / 100;
+      s.igstAmount = (s.taxableValue * s.igstRate) / 100;
+      s.totalTaxAmount = s.cgstAmount + s.sgstAmount + s.igstAmount;
+      return s;
+    });
 
     const hydratedData = {
       ...invoiceData,
       items: hydratedItems,
-      taxes: { ...invoiceData.taxes, cgstAmount: cgst, sgstAmount: sgst, totalTaxAmount: cgst + sgst },
-      totalAmount: total,
-      roundOff,
+      taxes: {
+        ...invoiceData.taxes,
+        cgstAmount: previewCalc.cgst,
+        sgstAmount: previewCalc.sgst,
+        totalTaxAmount: previewCalc.cgst + previewCalc.sgst,
+      },
+      totalAmount: previewCalc.total,
+      roundOff: previewCalc.roundOff,
+      cashReceived: parseFloat(paidAmount) || 0,
+      amtBalance: previewCalc.outstanding,
+      hsnSummary: hsnSummary,
+      metadata: {
+        ...invoiceData.metadata,
+        invoiceNo: 'PREVIEW',
+        date: invoiceDate,
+      },
     };
 
     try {
@@ -127,7 +197,7 @@ const CreateInvoicePage = () => {
       else if (theme === 'jewellery') setPreviewHtml(generateJewelleryInvoiceHtml(hydratedData));
       else setPreviewHtml(generateInvoiceHtml(hydratedData));
     } catch (e) { /* silent */ }
-  }, [invoiceData, theme]);
+  }, [invoiceData, theme, paidAmount, invoiceDate]);
 
   const performSearch = useCallback(async (q) => {
     if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
@@ -168,7 +238,19 @@ const CreateInvoicePage = () => {
   };
 
   const updateItem = (idx, field, value) => {
-    const newItems = invoiceData.items.map((item, i) => i === idx ? { ...item, [field]: value } : item);
+    let newItems = [...invoiceData.items];
+    const updatedItem = { ...newItems[idx], [field]: value };
+    
+    // Side-effects for metal type selection
+    if (field === 'metalType' && value === 'SILVER') {
+      updatedItem.purity = '1000'; // Fine pure silver for (Rate + Labour) * Weight formula
+      updatedItem.makingChargesType = 'PER_GRAM'; // Common for Silver
+    } else if (field === 'metalType' && value === 'GOLD') {
+      updatedItem.purity = '22K';
+      updatedItem.makingChargesType = 'PER_GRAM';
+    }
+    
+    newItems[idx] = updatedItem;
     setInvoiceData(prev => ({ ...prev, items: newItems }));
   };
 
@@ -191,36 +273,28 @@ const CreateInvoicePage = () => {
     const payload = {
       customerId: selectedCustomerId,
       invoiceDate: invoiceDate,
-      placeOfSupply: invoiceData.buyer.stateCode || '07',
       paidAmount: parseFloat(paidAmount) || 0,
       autoCreateUdhar: isCredit ? true : autoCreateUdhar,
       templateType: theme,
-      taxType: invoiceData.taxes.taxType,
-      notes: invoiceData.declaration,
       modeOfPayment: invoiceData.metadata.modeOfPayment,
-      buyerAddress: invoiceData.buyer.address,
-      buyerState: invoiceData.buyer.state || '',
       items: invoiceData.items.map(item => {
-        const purityLabel = item.purity || '22K';
-        const purityNum = parseFloat(purityLabel.replace(/[Kk]/, ''));
-        const isKarat = purityLabel.toUpperCase().includes('K');
-        const netWeight = (parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0);
+        const { purityValue, purityBasis } = parsePurity(item.purity || '22K');
         return {
           description: item.description,
           hsnSac: item.hsnSac,
           quantity: parseFloat(item.quantity) || 1,
           metalType: item.metalType || 'GOLD',
           metalRate: parseFloat(item.rate) || 0,
-          purityLabel,
-          purityValue: isKarat ? purityNum : (purityNum / 1000) * 24,
-          purityBasis: isKarat ? 24 : 1000,
+          purityLabel: item.purity || '22K',
+          purityValue,
+          purityBasis,
           grossWeight: parseFloat(item.grossWeight) || 0,
           stoneWeight: parseFloat(item.stoneWeight) || 0,
           makingCharges: parseFloat(item.makingCharges) || 0,
           makingChargesType: item.makingChargesType,
+          stoneCharges: parseFloat(item.stoneCharges) || 0,
           isHallmarked: !!item.huid,
           huid: item.huid || undefined,
-          netWeight,
         };
       }),
     };
@@ -235,9 +309,16 @@ const CreateInvoicePage = () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
     try {
       setLoading('confirm');
-      const res = await createInvoice(buildPayload());
+      let res;
+      if (id && invoiceData.status === 'DRAFT') {
+        // First update the draft to save any changes, then finalize
+        await updateInvoice(id, buildPayload());
+        res = await finalizeInvoice(id);
+      } else {
+        res = await createInvoice(buildPayload());
+      }
       if (res?.id) navigate(`/invoices`);
-      else alert('Failed to create invoice');
+      else alert('Failed to finalize invoice');
     } catch (e) { console.error(e); alert('Network error'); }
     finally { setLoading(false); }
   };
@@ -246,7 +327,12 @@ const CreateInvoicePage = () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
     try {
       setLoading('draft');
-      const res = await createDraft(buildPayload());
+      let res;
+      if (id) {
+        res = await updateInvoice(id, buildPayload());
+      } else {
+        res = await createDraft(buildPayload());
+      }
       if (res?.id) navigate(`/invoices`);
       else alert('Failed to save draft');
     } catch (e) { console.error(e); alert('Network error'); }
@@ -260,41 +346,54 @@ const CreateInvoicePage = () => {
         {/* ── Form Body ── */}
         <div className={styles.formBody}>
 
-          {/* Customer */}
-          {!invoiceData.buyer.name ? (
-            <div className={styles.customerSearchWrap}>
-              <Icon name="search" size={13} className={styles.customerSearchIcon} />
-              <input
-                className={styles.customerSearchInput}
-                placeholder="Search customer by name or phone..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-              />
-              {searching && <Icon name="loader" size={13} className={styles.searchLoading} />}
-              {searchResults.length > 0 && (
-                <div className={styles.searchResults}>
-                  {searchResults.map(c => (
-                    <div key={c.id} className={styles.searchResultItem} onClick={() => handleCustomerSelect(c)}>
-                      <Avatar name={c.fullName || c.name || '?'} size="sm" />
-                      <div className={styles.searchResultInfo}>
-                        <strong>{c.fullName || c.name}</strong>
-                        <span>{c.contactDetails?.[0]?.primaryPhone || c.phone || 'No phone'}</span>
-                      </div>
+          {/* Customer + Date row */}
+          <div className={styles.topRow}>
+            <div className={styles.topRowCustomer}>
+              {!invoiceData.buyer.name ? (
+                <div className={styles.customerSearchWrap}>
+                  <Icon name="search" size={13} className={styles.customerSearchIcon} />
+                  <input
+                    className={styles.customerSearchInput}
+                    placeholder="Search customer by name or phone..."
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                  />
+                  {searching && <Icon name="loader" size={13} className={styles.searchLoading} />}
+                  {searchResults.length > 0 && (
+                    <div className={styles.searchResults}>
+                      {searchResults.map(c => (
+                        <div key={c.id} className={styles.searchResultItem} onClick={() => handleCustomerSelect(c)}>
+                          <Avatar name={c.fullName || c.name || '?'} size="sm" />
+                          <div className={styles.searchResultInfo}>
+                            <strong>{c.fullName || c.name}</strong>
+                            <span>{c.contactDetails?.[0]?.primaryPhone || c.phone || 'No phone'}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </div>
+              ) : (
+                <div className={styles.selectedCustomer}>
+                  <Avatar name={invoiceData.buyer.name} size="sm" />
+                  <div className={styles.selectedCustomerText}>
+                    <strong>{invoiceData.buyer.name}</strong>
+                    <span>{invoiceData.buyer.phone}</span>
+                  </div>
+                  <button className={styles.changeBtn} onClick={clearCustomer}>Change</button>
                 </div>
               )}
             </div>
-          ) : (
-            <div className={styles.selectedCustomer}>
-              <Avatar name={invoiceData.buyer.name} size="sm" />
-              <div className={styles.selectedCustomerText}>
-                <strong>{invoiceData.buyer.name}</strong>
-                <span>{invoiceData.buyer.phone}</span>
-              </div>
-              <button className={styles.changeBtn} onClick={clearCustomer}>Change</button>
+            <div className={styles.dateField}>
+              <label className={styles.dateLabel}>Invoice Date</label>
+              <input
+                type="date"
+                className={styles.dateInput}
+                value={invoiceDate}
+                onChange={e => setInvoiceDate(e.target.value)}
+              />
             </div>
-          )}
+          </div>
 
           {/* Items */}
           <div className={styles.itemsHeader}>
@@ -304,58 +403,71 @@ const CreateInvoicePage = () => {
             </button>
           </div>
 
-          <table className={styles.itemTable}>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Description</th>
-                <th>Metal</th>
-                <th>Purity</th>
-                <th>Gross(g)</th>
-                <th>Stone(g)</th>
-                <th>Net(g)</th>
-                <th>24K Rate ₹/g</th>
-                <th>HSN</th>
-                <th>Making</th>
-                <th>HUID</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoiceData.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td style={{ color: 'var(--text-tertiary)', width: 24 }}>{idx + 1}</td>
-                  <td><input placeholder="Item description" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} /></td>
-                  <td>
+          <div className={styles.itemCards}>
+            {invoiceData.items.map((item, idx) => (
+              <div key={idx} className={styles.itemCard}>
+                {/* Top row: index + description + remove */}
+                <div className={styles.itemCardTop}>
+                  <span className={styles.itemIndex}>{idx + 1}</span>
+                  <input className={styles.itemDescInput} placeholder="Item description..." value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} />
+                  <button className={styles.removeRowBtn} onClick={() => removeItem(idx)} disabled={invoiceData.items.length === 1}>
+                    <Icon name="close" size={12} />
+                  </button>
+                </div>
+
+                {/* Field grid */}
+                <div className={styles.itemFieldGrid}>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Metal</span>
                     <div className={styles.metalCell}>
                       {metalOptions.map(m => (
-                        <button key={m} className={item.metalType === m ? styles.activeMetal : ''} onClick={() => updateItem(idx, 'metalType', m)}>
-                          {m[0]}
-                        </button>
+                        <button key={m} className={item.metalType === m ? styles.activeMetal : ''} onClick={() => updateItem(idx, 'metalType', m)}>{m[0]}</button>
                       ))}
                     </div>
-                  </td>
-                  <td style={{ width: 56 }}><input style={{ width: 48 }} placeholder="22K" value={item.purity} onChange={e => updateItem(idx, 'purity', e.target.value)} /></td>
-                  <td style={{ width: 64 }}><input type="number" style={{ width: 56 }} placeholder="0.00" value={item.grossWeight} onChange={e => updateItem(idx, 'grossWeight', e.target.value)} /></td>
-                  <td style={{ width: 64 }}><input type="number" style={{ width: 56 }} placeholder="0.00" value={item.stoneWeight} onChange={e => updateItem(idx, 'stoneWeight', e.target.value)} /></td>
-                  <td style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>{((parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0)).toFixed(3)}</td>
-                  <td style={{ width: 72 }}><input type="number" style={{ width: 64 }} placeholder="₹/g" value={item.rate} onChange={e => updateItem(idx, 'rate', e.target.value)} /></td>
-                  <td style={{ width: 80 }}><input style={{ width: 72 }} placeholder="HSN" value={item.hsnSac} onChange={e => updateItem(idx, 'hsnSac', e.target.value)} /></td>
-                  <td style={{ width: 88 }}>
-                    <select style={{ width: 80, fontSize: '0.7rem', padding: '0.25rem' }} value={item.makingChargesType} onChange={e => updateItem(idx, 'makingChargesType', e.target.value)}>
+                  </div>
+
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Gross (g)</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.grossWeight} onChange={e => updateItem(idx, 'grossWeight', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Stone (g)</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.stoneWeight} onChange={e => updateItem(idx, 'stoneWeight', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Net (g)</span>
+                    <div className={styles.fieldComputed}>{((parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0)).toFixed(3)}</div>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Metal Rate ₹/g</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.rate} onChange={e => updateItem(idx, 'rate', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>HSN</span>
+                    <input className={styles.fieldInput} placeholder="71131910" value={item.hsnSac} onChange={e => updateItem(idx, 'hsnSac', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Making Type</span>
+                    <select className={styles.fieldSelect} value={item.makingChargesType} onChange={e => updateItem(idx, 'makingChargesType', e.target.value)}>
                       {makingOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                  </td>
-                  <td style={{ width: 72 }}><input style={{ width: 64 }} placeholder="HUID" value={item.huid} onChange={e => updateItem(idx, 'huid', e.target.value)} /></td>
-                  <td>
-                    <button className={styles.removeRowBtn} onClick={() => removeItem(idx)} disabled={invoiceData.items.length === 1}>
-                      <Icon name="close" size={12} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Making ₹</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.makingCharges} onChange={e => updateItem(idx, 'makingCharges', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Stone ₹</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.stoneCharges} onChange={e => updateItem(idx, 'stoneCharges', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>HUID</span>
+                    <input className={styles.fieldInput} placeholder="—" value={item.huid} onChange={e => updateItem(idx, 'huid', e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
           {/* Advanced Section */}
           <button className={styles.advancedToggle} onClick={() => setShowAdvanced(v => !v)}>
@@ -365,10 +477,7 @@ const CreateInvoicePage = () => {
 
           {showAdvanced && (
             <div className={styles.advancedSection}>
-              <div className={styles.advField}>
-                <label>Invoice Date</label>
-                <input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
-              </div>
+
               <div className={styles.advField}>
                 <label>Tax Type</label>
                 <select value={invoiceData.taxes.taxType} onChange={e => {
@@ -382,10 +491,10 @@ const CreateInvoicePage = () => {
                   <option value="NONE">NONE</option>
                 </select>
               </div>
-              <div className={styles.advField}>
+              {/* <div className={styles.advField}>
                 <label>State Code</label>
                 <input value={invoiceData.buyer.stateCode} onChange={e => setInvoiceData(prev => ({ ...prev, buyer: { ...prev.buyer, stateCode: e.target.value } }))} placeholder="07" />
-              </div>
+              </div> */}
               <div className={styles.advField}>
                 <label>Payment Mode</label>
                 <select value={invoiceData.metadata.modeOfPayment} onChange={e => setInvoiceData(prev => ({ ...prev, metadata: { ...prev.metadata, modeOfPayment: e.target.value } }))}>
@@ -430,10 +539,10 @@ const CreateInvoicePage = () => {
               <Icon name="eye" size={14} /> Preview
             </button>
             <button className={`${styles.draftBtn}`} onClick={handleSaveDraft} disabled={!!loading || !canSubmit}>
-              Draft
+              {id ? 'Update Draft' : 'Save Draft'}
             </button>
             <button className={`${styles.confirmBtn}`} onClick={handleConfirm} disabled={!!loading || !canSubmit}>
-              {loading === 'confirm' ? 'Creating...' : 'Confirm & Pay'}
+              {loading === 'confirm' ? 'Finalizing...' : id ? 'Confirm & Finalize' : 'Confirm & Pay'}
             </button>
           </div>
         </div>

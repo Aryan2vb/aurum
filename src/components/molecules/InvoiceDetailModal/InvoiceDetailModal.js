@@ -26,7 +26,7 @@ const formatDate = (dateString) => {
   }
 };
 
-const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
+const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => {
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -181,7 +181,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
                         <th>S.N</th>
                         <th>Item</th>
                         <th>Metal</th>
-                        <th>Purity</th>
+
                         <th>HSN</th>
                         <th>Net Wt.</th>
                         <th>Rate</th>
@@ -196,7 +196,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
                           <td>{item.slNo || index + 1}</td>
                           <td>{item.description || '—'}{item.huid && <><br/><small>HUID: {item.huid}</small></>}</td>
                           <td>{item.metalType || '—'}</td>
-                          <td>{item.purityLabel || item.purity || '—'}</td>
+
                           <td>{item.hsnSac || '—'}</td>
                           <td>{item.netWeight ? `${item.netWeight}g` : '—'}</td>
                           <td>{formatCurrency(item.effectiveRate || item.unitPrice)}</td>
@@ -371,6 +371,21 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId }) => {
                 <Icon name="eye" size={16} />
                 View Invoice
               </button>
+              
+              {(invoice.status === 'UNPAID' || invoice.status === 'PARTIAL') && (
+                <button 
+                  className="action-btn payment" 
+                  style={{ backgroundColor: '#059669', color: 'white' }}
+                  onClick={() => {
+                    onClose();
+                    onRecordPayment?.(invoice);
+                  }}
+                >
+                  <Icon name="payment" size={16} />
+                  Record Payment
+                </button>
+              )}
+
               {invoice.status !== 'CANCELLED' && (
                 <button className="action-btn danger" onClick={handleDelete} disabled={deleting}>
                   <Icon name="close" size={16} />

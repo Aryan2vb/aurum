@@ -4,17 +4,21 @@
  */
 
 export const parsePurity = (purityLabel = '22K') => {
-  const isKarat = purityLabel.toUpperCase().includes('K');
-  const num = parseFloat(purityLabel.replace(/[Kk]/, ''));
+  const label = (purityLabel || '22K').toString().toUpperCase();
+  const isKarat = label.includes('K');
+  const num = parseFloat(label.replace(/[Kk]/, ''));
+  
+  if (isNaN(num)) return { purityValue: 22, purityBasis: 24 };
+
   return {
-    purityValue: isKarat ? num : num / 10,
+    purityValue: num,
     purityBasis: isKarat ? 24 : 1000,
   };
 };
 
 export const calcItemAmount = (item) => {
-  const { purityValue, purityBasis } = parsePurity(item.purity || item.purityLabel || '22K');
-  const effectiveRate = parseFloat(item.rate || item.metalRate || 0) * (purityValue / purityBasis);
+  // Per user request: Metal rate is already for the specific carat, so no conversion needed.
+  const effectiveRate = parseFloat(item.rate || item.metalRate || 0);
   const netWeight = parseFloat(item.grossWeight || 0) - parseFloat(item.stoneWeight || 0);
   const makingChargesRaw = parseFloat(item.makingCharges || 0);
   const makingChargesType = item.makingChargesType || 'FLAT_PER_ITEM';

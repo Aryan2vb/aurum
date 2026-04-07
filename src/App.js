@@ -155,6 +155,14 @@ function App() {
               }
             />
             <Route
+              path="/invoices/edit/:id"
+              element={
+                <ProtectedRoute>
+                  <CreateInvoicePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/invoices/new/mobile"
               element={
                 <ProtectedRoute>
