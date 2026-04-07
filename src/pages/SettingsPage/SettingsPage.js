@@ -44,7 +44,7 @@ const SettingsPage = () => {
     bankAccountName: '',
     bankAccountNumber: '',
     bankIfsc: '',
-    defaultTaxType: 'GST',
+    defaultTaxType: 'CGST_SGST',
     defaultCgstRate: 1.5,
     defaultSgstRate: 1.5,
     defaultIgstRate: 3,
@@ -144,7 +144,7 @@ const SettingsPage = () => {
           bankAccountName: settings.bankAccountName || '',
           bankAccountNumber: settings.bankAccountNumber || '',
           bankIfsc: settings.bankIfsc || '',
-          defaultTaxType: settings.defaultTaxType || 'GST',
+          defaultTaxType: settings.defaultTaxType === 'GST' ? 'CGST_SGST' : (settings.defaultTaxType || 'CGST_SGST'),
           defaultCgstRate: typeof settings.defaultCgstRate === 'number' ? settings.defaultCgstRate : parseFloat(settings.defaultCgstRate) || 1.5,
           defaultSgstRate: typeof settings.defaultSgstRate === 'number' ? settings.defaultSgstRate : parseFloat(settings.defaultSgstRate) || 1.5,
           defaultIgstRate: typeof settings.defaultIgstRate === 'number' ? settings.defaultIgstRate : parseFloat(settings.defaultIgstRate) || 3,
@@ -475,7 +475,7 @@ const SettingsPage = () => {
                             value={invoiceSettingsForm.defaultTaxType}
                             onChange={(e) => handleInvoiceSettingsChange('defaultTaxType', e.target.value)}
                           >
-                            <option value="GST">GST (CGST+SGST)</option>
+                            <option value="CGST_SGST">GST (CGST+SGST)</option>
                             <option value="IGST">IGST</option>
                             <option value="NONE">No Tax</option>
                           </select>
