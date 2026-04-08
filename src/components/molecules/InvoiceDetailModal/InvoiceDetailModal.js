@@ -41,13 +41,20 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
   const [commitLoading, setCommitLoading] = useState(false);
   const [negotiateError, setNegotiateError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [negotiationMode, setNegotiationMode] = useState('MAKING_CHARGES');
+  const [filterMetalType, setFilterMetalType] = useState('ALL');
 
   const handlePreview = async () => {
     if (!targetAmount) return;
     try {
       setPreviewLoading(true);
       setNegotiateError(null);
-      const result = await getNegotiationPreview(invoiceId, parseFloat(targetAmount));
+      const result = await getNegotiationPreview(
+        invoiceId, 
+        parseFloat(targetAmount),
+        negotiationMode,
+        filterMetalType === 'ALL' ? null : filterMetalType
+      );
       setPreview(result);
     } catch (e) {
       setNegotiateError(e.message || 'Preview failed');
@@ -61,7 +68,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
     try {
       setCommitLoading(true);
       setNegotiateError(null);
-      await commitNegotiation(invoiceId, parseFloat(targetAmount), negotiationNote);
+      await commitNegotiation(
+        invoiceId, 
+        parseFloat(targetAmount), 
+        negotiationNote,
+        negotiationMode,
+        filterMetalType === 'ALL' ? null : filterMetalType
+      );
       setShowNegotiate(false);
       setPreview(null);
       setTargetAmount('');
@@ -310,6 +323,35 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 {showNegotiate && (
                   <div className="negotiate-body">
                     <p className="negotiate-hint">Original: {formatCurrency(invoice.totalAmount)}</p>
+                    <div className="negotiate-modes">
+                      <button 
+                        className={`mode-tab ${negotiationMode === 'MAKING_CHARGES' ? 'active' : ''}`}
+                        onClick={() => { setNegotiationMode('MAKING_CHARGES'); setPreview(null); }}
+                      >
+                        Reduce Making
+                      </button>
+                      <button 
+                        className={`mode-tab ${negotiationMode === 'METAL_RATE' ? 'active' : ''}`}
+                        onClick={() => { setNegotiationMode('METAL_RATE'); setPreview(null); }}
+                      >
+                        Reduce Metal Rate
+                      </button>
+                    </div>
+
+                    {negotiationMode === 'METAL_RATE' && (
+                      <div className="negotiate-filters">
+                        <select 
+                          className="negotiate-select"
+                          value={filterMetalType}
+                          onChange={(e) => { setFilterMetalType(e.target.value); setPreview(null); }}
+                        >
+                          <option value="ALL">All Metals</option>
+                          <option value="GOLD">Gold Only</option>
+                          <option value="SILVER">Silver Only</option>
+                        </select>
+                      </div>
+                    )}
+
                     <div className="negotiate-row">
                       <input
                         type="number"
@@ -325,14 +367,26 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                     {negotiateError && <p className="negotiate-error">{negotiateError}</p>}
                     {preview && (
                       <div className="negotiate-preview">
-                        {!preview.feasible && <p className="negotiate-error">Not feasible — target too low to achieve with making charge reductions alone.</p>}
+                        {!preview.feasible && (
+                          <p className="negotiate-error">
+                            Not feasible — target too low to achieve with current reductions.
+                          </p>
+                        )}
                         <div className="negotiate-preview-row"><span>Required Taxable</span><span>{formatCurrency(preview.requiredTaxableAmount)}</span></div>
-                        <div className="negotiate-preview-row"><span>Making Reduction</span><span>- {formatCurrency(preview.totalMakingReduction)}</span></div>
+                        {negotiationMode === 'MAKING_CHARGES' ? (
+                          <div className="negotiate-preview-row"><span>Making Reduction</span><span>- {formatCurrency(preview.totalMakingReduction)}</span></div>
+                        ) : (
+                          <div className="negotiate-preview-row"><span>Metal Rate Reduction</span><span>- {formatCurrency(preview.totalMetalReduction)}</span></div>
+                        )}
                         <div className="negotiate-preview-row negotiate-preview-total"><span>New Total</span><span>{formatCurrency(preview.newGrandTotal)}</span></div>
                         {preview.items?.map(item => (
                           <div key={item.id} className="negotiate-item-row">
                             <span className="negotiate-item-desc">{item.description}</span>
-                            <span>{formatCurrency(item.originalMakingChargesAmt)} → {formatCurrency(item.newMakingChargesAmt)}</span>
+                            {negotiationMode === 'MAKING_CHARGES' ? (
+                              <span>{formatCurrency(item.originalMakingChargesAmt)} → {formatCurrency(item.newMakingChargesAmt)}</span>
+                            ) : (
+                              <span>{formatCurrency(item.originalEffectiveRate)} → {formatCurrency(item.newEffectiveRate)} /gm</span>
+                            )}
                           </div>
                         ))}
                         {preview.feasible && (
