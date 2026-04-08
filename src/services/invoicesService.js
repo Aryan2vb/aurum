@@ -99,20 +99,28 @@ export const sendInvoice = async (invoiceId, sendData) => {
   return parseResponse(response);
 };
 
-export const getNegotiationPreview = async (invoiceId, targetAmount) => {
+export const getNegotiationPreview = async (invoiceId, targetAmount, mode = 'MAKING_CHARGES', metalType = null) => {
   const token = localStorage.getItem('authToken');
-  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/negotiate/preview?targetAmount=${targetAmount}`), {
+  const queryParams = new URLSearchParams({ targetAmount, mode });
+  if (metalType) queryParams.append('metalType', metalType);
+  
+  const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/negotiate/preview?${queryParams.toString()}`), {
     headers: { Authorization: `Bearer ${token}` },
   });
   return parseResponse(response);
 };
 
-export const commitNegotiation = async (invoiceId, targetAmount, negotiationNote) => {
+export const commitNegotiation = async (invoiceId, targetAmount, negotiationNote, mode = 'MAKING_CHARGES', metalType = null) => {
   const token = localStorage.getItem('authToken');
   const response = await fetch(buildApiUrl(`/invoices/${invoiceId}/negotiate/commit`), {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetAmount, ...(negotiationNote && { negotiationNote }) }),
+    body: JSON.stringify({ 
+      targetAmount, 
+      mode, 
+      metalType,
+      ...(negotiationNote && { negotiationNote }) 
+    }),
   });
   return parseResponse(response);
 };
