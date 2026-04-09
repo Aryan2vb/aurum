@@ -749,6 +749,7 @@
   .bottomBar {
     left: 0;
     padding: 0.6rem 1rem;
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 
   .previewDrawer {

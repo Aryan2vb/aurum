@@ -48,7 +48,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
   const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
 
   const records = [
-    { iconName: 'dashboard', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
+    // { iconName: 'dashboard', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
     { iconName: 'customer', label: 'Customers', path: '/customers', color: '#3b82f6' },
     { iconName: 'udhar', label: 'Udhar', path: '/credits', color: '#f59e0b' },
     { iconName: 'reminder', label: 'Reminders', path: '/reminders', color: '#10b981' },
