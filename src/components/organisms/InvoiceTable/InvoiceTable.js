@@ -97,9 +97,25 @@ const SKELETON_COLUMNS = [
   { id: 'invoiceNumber' },
   { id: 'date' },
   { id: 'customer' },
-  { id: 'total' },
-  { id: 'balance' },
-  { id: 'status' },
+  { id: 'lastName' },
+  { id: 'ledgerAddress' },
+  { id: 'ledgerPhone' },
+  { id: 'ledgerMetal' },
+  { id: 'ledgerHsn' },
+  { id: 'ledgerItemName' },
+  { id: 'ledgerPurity' },
+  { id: 'ledgerNetWeightGold' },
+  { id: 'ledgerNetWeightSilver' },
+  { id: 'ledgerMetalRate' },
+  { id: 'ledgerAmount' },
+  { id: 'ledgerLabourPG' },
+  { id: 'ledgerLabourTotal' },
+  { id: 'ledgerHuid' },
+  { id: 'ledgerGst' },
+  { id: 'roundOff' },
+  { id: 'totalAmount' },
+  { id: 'ledgerBank' },
+  { id: 'ledgerCash' }
 ];
 
 const SkeletonCell = ({ width = '60%' }) => (
@@ -158,12 +174,17 @@ const InvoiceTable = ({
   // Process data for the table based on showItems toggle
   const processedData = useMemo(() => {
     if (showItems) {
-      // Flatten into rows per item
       const flatRows = [];
-      data.forEach((invoice, invIdx) => {
+      data.forEach((invoice) => {
+        const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
         const items = invoice.items || [];
         items.forEach((item, itemIdx) => {
           const itemAmount = parseFloat(item.taxableAmount || item.totalAmount || 0);
+          // Per-item GST: proportional share of invoice GST based on item amount vs subtotal
+          const invoiceSubtotal = parseFloat(invoice.subtotal || invoice.taxableAmount || 0);
+          const gstRatio = invoiceSubtotal > 0 ? itemAmount / invoiceSubtotal : 0;
+          const itemGst = (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0)) * gstRatio;
+
           flatRows.push({
             ...invoice,
             ...item,
@@ -171,15 +192,23 @@ const InvoiceTable = ({
             invoiceId: invoice.id,
             isSubRow: true,
             sn: flatRows.length + 1,
+            // Buyer fields — buyerSnapshot is { version, data: {...} }
+            ledgerAddress: buyer.address || '',
+            ledgerPhone: buyer.phone || '',            // Item fields
             ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
-            ledgerItemName: item.description,
-
-            ledgerGrossWeight: item.grossWeight || 0,
+            ledgerHsn: item.hsnSac || '',
+            ledgerItemName: item.description || '',
+            ledgerPurity: item.purityLabel || item.purity || '',
             ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
             ledgerNetWeightSilver: item.metalType === 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
-            ledgerMetalRate: item.effectiveRate || item.metalRate || 0,
-            ledgerLabourTotal: parseFloat(item.makingChargesAmount || item.makingCharges || 0),
+            // metalRate stored as rate per gram at purchase purity
+            ledgerMetalRate: parseFloat(item.metalRate || 0),
             ledgerAmount: itemAmount,
+            // Labour: makingCharges is the rate (per gram or flat), makingChargesAmount is the resolved ₹ amount
+            ledgerLabourPG: parseFloat(item.makingCharges || 0),
+            ledgerLabourTotal: parseFloat(item.makingChargesAmount || 0),
+            ledgerHuid: item.huid || '',
+            ledgerGst: itemGst,
             ledgerBank: invoice.modeOfPayment !== 'CASH' ? itemAmount : 0,
             ledgerCash: invoice.modeOfPayment === 'CASH' ? itemAmount : 0,
           });
@@ -190,10 +219,11 @@ const InvoiceTable = ({
 
     // Default: Aggregated view (1 row per invoice)
     return data.map((invoice, idx) => {
+      const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
       const items = invoice.items || [];
       const hasGold = items.some(i => i.metalType !== 'SILVER');
       const hasSilver = items.some(i => i.metalType === 'SILVER');
-      
+
       let metalLabel = '';
       if (hasGold && hasSilver) metalLabel = 'Gold, Silver';
       else if (hasGold) metalLabel = 'Gold';
@@ -202,48 +232,57 @@ const InvoiceTable = ({
       const netWeightGold = items
         .filter(i => i.metalType !== 'SILVER')
         .reduce((sum, i) => sum + (Number(i.netWeight) || 0), 0);
-      
       const netWeightSilver = items
         .filter(i => i.metalType === 'SILVER')
         .reduce((sum, i) => sum + (Number(i.netWeight) || 0), 0);
-
-      const labourTotal = items.reduce((sum, i) => sum + (Number(i.makingChargesAmount || i.makingCharges) || 0), 0);
+      const labourTotal = items.reduce((sum, i) => sum + (Number(i.makingChargesAmount) || 0), 0);
 
       return {
         ...invoice,
         sn: idx + 1,
+        // Buyer fields — fix: buyerSnapshot.data contains the actual fields
+        ledgerAddress: buyer.address || '',
+        ledgerPhone: buyer.phone || '',
+        // Ledger computed fields
         ledgerMetal: metalLabel,
-        ledgerItemName: items.map(i => i.description).join(', '),
+        ledgerHsn: items.map(i => i.hsnSac).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '),
+        ledgerItemName: items.map(i => i.description).filter(Boolean).join(', '),
+        ledgerPurity: items.map(i => i.purityLabel || i.purity).filter(Boolean).join(', '),
         ledgerNetWeightGold: netWeightGold,
         ledgerNetWeightSilver: netWeightSilver,
+        // No single metal rate in aggregated view
+        ledgerMetalRate: items.length === 1 ? parseFloat(items[0].metalRate || 0) : null,
+        ledgerAmount: parseFloat(invoice.taxableAmount || invoice.subtotal || 0),
+        ledgerLabourPG: items.length === 1 ? parseFloat(items[0].makingCharges || 0) : null,
         ledgerLabourTotal: labourTotal,
-        ledgerGst: (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0)),
-        ledgerBank: (invoice.modeOfPayment !== 'CASH') ? invoice.totalAmount : 0,
-        ledgerCash: (invoice.modeOfPayment === 'CASH') ? invoice.totalAmount : 0,
+        ledgerHuid: items.map(i => i.huid).filter(Boolean).join(', '),
+        ledgerGst: Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0),
+        ledgerBank: invoice.modeOfPayment !== 'CASH' ? parseFloat(invoice.totalAmount || 0) : 0,
+        ledgerCash: invoice.modeOfPayment === 'CASH' ? parseFloat(invoice.totalAmount || 0) : 0,
       };
     });
   }, [data, showItems]);
 
-  // Aggregations — always from base invoice data for accuracy
   const aggregations = useMemo(() => {
-    let totalValue = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0;
+    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0, labourTotal = 0;
 
     data.forEach(inv => {
-      totalValue += Number(inv.totalAmount || 0);
-      totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0);
+      totalAmount += Number(inv.totalAmount || 0);
+      totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0) + Number(inv.igstAmount || 0);
       if (inv.modeOfPayment === 'CASH') totalCash += Number(inv.totalAmount || 0);
       else totalBank += Number(inv.totalAmount || 0);
       (inv.items || []).forEach(item => {
         if (item.metalType === 'SILVER') silverWt += Number(item.netWeight || 0);
         else goldWt += Number(item.netWeight || 0);
+        labourTotal += Number(item.makingChargesAmount || 0);
       });
     });
 
     return {
       count: showItems ? processedData.length : data.length,
       label: showItems ? 'items' : 'invoices',
-      total: totalValue,
-      goldWt, silverWt, totalGst, totalBank, totalCash,
+      total: totalAmount,
+      goldWt, silverWt, totalGst, totalBank, totalCash, labourTotal,
     };
   }, [data, showItems, processedData]);
 
@@ -371,108 +410,132 @@ const InvoiceTable = ({
       },
       size: 100,
     }),
+    // Invoice No.
     columnHelper.accessor('invoiceNumber', {
       header: 'Invoice No.',
       cell: info => <span className="attio-td-value">{info.getValue() || 'DRAFT'}</span>,
       size: 110,
     }),
+    // Date
     columnHelper.accessor('invoiceDate', {
       header: 'Date',
       cell: info => formatDate(info.getValue()),
       size: 90,
     }),
-    columnHelper.accessor(row => row.customer?.fullName || row.buyerSnapshot?.name || '', {
+    // Customer Name (first name)
+    columnHelper.accessor(row => {
+      const name = row.customer?.fullName || row.buyerSnapshot?.data?.name || row.buyerSnapshot?.name || '';
+      return name.split(' ')[0] || name;
+    }, {
       id: 'customer',
       header: 'Customer Name',
-      size: 160,
+      size: 140,
     }),
+    // Last Name
     columnHelper.accessor(row => {
-      const name = row.customer?.fullName || row.buyerSnapshot?.name || '';
+      const name = row.customer?.fullName || row.buyerSnapshot?.data?.name || row.buyerSnapshot?.name || '';
       return name.split(' ').slice(1).join(' ') || '';
     }, {
       id: 'lastName',
       header: 'Last Name',
-      size: 100,
+      size: 110,
     }),
-    columnHelper.accessor(row => row.buyerSnapshot?.address || '', {
-      id: 'address',
+    // Address — FIXED: buyerSnapshot.data.address
+    columnHelper.accessor('ledgerAddress', {
       header: 'Address',
       size: 150,
     }),
-    columnHelper.accessor(row => row.buyerSnapshot?.phone || row.customer?.contactDetails?.[0]?.primaryPhone || '', {
-      id: 'phone',
+    // Contact No — FIXED: buyerSnapshot.data.phone
+    columnHelper.accessor('ledgerPhone', {
       header: 'Contact No.',
-      size: 110,
+      size: 120,
     }),
+    // Metal
     columnHelper.accessor('ledgerMetal', {
       header: 'Metal',
-      size: 90,
+      size: 80,
     }),
-    columnHelper.accessor(row => row.hsnSac || row.items?.[0]?.hsnSac || '', {
-      id: 'hsn',
+    // HSN
+    columnHelper.accessor('ledgerHsn', {
       header: 'Hsn',
-      size: 90,
+      size: 80,
     }),
+    // Item Name
     columnHelper.accessor('ledgerItemName', {
       header: 'Item Name',
       size: 180,
     }),
-
+    // Purity — ADDED (was missing)
+    columnHelper.accessor('ledgerPurity', {
+      header: 'Purity',
+      size: 80,
+    }),
+    // Net Wt. Gold
     columnHelper.accessor('ledgerNetWeightGold', {
       header: 'Net Wt. Gold',
       cell: info => Number(info.getValue() || 0).toFixed(3),
       size: 100,
     }),
+    // Net Wt. Silver
     columnHelper.accessor('ledgerNetWeightSilver', {
       header: 'Net Wt. Silver',
       cell: info => Number(info.getValue() || 0).toFixed(3),
       size: 100,
     }),
+    // Metal Rate PG — FIXED: reads ledgerMetalRate (mapped correctly from item.metalRate)
     columnHelper.accessor('ledgerMetalRate', {
       header: 'Metal Rate PG',
-      cell: info => info.getValue() ? formatCurrency(info.getValue()) : '—',
+      cell: info => info.getValue() != null ? formatCurrency(info.getValue()) : '—',
       size: 110,
     }),
-    columnHelper.accessor(row => row.ledgerAmount || row.subtotal, {
-      id: 'amount',
+    // Amount (taxable, pre-GST)
+    columnHelper.accessor('ledgerAmount', {
       header: 'Amount',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-    columnHelper.accessor('labourRate', {
+    // Labour PG — FIXED: was reading nonexistent 'labourRate', now reads ledgerLabourPG
+    columnHelper.accessor('ledgerLabourPG', {
       header: 'Labour PG',
-      cell: info => info.getValue() ? formatCurrency(info.getValue()) : '—',
+      cell: info => info.getValue() != null ? formatCurrency(info.getValue()) : '—',
       size: 90,
     }),
+    // Labour Total (resolved ₹ making charges)
     columnHelper.accessor('ledgerLabourTotal', {
-      header: 'LabourTotal',
+      header: 'Labour Total',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-    columnHelper.accessor('huid', {
+    // HUID
+    columnHelper.accessor('ledgerHuid', {
       header: 'HUID',
       size: 100,
     }),
+    // GST
     columnHelper.accessor('ledgerGst', {
-      header: 'Gst 3%',
+      header: 'GST 3%',
       cell: info => formatCurrency(info.getValue()),
       size: 100,
     }),
+    // Round Off
     columnHelper.accessor('roundOff', {
       header: 'Round off',
       cell: info => Number(info.getValue() || 0).toFixed(2),
       size: 80,
     }),
+    // Total
     columnHelper.accessor('totalAmount', {
       header: 'Total',
       cell: info => <span className="fw-600">{formatCurrency(info.getValue())}</span>,
       size: 110,
     }),
+    // Bank
     columnHelper.accessor('ledgerBank', {
       header: 'Bank',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
+    // Cash
     columnHelper.accessor('ledgerCash', {
       header: 'Cash',
       cell: info => formatCurrency(info.getValue()),
@@ -635,7 +698,6 @@ const InvoiceTable = ({
               ))
             )}
           </tbody>
-          {/* Footer with sums */}
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
@@ -644,6 +706,7 @@ const InvoiceTable = ({
                     sn: `${aggregations.count} ${aggregations.label}`,
                     ledgerNetWeightGold: Number(aggregations.goldWt).toFixed(3),
                     ledgerNetWeightSilver: Number(aggregations.silverWt).toFixed(3),
+                    ledgerLabourTotal: formatCurrency(aggregations.labourTotal),
                     ledgerGst: formatCurrency(aggregations.totalGst),
                     totalAmount: formatCurrency(aggregations.total),
                     ledgerBank: formatCurrency(aggregations.totalBank),
