@@ -18,7 +18,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.15);
-  z-index: 40;
+  z-index: 1000;
   animation: fadeIn 0.15s ease-out;
 }
 
@@ -29,7 +29,7 @@
   height: 100%;
   width: 460px;
   max-width: 100%;
-  z-index: 50;
+  z-index: 1001;
   background: var(--bg-secondary);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
   display: flex;
