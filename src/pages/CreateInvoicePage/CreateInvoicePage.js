@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
+import CustomerInspectorPanel from '../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel';
 import { searchCustomers } from '../../services/customersService';
 import { createInvoice, createDraft, getInvoiceSettings, getInvoiceById, updateInvoice, finalizeInvoice } from '../../services/invoicesService';
 import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
@@ -49,6 +50,7 @@ const CreateInvoicePage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [paidAmount, setPaidAmount] = useState(0);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
@@ -213,7 +215,8 @@ const CreateInvoicePage = () => {
     const q = e.target.value;
     setSearchQuery(q);
     clearTimeout(searchDebounceRef.current);
-    if (q.length < 2) { setSearchResults([]); return; }
+    if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
     searchDebounceRef.current = setTimeout(() => performSearch(q), 400);
   };
 
@@ -359,7 +362,7 @@ const CreateInvoicePage = () => {
                     onChange={handleSearchChange}
                   />
                   {searching && <Icon name="loader" size={13} className={styles.searchLoading} />}
-                  {searchResults.length > 0 && (
+                  {(searchResults.length > 0 || (searchQuery.length >= 2 && !searching)) && (
                     <div className={styles.searchResults}>
                       {searchResults.map(c => (
                         <div key={c.id} className={styles.searchResultItem} onClick={() => handleCustomerSelect(c)}>
@@ -370,6 +373,15 @@ const CreateInvoicePage = () => {
                           </div>
                         </div>
                       ))}
+                      <div className={styles.addNewCustomerItem} onClick={() => setIsCustomerPanelOpen(true)}>
+                        <div className={styles.addIconCircle}>
+                          <Icon name="add" size={14} />
+                        </div>
+                        <div className={styles.searchResultInfo}>
+                          <strong>Add "{searchQuery}" as new customer</strong>
+                          <span>Create a new record and select automatically</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -567,6 +579,20 @@ const CreateInvoicePage = () => {
             <iframe srcDoc={previewHtml} title="Preview" />
           </div>
         </div>
+
+        {/* ── Customer Create Panel ── */}
+        <CustomerInspectorPanel
+          isOpen={isCustomerPanelOpen}
+          onClose={() => setIsCustomerPanelOpen(false)}
+          mode="create"
+          initialData={{ fullName: searchQuery }}
+          onSuccess={(newCustomer) => {
+            if (newCustomer) {
+              handleCustomerSelect(newCustomer);
+            }
+            setIsCustomerPanelOpen(false);
+          }}
+        />
 
       </div>
     </DashboardTemplate>

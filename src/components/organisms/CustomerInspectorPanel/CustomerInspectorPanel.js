@@ -53,6 +53,7 @@ const CustomerInspectorPanel = ({
   customerId,
   mode: initialMode,
   onSuccess,
+  initialData,
 }) => {
   const navigate = useNavigate();
   const mode = initialMode || (customerId ? 'view' : 'create');
@@ -654,6 +655,7 @@ const CustomerInspectorPanel = ({
             onCancel={onClose}
             isSaving={isCreating}
             error={error}
+            initialFullName={initialData?.fullName}
           />
         </>
       );

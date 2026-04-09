@@ -4,7 +4,7 @@ import Icon from '../../atoms/Icon/Icon';
 import './BottomNav.css';
 
 const navItems = [
-  { iconName: 'dashboard', label: 'Home', path: '/dashboard' },
+  { iconName: 'add', label: 'New Invoice', path: '/invoices/new' },
   { iconName: 'customer', label: 'Customers', path: '/customers' },
   { iconName: 'udhar', label: 'Udhar', path: '/credits' },
   { iconName: 'reminder', label: 'Reminders', path: '/reminders' },

@@ -31,7 +31,7 @@ const DashboardTemplate = ({ children, headerTitle = 'Dashboard', headerTabs }) 
   };
 
   return (
-    <div className="dashboard-template">
+    <div className="dashboard-template" style={{ '--sidebar-width': sidebarCollapsed ? '60px' : '180px' }}>
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onToggleCollapse={handleSidebarToggle}
