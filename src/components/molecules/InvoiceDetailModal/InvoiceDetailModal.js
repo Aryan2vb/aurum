@@ -176,7 +176,6 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 <div className="invoice-meta-row"><span>Invoice</span><span>{invoice.invoiceNumber || '—'}</span></div>
                 <div className="invoice-meta-row"><span>Date</span><span>{formatDate(invoice.invoiceDate)}</span></div>
                 <div className="invoice-meta-row"><span>FY</span><span>{invoice.financialYear || '—'}</span></div>
-                <div className="invoice-meta-row"><span>Mode</span><span>{invoice.modeOfPayment || '—'}</span></div>
               </div>
             </div>
 
@@ -282,20 +281,39 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
             <div className="invoice-section">
               <h3 className="section-title">
                 <Icon name="credit" size={16} />
-                Payment Information
+                Payment Breakdown
               </h3>
-              <div className="payment-info">
-                <div className="detail-row">
-                  <span className="detail-label">Payment Mode:</span>
-                  <span className="detail-value">{invoice.modeOfPayment || 'N/A'}</span>
+              {invoice.payments?.length > 0 ? (
+                <div className="payments-table-wrapper">
+                  <table className="payments-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th className="amount-header">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoice.payments.map((p, i) => (
+                        <tr key={p.id || i}>
+                          <td>{formatDate(p.createdAt)}</td>
+                          <td><span className="payment-mode-tag">{p.mode}</span></td>
+                          <td>{p.reference || '—'}</td>
+                          <td className="amount-cell">{formatCurrency(p.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                {invoice.companySnapshot?.bankDetails?.bankName && (
+              ) : (
+                <div className="payment-info">
                   <div className="detail-row">
-                    <span className="detail-label">Bank:</span>
-                    <span className="detail-value">{invoice.companySnapshot.bankDetails.bankName}</span>
+                    <span className="detail-label">Payment Mode:</span>
+                    <span className="detail-value">{invoice.modeOfPayment || 'N/A'}</span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Udhar Entries */}

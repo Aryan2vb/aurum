@@ -178,41 +178,49 @@ const InvoiceTable = ({
       data.forEach((invoice) => {
         const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
         const items = invoice.items || [];
-        items.forEach((item, itemIdx) => {
-          const itemAmount = parseFloat(item.taxableAmount || item.totalAmount || 0);
-          // Per-item GST: proportional share of invoice GST based on item amount vs subtotal
-          const invoiceSubtotal = parseFloat(invoice.subtotal || invoice.taxableAmount || 0);
-          const gstRatio = invoiceSubtotal > 0 ? itemAmount / invoiceSubtotal : 0;
-          const itemGst = (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0)) * gstRatio;
+          const cashPayments = (invoice.payments || []).filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0);
+          const bankPayments = (invoice.payments || []).filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0);
+          const invoicePaid = Number(invoice.paidAmount || 0);
 
-          flatRows.push({
-            ...invoice,
-            ...item,
-            id: `${invoice.id}-${item.id || itemIdx}`,
-            invoiceId: invoice.id,
-            isSubRow: true,
-            sn: flatRows.length + 1,
-            // Buyer fields — buyerSnapshot is { version, data: {...} }
-            ledgerAddress: buyer.address || '',
-            ledgerPhone: buyer.phone || '',            // Item fields
-            ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
-            ledgerHsn: item.hsnSac || '',
-            ledgerItemName: item.description || '',
-            ledgerPurity: item.purityLabel || item.purity || '',
-            ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
-            ledgerNetWeightSilver: item.metalType === 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
-            // metalRate stored as rate per gram at purchase purity
-            ledgerMetalRate: parseFloat(item.metalRate || 0),
-            ledgerAmount: itemAmount,
-            // Labour: makingCharges is the rate (per gram or flat), makingChargesAmount is the resolved ₹ amount
-            ledgerLabourPG: parseFloat(item.makingCharges || 0),
-            ledgerLabourTotal: parseFloat(item.makingChargesAmount || 0),
-            ledgerHuid: item.huid || '',
-            ledgerGst: itemGst,
-            ledgerBank: invoice.modeOfPayment !== 'CASH' ? itemAmount : 0,
-            ledgerCash: invoice.modeOfPayment === 'CASH' ? itemAmount : 0,
+          items.forEach((item, itemIdx) => {
+            const itemAmount = parseFloat(item.taxableAmount || item.totalAmount || 0);
+            // Per-item GST: proportional share of invoice GST based on item amount vs subtotal
+            const invoiceSubtotal = parseFloat(invoice.subtotal || invoice.taxableAmount || 0);
+            const gstRatio = invoiceSubtotal > 0 ? itemAmount / invoiceSubtotal : 0;
+            const itemGst = (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0)) * gstRatio;
+
+            // Proportional attribution of bank/cash to item (approximation)
+            const cashRatio = invoicePaid > 0 ? cashPayments / invoicePaid : (invoice.modeOfPayment === 'CASH' ? 1 : 0);
+            const bankRatio = invoicePaid > 0 ? bankPayments / invoicePaid : (invoice.modeOfPayment !== 'CASH' && invoice.modeOfPayment ? 1 : 0);
+
+            flatRows.push({
+              ...invoice,
+              ...item,
+              id: `${invoice.id}-${item.id || itemIdx}`,
+              invoiceId: invoice.id,
+              isSubRow: true,
+              sn: flatRows.length + 1,
+              // Buyer fields — buyerSnapshot is { version, data: {...} }
+              ledgerAddress: buyer.address || '',
+              ledgerPhone: buyer.phone || '',            // Item fields
+              ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
+              ledgerHsn: item.hsnSac || '',
+              ledgerItemName: item.description || '',
+              ledgerPurity: item.purityLabel || item.purity || '',
+              ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
+              ledgerNetWeightSilver: item.metalType === 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
+              // metalRate stored as rate per gram at purchase purity
+              ledgerMetalRate: parseFloat(item.metalRate || 0),
+              ledgerAmount: itemAmount,
+              // Labour: makingCharges is the rate (per gram or flat), makingChargesAmount is the resolved ₹ amount
+              ledgerLabourPG: parseFloat(item.makingCharges || 0),
+              ledgerLabourTotal: parseFloat(item.makingChargesAmount || 0),
+              ledgerHuid: item.huid || '',
+              ledgerGst: itemGst,
+              ledgerBank: (itemAmount + itemGst) * bankRatio,
+              ledgerCash: (itemAmount + itemGst) * cashRatio,
+            });
           });
-        });
       });
       return flatRows;
     }
@@ -257,8 +265,12 @@ const InvoiceTable = ({
         ledgerLabourTotal: labourTotal,
         ledgerHuid: items.map(i => i.huid).filter(Boolean).join(', '),
         ledgerGst: Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0),
-        ledgerBank: invoice.modeOfPayment !== 'CASH' ? parseFloat(invoice.totalAmount || 0) : 0,
-        ledgerCash: invoice.modeOfPayment === 'CASH' ? parseFloat(invoice.totalAmount || 0) : 0,
+        ledgerBank: invoice.payments?.length 
+          ? invoice.payments.filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
+          : (invoice.modeOfPayment !== 'CASH' && invoice.modeOfPayment ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerCash: invoice.payments?.length
+          ? invoice.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
+          : (invoice.modeOfPayment === 'CASH' ? parseFloat(invoice.paidAmount || 0) : 0),
       };
     });
   }, [data, showItems]);
@@ -269,8 +281,17 @@ const InvoiceTable = ({
     data.forEach(inv => {
       totalAmount += Number(inv.totalAmount || 0);
       totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0) + Number(inv.igstAmount || 0);
-      if (inv.modeOfPayment === 'CASH') totalCash += Number(inv.totalAmount || 0);
-      else totalBank += Number(inv.totalAmount || 0);
+      
+      const cash = inv.payments?.length
+        ? inv.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
+        : (inv.modeOfPayment === 'CASH' ? Number(inv.paidAmount || 0) : 0);
+      
+      const bank = inv.payments?.length
+        ? inv.payments.filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
+        : (inv.modeOfPayment !== 'CASH' && inv.modeOfPayment ? Number(inv.paidAmount || 0) : 0);
+
+      totalCash += cash;
+      totalBank += bank;
       (inv.items || []).forEach(item => {
         if (item.metalType === 'SILVER') silverWt += Number(item.netWeight || 0);
         else goldWt += Number(item.netWeight || 0);

@@ -38,7 +38,7 @@ const makingOptions = [
   { value: 'PERCENTAGE_ON_METAL', label: '%' },
 ];
 
-const paymentModes = ['UPI', 'CASH', 'BANK_TRANSFER', 'CREDIT'];
+const paymentModes = ['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OLD_GOLD', 'OTHER'];
 
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
@@ -51,11 +51,15 @@ const CreateInvoicePage = () => {
   const [searching, setSearching] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
-  const [paidAmount, setPaidAmount] = useState(0);
+  const [payments, setPayments] = useState([{ mode: 'UPI', amount: 0 }]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const searchDebounceRef = useRef(null);
+
+  const paidAmount = useMemo(() => 
+    payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+  , [payments]);
 
   const [invoiceData, setInvoiceData] = useState({
     buyer: { name: '', phone: '', address: '', stateCode: '' },
@@ -97,7 +101,11 @@ const CreateInvoicePage = () => {
         if (id) {
           const inv = await getInvoiceById(id);
           setSelectedCustomerId(inv.customerId);
-          setPaidAmount(inv.paidAmount || 0);
+          if (inv.payments?.length) {
+            setPayments(inv.payments.map(p => ({ mode: p.mode, amount: p.amount, reference: p.reference || '' })));
+          } else {
+            setPayments([{ mode: inv.modeOfPayment || 'UPI', amount: inv.paidAmount || 0 }]);
+          }
           setInvoiceDate(inv.invoiceDate?.slice(0, 10));
           setInvoiceData(prev => ({
             ...prev,
@@ -187,6 +195,7 @@ const CreateInvoicePage = () => {
       cashReceived: parseFloat(paidAmount) || 0,
       amtBalance: previewCalc.outstanding,
       hsnSummary: hsnSummary,
+      payments: payments.map(p => ({ mode: p.mode, amount: parseFloat(p.amount) || 0 })),
       metadata: {
         ...invoiceData.metadata,
         invoiceNo: 'PREVIEW',
@@ -270,16 +279,37 @@ const CreateInvoicePage = () => {
     }));
   };
 
-  const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
+
+
+  const handleAddPayment = () => {
+    setPayments([...payments, { mode: 'CASH', amount: 0 }]);
+  };
+
+  const handleRemovePayment = (index) => {
+    const newPayments = [...payments];
+    newPayments.splice(index, 1);
+    setPayments(newPayments);
+  };
+
+  const handleUpdatePayment = (index, field, value) => {
+    const newPayments = [...payments];
+    newPayments[index][field] = value;
+    setPayments(newPayments);
+  };
 
   const buildPayload = () => {
     const payload = {
       customerId: selectedCustomerId,
       invoiceDate: invoiceDate,
-      paidAmount: parseFloat(paidAmount) || 0,
-      autoCreateUdhar: isCredit ? true : autoCreateUdhar,
+      payments: payments.map(p => ({
+        mode: p.mode,
+        amount: parseFloat(p.amount) || 0,
+        reference: p.reference || undefined
+      })),
+      paidAmount, // keep for backward compatibility
+      autoCreateUdhar: autoCreateUdhar,
       templateType: theme,
-      modeOfPayment: invoiceData.metadata.modeOfPayment,
+      modeOfPayment: payments[0]?.mode || 'UPI',
       items: invoiceData.items.map(item => {
         const { purityValue, purityBasis } = parsePurity(item.purity || '22K');
         return {
@@ -507,12 +537,40 @@ const CreateInvoicePage = () => {
                 <label>State Code</label>
                 <input value={invoiceData.buyer.stateCode} onChange={e => setInvoiceData(prev => ({ ...prev, buyer: { ...prev.buyer, stateCode: e.target.value } }))} placeholder="07" />
               </div> */}
-              <div className={styles.advField}>
-                <label>Payment Mode</label>
-                <select value={invoiceData.metadata.modeOfPayment} onChange={e => setInvoiceData(prev => ({ ...prev, metadata: { ...prev.metadata, modeOfPayment: e.target.value } }))}>
-                  {paymentModes.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+              <div className={styles.paymentsSection}>
+                <div className={styles.sectionHeader}>
+                  <label>Payments / Split</label>
+                  <button type="button" className={styles.addSmallBtn} onClick={handleAddPayment}>
+                    + Add Mode
+                  </button>
+                </div>
+                {payments.map((p, idx) => (
+                  <div key={idx} className={styles.paymentRow}>
+                    <select 
+                      value={p.mode} 
+                      onChange={e => handleUpdatePayment(idx, 'mode', e.target.value)}
+                      className={styles.paymentModeSelect}
+                    >
+                      {paymentModes.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <div className={styles.paymentAmountWrap}>
+                      <span className={styles.currencyPrefix}>₹</span>
+                      <input 
+                        type="number" 
+                        value={p.amount} 
+                        onChange={e => handleUpdatePayment(idx, 'amount', e.target.value)} 
+                        placeholder="0"
+                      />
+                    </div>
+                    {payments.length > 1 && (
+                      <button type="button" className={styles.removePaymentBtn} onClick={() => handleRemovePayment(idx)}>
+                        <Icon name="close" size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
+
               <div className={styles.advField}>
                 <label>Tax CGST/SGST %</label>
                 <input type="number" step="0.1" value={invoiceData.taxes.cgstRate} onChange={e => setInvoiceData(prev => ({ ...prev, taxes: { ...prev.taxes, cgstRate: parseFloat(e.target.value) || 0, sgstRate: parseFloat(e.target.value) || 0 } }))} disabled={invoiceData.taxes.taxType === 'NONE'} />
@@ -523,14 +581,8 @@ const CreateInvoicePage = () => {
               </div>
               <div className={styles.advField}>
                 <label>Auto-Udhar creation</label>
-                <input type="checkbox" checked={autoCreateUdhar} onChange={e => setAutoCreateUdhar(e.target.checked)} disabled={isCredit} />
+                <input type="checkbox" checked={autoCreateUdhar} onChange={e => setAutoCreateUdhar(e.target.checked)} />
               </div>
-              {!isCredit && (
-                <div className={styles.advField}>
-                  <label>Amount Received ₹</label>
-                  <input type="number" value={paidAmount} onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)} placeholder="0" />
-                </div>
-              )}
             </div>
           )}
         </div>
