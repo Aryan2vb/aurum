@@ -17,12 +17,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ./aurum
-      dockerfile: Dockerfile
-      target: production
-      args:
-        REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-/api}
+    image: ghcr.io/aryan2vb/aurum:production
     expose:
       - '4001'
     environment:
@@ -35,10 +30,7 @@ services:
       retries: 3
 
   backend:
-    build:
-      context: ./back-aurum
-      dockerfile: Dockerfile
-      target: production
+    image: ghcr.io/aryan2vb/back-aurum:production
     expose:
       - '3000'
     environment:
