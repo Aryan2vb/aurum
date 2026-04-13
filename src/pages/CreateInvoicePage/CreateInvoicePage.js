@@ -208,7 +208,7 @@ const CreateInvoicePage = () => {
       else if (theme === 'jewellery') setPreviewHtml(generateJewelleryInvoiceHtml(hydratedData));
       else setPreviewHtml(generateInvoiceHtml(hydratedData));
     } catch (e) { /* silent */ }
-  }, [invoiceData, theme, paidAmount, invoiceDate]);
+  }, [invoiceData, theme, paidAmount, invoiceDate, payments]);
 
   const performSearch = useCallback(async (q) => {
     if (q.length < 2) { setSearchResults([]); setSearching(false); return; }

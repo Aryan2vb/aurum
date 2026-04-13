@@ -549,7 +549,7 @@
 
 .addSmallBtn:hover {
   background: var(--accent);
-  color: white;
+  color: var(--accent-contrast, white);
 }
 
 .paymentRow {
@@ -571,6 +571,7 @@
   border: 1px solid var(--border-color);
   border-radius: 0.3rem;
   background: var(--bg-secondary);
+  color: var(--text-primary);
 }
 
 .paymentAmountWrap {
@@ -592,6 +593,7 @@
 .paymentAmountWrap input {
   border: none !important;
   background: transparent !important;
+  color: var(--text-primary) !important;
   padding: 0.4rem 0.5rem !important;
   width: 100%;
 }
