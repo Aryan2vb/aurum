@@ -13,6 +13,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ../landing:/var/www/landing:ro
     depends_on:
       - frontend
       - backend
