@@ -156,6 +156,7 @@
   width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+  min-width: max-content;
 }
 
 .attio-th {
@@ -190,21 +191,21 @@
   border-right: 1px solid var(--ct-border-light);
 }
 
-.attio-td-pinned-sn, .attio-th-pinned-sn {
+.attio-td-pinned-sn, .attio-th-pinned-sn, .attio-tf-pinned-sn {
   position: sticky;
   left: 40px;
   background: var(--ct-bg);
   z-index: 4;
 }
 
-.attio-td-pinned-actions, .attio-th-pinned-actions {
+.attio-td-pinned-actions, .attio-th-pinned-actions, .attio-tf-pinned-actions {
   position: sticky;
   left: 90px;
   background: var(--ct-bg);
   z-index: 4;
 }
 
-.attio-td-pinned-invoiceNumber, .attio-th-pinned-invoiceNumber {
+.attio-td-pinned-invoiceNumber, .attio-th-pinned-invoiceNumber, .attio-tf-pinned-invoiceNumber {
   position: sticky;
   left: 190px;
   background: var(--ct-bg);
@@ -242,32 +243,8 @@
   border-top: 1px solid var(--ct-border);
 }
 
-.attio-tf-pinned-sn {
-  position: sticky;
-  left: 40px;
-  background: var(--ct-bg-secondary);
-  z-index: 4;
-}
-
-.attio-tf-pinned-actions {
-  position: sticky;
-  left: 90px;
-  background: var(--ct-bg-secondary);
-  z-index: 4;
-}
-
-.attio-tf-pinned-invoiceNumber {
-  position: sticky;
-  left: 190px;
-  background: var(--ct-bg-secondary);
-  z-index: 4;
-}
-
-.attio-tf-checkbox {
-  position: sticky;
-  left: 0;
-  background: var(--ct-bg-secondary);
-  z-index: 4;
+.attio-tf-pinned-sn, .attio-tf-pinned-actions, .attio-tf-pinned-invoiceNumber, .attio-tf-checkbox {
+  background: var(--ct-bg-secondary) !important;
 }
 
 .attio-tf-value {

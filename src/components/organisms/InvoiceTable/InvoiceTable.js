@@ -91,32 +91,6 @@ const STATUS_COLORS = {
 // ============================================
 // SKELETON LOADING
 // ============================================
-const SKELETON_COLUMNS = [
-  { id: 'sn' },
-  { id: 'actions' },
-  { id: 'invoiceNumber' },
-  { id: 'date' },
-  { id: 'customer' },
-  { id: 'lastName' },
-  { id: 'ledgerAddress' },
-  { id: 'ledgerPhone' },
-  { id: 'ledgerMetal' },
-  { id: 'ledgerHsn' },
-  { id: 'ledgerItemName' },
-  { id: 'ledgerPurity' },
-  { id: 'ledgerNetWeightGold' },
-  { id: 'ledgerNetWeightSilver' },
-  { id: 'ledgerMetalRate' },
-  { id: 'ledgerAmount' },
-  { id: 'ledgerLabourPG' },
-  { id: 'ledgerLabourTotal' },
-  { id: 'ledgerHuid' },
-  { id: 'ledgerGst' },
-  { id: 'roundOff' },
-  { id: 'totalAmount' },
-  { id: 'ledgerBank' },
-  { id: 'ledgerCash' }
-];
 
 const SkeletonCell = ({ width = '60%' }) => (
   <div className="skeleton-cell">
@@ -276,36 +250,44 @@ const InvoiceTable = ({
   }, [data, showItems]);
 
   const aggregations = useMemo(() => {
-    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0, labourTotal = 0;
+    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0, labourTotal = 0, subtotal = 0;
 
     data.forEach(inv => {
       totalAmount += Number(inv.totalAmount || 0);
+      subtotal += Number(inv.subtotal || inv.taxableAmount || 0);
       totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0) + Number(inv.igstAmount || 0);
       
-      const cash = inv.payments?.length
+      const cashPayments = inv.payments?.length
         ? inv.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
         : (inv.modeOfPayment === 'CASH' ? Number(inv.paidAmount || 0) : 0);
       
-      const bank = inv.payments?.length
+      const bankPayments = inv.payments?.length
         ? inv.payments.filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
         : (inv.modeOfPayment !== 'CASH' && inv.modeOfPayment ? Number(inv.paidAmount || 0) : 0);
 
-      totalCash += cash;
-      totalBank += bank;
-      (inv.items || []).forEach(item => {
-        if (item.metalType === 'SILVER') silverWt += Number(item.netWeight || 0);
-        else goldWt += Number(item.netWeight || 0);
-        labourTotal += Number(item.makingChargesAmount || 0);
-      });
+      totalCash += cashPayments;
+      totalBank += bankPayments;
+    });
+
+    processedData.forEach(row => {
+      goldWt += Number(row.ledgerNetWeightGold) || 0;
+      silverWt += Number(row.ledgerNetWeightSilver) || 0;
+      labourTotal += Number(row.ledgerLabourTotal || 0);
     });
 
     return {
-      count: showItems ? processedData.length : data.length,
-      label: showItems ? 'items' : 'invoices',
+      count: data.length,
+      label: 'invoices',
       total: totalAmount,
-      goldWt, silverWt, totalGst, totalBank, totalCash, labourTotal,
+      subtotal,
+      goldWt, 
+      silverWt, 
+      totalGst, 
+      totalBank, 
+      totalCash, 
+      labourTotal,
     };
-  }, [data, showItems, processedData]);
+  }, [data, processedData]);
 
   const clearAllFilters = useCallback(() => {
     onFiltersChange({
@@ -359,6 +341,33 @@ const InvoiceTable = ({
     }
   };
 
+  const [columnVisibility, setColumnVisibility] = useState({});
+
+  // Sync column visibility with showItems toggle
+  React.useEffect(() => {
+    const itemSpecificColumns = {
+      lastName: false,
+      ledgerAddress: false,
+      ledgerPhone: false,
+      ledgerMetal: false,
+      ledgerHsn: false,
+      ledgerItemName: false,
+      ledgerPurity: false,
+      ledgerNetWeightGold: false,
+      ledgerNetWeightSilver: false,
+      ledgerMetalRate: false,
+      ledgerLabourPG: false,
+      ledgerLabourTotal: false,
+      ledgerHuid: false,
+    };
+    
+    if (!showItems) {
+      setColumnVisibility(itemSpecificColumns);
+    } else {
+      setColumnVisibility({});
+    }
+  }, [showItems]);
+
   const columns = useMemo(() => [
     columnHelper.display({
       id: 'select',
@@ -378,6 +387,7 @@ const InvoiceTable = ({
       size: 40,
     }),
     columnHelper.accessor('sn', {
+      id: 'sn',
       header: 'S.N',
       cell: info => info.getValue(),
       size: 50,
@@ -388,7 +398,6 @@ const InvoiceTable = ({
       cell: ({ row }) => {
         const inv = row.original;
         const status = (inv.status || '').toUpperCase();
-        const isDraft = status === 'DRAFT';
         const hasBalance = (status === 'UNPAID' || status === 'PARTIAL');
         
         return (
@@ -401,7 +410,7 @@ const InvoiceTable = ({
               <Icon name="eye" size={14} />
             </button>
             
-            {isDraft && (
+            {status !== 'CANCELLED' && (
               <button 
                 className="attio-icon-btn edit-btn compact" 
                 onClick={(e) => {
@@ -433,12 +442,14 @@ const InvoiceTable = ({
     }),
     // Invoice No.
     columnHelper.accessor('invoiceNumber', {
+      id: 'invoiceNumber',
       header: 'Invoice No.',
       cell: info => <span className="attio-td-value">{info.getValue() || 'DRAFT'}</span>,
-      size: 110,
+      size: 140,
     }),
     // Date
     columnHelper.accessor('invoiceDate', {
+      id: 'invoiceDate',
       header: 'Date',
       cell: info => formatDate(info.getValue()),
       size: 90,
@@ -461,103 +472,139 @@ const InvoiceTable = ({
       header: 'Last Name',
       size: 110,
     }),
-    // Address — FIXED: buyerSnapshot.data.address
+    // Address
     columnHelper.accessor('ledgerAddress', {
+      id: 'ledgerAddress',
       header: 'Address',
       size: 150,
     }),
-    // Contact No — FIXED: buyerSnapshot.data.phone
+    // Contact No
     columnHelper.accessor('ledgerPhone', {
+      id: 'ledgerPhone',
       header: 'Contact No.',
       size: 120,
     }),
     // Metal
     columnHelper.accessor('ledgerMetal', {
+      id: 'ledgerMetal',
       header: 'Metal',
       size: 80,
     }),
     // HSN
     columnHelper.accessor('ledgerHsn', {
+      id: 'ledgerHsn',
       header: 'Hsn',
       size: 80,
     }),
     // Item Name
     columnHelper.accessor('ledgerItemName', {
+      id: 'ledgerItemName',
       header: 'Item Name',
       size: 180,
     }),
-    // Purity — ADDED (was missing)
+    // Purity
     columnHelper.accessor('ledgerPurity', {
+      id: 'ledgerPurity',
       header: 'Purity',
       size: 80,
     }),
     // Net Wt. Gold
     columnHelper.accessor('ledgerNetWeightGold', {
+      id: 'ledgerNetWeightGold',
       header: 'Net Wt. Gold',
       cell: info => Number(info.getValue() || 0).toFixed(3),
       size: 100,
     }),
     // Net Wt. Silver
     columnHelper.accessor('ledgerNetWeightSilver', {
+      id: 'ledgerNetWeightSilver',
       header: 'Net Wt. Silver',
       cell: info => Number(info.getValue() || 0).toFixed(3),
       size: 100,
     }),
-    // Metal Rate PG — FIXED: reads ledgerMetalRate (mapped correctly from item.metalRate)
+    // Metal Rate PG
     columnHelper.accessor('ledgerMetalRate', {
+      id: 'ledgerMetalRate',
       header: 'Metal Rate PG',
       cell: info => info.getValue() != null ? formatCurrency(info.getValue()) : '—',
       size: 110,
     }),
     // Amount (taxable, pre-GST)
     columnHelper.accessor('ledgerAmount', {
+      id: 'ledgerAmount',
       header: 'Amount',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-    // Labour PG — FIXED: was reading nonexistent 'labourRate', now reads ledgerLabourPG
+    // Labour PG
     columnHelper.accessor('ledgerLabourPG', {
+      id: 'ledgerLabourPG',
       header: 'Labour PG',
       cell: info => info.getValue() != null ? formatCurrency(info.getValue()) : '—',
       size: 90,
     }),
-    // Labour Total (resolved ₹ making charges)
+    // Labour Total
     columnHelper.accessor('ledgerLabourTotal', {
+      id: 'ledgerLabourTotal',
       header: 'Labour Total',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
     // HUID
     columnHelper.accessor('ledgerHuid', {
+      id: 'ledgerHuid',
       header: 'HUID',
       size: 100,
     }),
     // GST
     columnHelper.accessor('ledgerGst', {
+      id: 'ledgerGst',
       header: 'GST 3%',
       cell: info => formatCurrency(info.getValue()),
       size: 100,
     }),
     // Round Off
     columnHelper.accessor('roundOff', {
+      id: 'roundOff',
       header: 'Round off',
       cell: info => Number(info.getValue() || 0).toFixed(2),
       size: 80,
     }),
+    // Status
+    columnHelper.accessor('status', {
+      id: 'status',
+      header: 'Status',
+      cell: info => {
+        const status = info.getValue() || 'DRAFT';
+        const colors = STATUS_COLORS[status] || STATUS_COLORS.DRAFT;
+        return (
+          <span 
+            className="attio-status-badge"
+            style={{ backgroundColor: colors.bg, color: colors.color }}
+          >
+            {status}
+          </span>
+        );
+      },
+      size: 100,
+    }),
     // Total
     columnHelper.accessor('totalAmount', {
+      id: 'totalAmount',
       header: 'Total',
       cell: info => <span className="fw-600">{formatCurrency(info.getValue())}</span>,
       size: 110,
     }),
     // Bank
     columnHelper.accessor('ledgerBank', {
+      id: 'ledgerBank',
       header: 'Bank',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
     // Cash
     columnHelper.accessor('ledgerCash', {
+      id: 'ledgerCash',
       header: 'Cash',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
@@ -567,7 +614,8 @@ const InvoiceTable = ({
   const table = useReactTable({
     data: processedData,
     columns,
-    state: { sorting, rowSelection },
+    state: { sorting, rowSelection, columnVisibility },
+    onColumnVisibilityChange: setColumnVisibility,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
@@ -697,7 +745,7 @@ const InvoiceTable = ({
           </thead>
           <tbody>
             {isLoading ? (
-              <SkeletonRows columns={SKELETON_COLUMNS} />
+              <SkeletonRows columns={columns} />
             ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="attio-empty">
@@ -722,11 +770,12 @@ const InvoiceTable = ({
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
-                {table.getAllColumns().map((col) => {
+                {table.getVisibleFlatColumns().map((col) => {
                   const totals = {
                     sn: `${aggregations.count} ${aggregations.label}`,
                     ledgerNetWeightGold: Number(aggregations.goldWt).toFixed(3),
                     ledgerNetWeightSilver: Number(aggregations.silverWt).toFixed(3),
+                    ledgerAmount: formatCurrency(aggregations.subtotal),
                     ledgerLabourTotal: formatCurrency(aggregations.labourTotal),
                     ledgerGst: formatCurrency(aggregations.totalGst),
                     totalAmount: formatCurrency(aggregations.total),

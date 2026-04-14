@@ -443,6 +443,19 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 <Icon name="eye" size={16} />
                 View Invoice
               </button>
+
+              {invoice.status !== 'CANCELLED' && (
+                <button 
+                  className="action-btn secondary" 
+                  onClick={() => {
+                    onClose();
+                    navigate(`/invoices/edit/${invoice.id}`);
+                  }}
+                >
+                  <Icon name="edit" size={16} />
+                  Edit Invoice
+                </button>
+              )}
               
               {(invoice.status === 'UNPAID' || invoice.status === 'PARTIAL') && (
                 <button 

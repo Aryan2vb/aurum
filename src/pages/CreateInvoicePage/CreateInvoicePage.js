@@ -5,7 +5,7 @@ import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import CustomerInspectorPanel from '../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice, createDraft, getInvoiceSettings, getInvoiceById, updateInvoice, finalizeInvoice } from '../../services/invoicesService';
+import { getInvoiceById, getInvoiceSettings, createInvoice, createDraft, updateInvoice } from '../../services/invoicesService';
 import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
 import { calcInvoiceTotals, parsePurity } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePage.module.css';
@@ -338,17 +338,23 @@ const CreateInvoicePage = () => {
     invoiceData.items.length > 0 &&
     invoiceData.items.every(i => i.description && i.hsnSac && parseFloat(i.grossWeight) > 0 && parseFloat(i.rate) > 0);
 
-  const handleConfirm = async () => {
+  const handleSubmit = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
+
+    // Warning for finalized invoices
+    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
+      if (!window.confirm('This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?')) {
+        return;
+      }
+    }
+
     try {
-      setLoading('confirm');
+      setLoading(true);
       let res;
-      if (id && invoiceData.status === 'DRAFT') {
-        // First update the draft to save any changes, then finalize
-        await updateInvoice(id, buildPayload());
-        res = await finalizeInvoice(id);
+      if (id) {
+        res = await updateInvoice(id, { ...buildPayload(), finalize: true });
       } else {
-        res = await createInvoice(buildPayload());
+        res = await createInvoice({ ...buildPayload(), finalize: true });
       }
       if (res?.id) navigate(`/invoices`);
       else alert('Failed to finalize invoice');
@@ -358,6 +364,14 @@ const CreateInvoicePage = () => {
 
   const handleSaveDraft = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
+
+    // Warning for finalized invoices
+    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
+      if (!window.confirm('This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?')) {
+        return;
+      }
+    }
+
     try {
       setLoading('draft');
       let res;
@@ -605,8 +619,8 @@ const CreateInvoicePage = () => {
             <button className={`${styles.draftBtn}`} onClick={handleSaveDraft} disabled={!!loading || !canSubmit}>
               {id ? 'Update Draft' : 'Save Draft'}
             </button>
-            <button className={`${styles.confirmBtn}`} onClick={handleConfirm} disabled={!!loading || !canSubmit}>
-              {loading === 'confirm' ? 'Finalizing...' : id ? 'Confirm & Finalize' : 'Confirm & Pay'}
+            <button className={`${styles.confirmBtn}`} onClick={handleSubmit} disabled={!!loading || !canSubmit}>
+              {loading === true ? 'Processing...' : id ? 'Confirm & Finalize' : 'Confirm & Pay'}
             </button>
           </div>
         </div>
