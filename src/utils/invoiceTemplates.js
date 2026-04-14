@@ -128,7 +128,7 @@ export function generateInvoiceHtml(data) {
       </div>
       <div class="company-right">
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Invoice No.</div><div class="font-bold">${metadata.invoiceNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Dated</div><div class="font-bold">${metadata.date || ''}</div></div></div>
-        <div class="meta-row"><div class="meta-cell"><div class="meta-label">Delivery Note</div><div>${metadata.deliveryNote || ''}</div></div><div class="meta-cell"><div class="meta-label">Mode/Terms of Payment</div><div>${metadata.modeOfPayment || ''}</div></div></div>
+        <div class="meta-row"><div class="meta-cell"><div class="meta-label">Delivery Note</div><div>${metadata.deliveryNote || ''}</div></div><div class="meta-cell"><div class="meta-label">Mode of Payment</div><div>${data.payments?.length ? data.payments.map(p => p.mode).join(', ') : (metadata.modeOfPayment || '')}</div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Reference No. &amp; Date</div><div>${metadata.referenceNo || ''} ${metadata.referenceDate || ''}</div></div><div class="meta-cell"><div class="meta-label">Other References</div><div></div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Buyer's Order No.</div><div>${metadata.buyerOrderNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Dated</div><div>${metadata.buyerOrderDate || ''}</div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Dispatch Doc No.</div><div>${metadata.dispatchDocNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Delivery Note Date</div><div>${metadata.deliveryNoteDate || ''}</div></div></div>
@@ -156,6 +156,25 @@ export function generateInvoiceHtml(data) {
         <tr class="tax-row"><td>Less:</td><td class="text-right font-bold">ROUND OFF</td><td></td><td></td><td></td><td></td><td class="text-right">${roundOff >= 0 ? '' : '(-)'}${formatCurrency(Math.abs(roundOff || 0))}</td></tr>
         ${Array(3).fill('<tr style="height:16px;"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('')}
         <tr class="total-row"><td></td><td class="text-right">Total</td><td></td><td></td><td></td><td></td><td class="text-right font-bold text-lg">₹${formatCurrency(totalAmount || 0)}</td></tr>
+        ${
+          data.payments && data.payments.length > 0
+            ? data.payments.map(p => `
+        <tr class="tax-row">
+          <td colspan="6" class="text-right">${p.mode} Received</td>
+          <td class="text-right">${formatCurrency(p.amount || 0)}</td>
+        </tr>`).join('')
+            : (data.cashReceived || 0) > 0
+            ? `
+        <tr class="tax-row">
+          <td colspan="6" class="text-right">Paid Amount</td>
+          <td class="text-right">${formatCurrency(data.cashReceived || 0)}</td>
+        </tr>`
+            : ''
+        }
+        <tr class="tax-row">
+          <td colspan="6" class="text-right font-bold" style="font-size: 14px;">Balance Due</td>
+          <td class="text-right font-bold" style="font-size: 14px;">₹${formatCurrency(data.amtBalance || 0)}</td>
+        </tr>
       </tbody>
     </table>
     <div class="border border-t-0 px-2 py-1"><span>Amount Chargeable (in words)</span><span style="float:right;">E. &amp; O.E</span></div>
@@ -289,7 +308,7 @@ export function generateModernInvoiceHtml(data) {
                 <div class="invoice-meta">
                     <div><strong>${metadata.invoiceNo || ''}</strong></div>
                     <div>Date: <strong>${metadata.date || ''}</strong></div>
-                    ${metadata.modeOfPayment ? `<div>Payment: ${metadata.modeOfPayment}</div>` : ''}
+                    ${data.payments?.length ? `<div>Payment: ${data.payments.map(p => p.mode).join(', ')}</div>` : (metadata.modeOfPayment ? `<div>Payment: ${metadata.modeOfPayment}</div>` : '')}
                 </div>
             </div>
         </div>
@@ -345,6 +364,28 @@ export function generateModernInvoiceHtml(data) {
                 <div class="subtotal-row"><span>SGST @ ${taxes.sgstRate}%</span><span>₹${fmt(taxes.sgstAmount || 0)}</span></div>
                 ${roundOff !== 0 ? `<div class="subtotal-row"><span>Round Off</span><span>${roundOff >= 0 ? '' : '(-)'}₹${fmt(Math.abs(roundOff || 0))}</span></div>` : ''}
                 <div class="total-row-modern"><span>Total</span><span>₹${fmt(totalAmount || 0)}</span></div>
+                ${
+                  data.payments && data.payments.length > 0
+                    ? data.payments
+                        .map(
+                          (p) => `
+                <div class="subtotal-row" style="margin-top:4px;">
+                  <span style="font-size:11px;color:#64748b;">${p.mode} Received</span>
+                  <span style="font-size:11px;color:#64748b;font-weight:600;">₹${fmt(p.amount || 0)}</span>
+                </div>`,
+                        )
+                        .join('')
+                    : (data.cashReceived || 0) > 0
+                    ? `<div class="subtotal-row" style="margin-top:4px;">
+                  <span style="font-size:11px;color:#64748b;">Paid Amount</span>
+                  <span style="font-size:11px;color:#64748b;font-weight:600;">₹${fmt(data.cashReceived || 0)}</span>
+                </div>`
+                    : ''
+                }
+                <div class="subtotal-row" style="margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0;">
+                    <span style="font-weight:700;color:#2563eb;">Balance Due</span>
+                    <span style="font-weight:700;color:#2563eb;">₹${fmt(data.amtBalance || 0)}</span>
+                </div>
             </div>
 
             <div class="words-box">
@@ -422,6 +463,13 @@ export function generateJewelleryInvoiceHtml(data) {
     const subtotal = items.reduce((s, i) => s + (i.amount || 0), 0);
     const cashReceived = data.cashReceived !== undefined ? data.cashReceived : totalAmount;
     const amtBalance = data.amtBalance !== undefined ? data.amtBalance : 0;
+    
+    let paymentsHtml = '';
+    if (data.payments && data.payments.length > 0) {
+        paymentsHtml = data.payments.map(p => `<div>${p.mode}: &nbsp; ${fmt(p.amount)}</div>`).join('');
+    } else {
+        paymentsHtml = `<div>CASH RECEIVED : &nbsp; ${fmt(cashReceived)}</div>`;
+    }
 
     const itemRows = items.map(item => `
         <tr>
@@ -555,8 +603,8 @@ export function generateJewelleryInvoiceHtml(data) {
             <div class="totals-row" style="padding:4px 10px;font-size:13px;"><span class="label">TOTAL AMOUNT :</span><span class="value">${fmt(totalAmount || 0)}</span></div>
         </div>
         <div class="cash-section">
-            <div>CASH RECEIVED : &nbsp; ${fmt(cashReceived)}</div>
-            <div>NET RECEIVABLE AMT : ${fmt(totalAmount || 0)}</div>
+            <div style="display:flex; flex-direction:column; gap:2px;">${paymentsHtml}</div>
+            <div style="display:flex; align-items:flex-end;">NET RECEIVABLE AMT : ${fmt(totalAmount || 0)}</div>
         </div>
         <div class="balance-row">AMT BALANCE: ${fmt(Math.abs(amtBalance))} <span class="dr-text">${amtBalance >= 0 ? 'DR' : 'CR'}</span></div>
         <div class="payable-section">

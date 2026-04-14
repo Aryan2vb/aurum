@@ -246,6 +246,55 @@
   gap: 0.5rem;
 }
 
+.payments-table-wrapper {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.payments-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.payments-table th {
+  background: var(--bg-secondary);
+  padding: 0.6rem;
+  text-align: left;
+  color: var(--text-tertiary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.payments-table th.amount-header {
+  text-align: right;
+}
+
+.payments-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.payments-table tr:last-child td {
+  border-bottom: none;
+}
+
+.payment-mode-tag {
+  background: var(--bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
 /* Actions */
 .invoice-actions {
   display: flex;

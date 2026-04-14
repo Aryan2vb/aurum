@@ -92,7 +92,10 @@ const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
                 <option value="UPI">UPI</option>
                 <option value="CASH">CASH</option>
                 <option value="BANK_TRANSFER">BANK TRANSFER</option>
+                <option value="CHEQUE">CHEQUE</option>
                 <option value="CARD">CARD</option>
+                <option value="OLD_GOLD">OLD GOLD</option>
+                <option value="OTHER">OTHER</option>
               </select>
             </div>
 
