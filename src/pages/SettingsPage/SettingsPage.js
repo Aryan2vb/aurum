@@ -12,6 +12,7 @@ import {
   upsertInvoiceSettings,
   getInvoiceSettingsPreviewUrl,
 } from '../../services/invoicesService';
+import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
@@ -39,6 +40,8 @@ const SettingsPage = () => {
     mantra: '',
     logoUrl: '',
     bisLogoUrl: '',
+    signatureUrl: '',
+    qrCodeUrl: '',
     bankName: '',
     bankBranch: '',
     bankAccountName: '',
@@ -55,6 +58,7 @@ const SettingsPage = () => {
     startingSequence: 1,
   });
   const [invoiceSettingsStatus, setInvoiceSettingsStatus] = useState({ loading: false, error: null, success: null });
+  const [assetLoading, setAssetLoading] = useState({}); // { logoUrl: true, ... }
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -139,6 +143,8 @@ const SettingsPage = () => {
           mantra: settings.mantra || '',
           logoUrl: settings.logoUrl || '',
           bisLogoUrl: settings.bisLogoUrl || '',
+          signatureUrl: settings.signatureUrl || '',
+          qrCodeUrl: settings.qrCodeUrl || '',
           bankName: settings.bankName || '',
           bankBranch: settings.bankBranch || '',
           bankAccountName: settings.bankAccountName || '',
@@ -175,6 +181,39 @@ const SettingsPage = () => {
       setTimeout(() => setInvoiceSettingsStatus(s => ({ ...s, success: null })), 3000);
     } catch (err) {
       setInvoiceSettingsStatus({ loading: false, error: err.message || 'Failed to save', success: null });
+    }
+  };
+
+  const handleAssetUpload = async (field, assetType, e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Local validation
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File is too large (max 10MB)');
+      return;
+    }
+
+    setAssetLoading(prev => ({ ...prev, [field]: true }));
+    try {
+      // 1. Get presigned URL
+      const { presignedUrl, publicUrl } = await getPresignedUrl(assetType, file);
+
+      // 2. Upload directly to R2
+      await uploadToR2(presignedUrl, file);
+
+      // 3. Update form & autosave
+      const updatedForm = { ...invoiceSettingsForm, [field]: publicUrl };
+      setInvoiceSettingsForm(updatedForm);
+      
+      // 4. Autosave immediately for better UX
+      await upsertInvoiceSettings(updatedForm);
+      await fetchInvoiceSettings();
+    } catch (err) {
+      console.error(`Failed to upload ${field}:`, err);
+      alert(err.message || 'Upload failed');
+    } finally {
+      setAssetLoading(prev => ({ ...prev, [field]: false }));
     }
   };
 
@@ -304,6 +343,46 @@ const SettingsPage = () => {
                   <div className="m-empty">Loading settings…</div>
                 ) : (
                   <>
+                    {/* Branding Assets */}
+                    <div className="settings-group">
+                      <h4 className="settings-group-title">Branding Assets</h4>
+                      <div className="asset-upload-grid">
+                        <AssetCard
+                          label="Company Logo"
+                          field="logoUrl"
+                          assetType="ORG_LOGO"
+                          currentUrl={invoiceSettingsForm.logoUrl}
+                          loading={assetLoading.logoUrl}
+                          onUpload={handleAssetUpload}
+                        />
+                        <AssetCard
+                          label="BIS Logo"
+                          field="bisLogoUrl"
+                          assetType="ORG_BIS_LOGO"
+                          currentUrl={invoiceSettingsForm.bisLogoUrl}
+                          loading={assetLoading.bisLogoUrl}
+                          onUpload={handleAssetUpload}
+                        />
+                        <AssetCard
+                          label="Payment QR"
+                          field="qrCodeUrl"
+                          assetType="ORG_QR_CODE"
+                          currentUrl={invoiceSettingsForm.qrCodeUrl}
+                          loading={assetLoading.qrCodeUrl}
+                          onUpload={handleAssetUpload}
+                          square
+                        />
+                        <AssetCard
+                          label="Auth. Signature"
+                          field="signatureUrl"
+                          assetType="ORG_SIGNATURE"
+                          currentUrl={invoiceSettingsForm.signatureUrl}
+                          loading={assetLoading.signatureUrl}
+                          onUpload={handleAssetUpload}
+                        />
+                      </div>
+                    </div>
+
                     {/* Company Details */}
                     <div className="settings-group">
                       <h4 className="settings-group-title">Company Details</h4>
@@ -691,7 +770,7 @@ const SettingsPage = () => {
                   className="preview-frame"
                   srcDoc={previewHtml || '<html><body></body></html>'}
                   title="Invoice Preview"
-                  sandbox="allow-same-origin"
+                  sandbox="allow-same-origin allow-scripts allow-modals"
                 />
               )}
             </div>
@@ -716,6 +795,55 @@ function ThemeSwatch({ id }) {
       </div>
       <span className="theme-name">{THEME_LABELS[id]}</span>
     </button>
+  );
+}
+
+function AssetCard({ label, field, assetType, currentUrl, loading, onUpload, square = false }) {
+  return (
+    <div className="asset-card">
+      <div className="asset-header">
+        <label className="asset-label">{label}</label>
+        {currentUrl && !loading && (
+          <button 
+            className="m-remove" 
+            onClick={() => onUpload(field, assetType, { target: { files: [] } })}
+            style={{ padding: 0 }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      <div className={`asset-preview-container ${square ? 'square' : ''}`}>
+        {loading && (
+          <div className="asset-loading-overlay">
+            <div className="asset-spinner" />
+            <span className="asset-loading-text">Uploading…</span>
+          </div>
+        )}
+
+        {currentUrl ? (
+          <img src={currentUrl} alt={label} className="asset-preview-img" />
+        ) : (
+          <div className="asset-placeholder">
+            <i className="bi bi-image" />
+            <span>No Image</span>
+          </div>
+        )}
+      </div>
+
+      <div className="asset-actions">
+        <button className="s-btn s-btn-ghost asset-btn-upload" disabled={loading}>
+          {currentUrl ? 'Change' : 'Upload'}
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={(e) => onUpload(field, assetType, e)}
+            disabled={loading}
+          />
+        </button>
+      </div>
+    </div>
   );
 }
 
