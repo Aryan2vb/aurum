@@ -77,7 +77,7 @@ jobs:
           tags: ghcr.io/aryan2vb/aurum:production
           target: production
           build-args: |
-            REACT_APP_API_BASE_URL=/api
+            REACT_APP_API_BASE_URL=https://api.sarafa-bazar.com
 
       # ── 4. Prepare SSH Key ──────────────────────────────
       - name: Prepare SSH key
