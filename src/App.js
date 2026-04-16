@@ -22,6 +22,15 @@ import InvoicesPage from './pages/InvoicesPage/InvoicesPage';
 import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
+
+// Mobile Pages
+import MobileLoginPage from './pages/MobileLoginPage/MobileLoginPage';
+import MobileDashboardPage from './pages/MobileDashboardPage/MobileDashboardPage';
+import MobileCustomersPage from './pages/MobileCustomersPage/MobileCustomersPage';
+import MobileCreditsListPage from './pages/MobileCreditsListPage/MobileCreditsListPage';
+import MobileCreditDetailPage from './pages/MobileCreditDetailPage/MobileCreditDetailPage';
+import MobileAddCreditPage from './pages/MobileAddCreditPage/MobileAddCreditPage';
+import MobileSettingsPage from './pages/MobileSettingsPage/MobileSettingsPage';
 import './App.css';
 
 function App() {
@@ -179,7 +188,73 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* MOBILE ROUTES */}
+            <Route
+              path="/mobile/login"
+              element={
+                <PublicRoute>
+                  <MobileLoginPage />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/mobile/dashboard"
+              element={
+                <ProtectedRoute>
+                  <MobileDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/customers"
+              element={
+                <ProtectedRoute>
+                  <MobileCustomersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/customers/:id"
+              element={
+                <ProtectedRoute>
+                  <MobileCreditDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/credits"
+              element={
+                <ProtectedRoute>
+                  <MobileCreditsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/credits/new"
+              element={
+                <ProtectedRoute>
+                  <MobileAddCreditPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/credits/:id"
+              element={
+                <ProtectedRoute>
+                  <MobileCreditDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mobile/settings"
+              element={
+                <ProtectedRoute>
+                  <MobileSettingsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/invoices/new" replace />} />
+            <Route path="/mobile" element={<Navigate to="/mobile/dashboard" replace />} />
             </Routes>
           </div>
         </Router>

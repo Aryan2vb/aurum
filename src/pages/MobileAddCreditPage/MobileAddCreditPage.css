@@ -1,0 +1,61 @@
+.mobile-add-credit {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+}
+
+.mobile-add-credit__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.mobile-add-credit__back {
+  font-size: 16px;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.mobile-add-credit__title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.mobile-add-credit__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  flex: 1;
+}
+
+.mobile-add-credit__submit {
+  height: 52px;
+  margin-top: 16px;
+  background-color: var(--accent);
+  color: var(--on-accent);
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-family-sans);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.mobile-add-credit__submit:hover {
+  background-color: var(--accent-hover);
+}
+
+.mobile-add-credit__submit:active {
+  transform: scale(0.98);
+}

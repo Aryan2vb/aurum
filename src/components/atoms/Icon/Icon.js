@@ -47,6 +47,8 @@ import {
   FiMapPin,
   FiUser,
   FiSidebar,
+  FiHome,
+  FiDollarSign,
 } from 'react-icons/fi';
 import { MdExpandMore } from 'react-icons/md';
 import { IoMdSettings } from 'react-icons/io';
@@ -115,6 +117,8 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     sidebar: FiSidebar,
     invoice: FiFileText,
     payment: FiCreditCard,
+    home: FiHome,
+    dollar: FiDollarSign,
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;
