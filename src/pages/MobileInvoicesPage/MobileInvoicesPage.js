@@ -29,7 +29,6 @@ const MobileInvoicesPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
-  const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -59,108 +58,120 @@ const MobileInvoicesPage = () => {
     return { total, unpaid, overdue };
   }, [invoices]);
 
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'PAID': return 'var(--color-success)';
+      case 'PENDING': return 'var(--color-accent)';
+      case 'OVERDUE': return 'var(--color-error)';
+      case 'DRAFT': return 'var(--text-tertiary)';
+      default: return 'var(--color-accent)';
+    }
+  };
+
   const headerAction = (
-    <a href="/mobile/invoices/new" className="mobile-icon-button">
-      <Icon name="add" size={20} />
+    <a href="/invoices/new" className="mobile-icon-button primary">
+      <Icon name="add" size={20} color="white" />
     </a>
   );
 
   return (
     <MobileTemplate title="Invoices" headerAction={headerAction}>
       <div className="mobile-invoices">
-        {/* Stats Row */}
+        {/* Stats Grid */}
         <div className="mobile-invoices-stats">
-          <div className="mobile-invoices-stat">
+          <div className="mobile-invoices-stat glass-panel">
             <span className="mobile-invoices-stat__label">Total</span>
             <span className="mobile-invoices-stat__value">{fmtCurrency(stats.total)}</span>
           </div>
-          <div className="mobile-invoices-stat">
+          <div className="mobile-invoices-stat glass-panel success">
             <span className="mobile-invoices-stat__label">Unpaid</span>
-            <span className="mobile-invoices-stat__value mobile-invoices-stat__value--warning">
+            <span className="mobile-invoices-stat__value">
               {fmtCurrency(stats.unpaid)}
             </span>
           </div>
-          <div className="mobile-invoices-stat">
+          <div className="mobile-invoices-stat glass-panel error">
             <span className="mobile-invoices-stat__label">Overdue</span>
-            <span className="mobile-invoices-stat__value mobile-invoices-stat__value--danger">
+            <span className="mobile-invoices-stat__value">
               {stats.overdue}
             </span>
           </div>
         </div>
 
-        {/* Search */}
-        <div className="mobile-search-bar">
-          <Icon name="search" size={16} />
-          <input
-            type="text"
-            className="mobile-search-bar__input"
-            placeholder="Search invoices..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
+        {/* Search & Filter Section */}
+        <div className="invoice-filters-container">
+          <div className="mobile-search-bar glass-panel">
+            <Icon name="search" size={18} color="var(--text-tertiary)" />
+            <input
+              type="text"
+              className="mobile-search-bar__input"
+              placeholder="Search invoices..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-        {/* Filter Tabs */}
-        <div className="mobile-filter-tabs">
-          {['all', 'PENDING', 'PAID', 'OVERDUE', 'DRAFT'].map((filter) => (
-            <button
-              key={filter}
-              className={`mobile-filter-tab ${activeFilter === filter ? 'active' : ''}`}
-              onClick={() => setActiveFilter(filter)}
-            >
-              {filter === 'all' ? 'All' : filter}
-            </button>
-          ))}
+          <div className="mobile-filter-tabs">
+            {['all', 'PENDING', 'PAID', 'OVERDUE', 'DRAFT'].map((filter) => (
+              <button
+                key={filter}
+                className={`mobile-filter-tab ${activeFilter === filter ? 'active' : ''}`}
+                onClick={() => setActiveFilter(filter)}
+              >
+                {filter === 'all' ? 'All' : filter.charAt(0) + filter.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Invoice List */}
         {loading ? (
-          <div className="mobile-loading">Loading...</div>
+          <div className="mobile-loading-shimmer">
+            {[1, 2, 3].map(i => <div key={i} className="shimmer-item" />)}
+          </div>
         ) : invoices.length === 0 ? (
-          <div className="mobile-empty">
-            <p>No invoices found</p>
-            <a href="/mobile/invoices/new" className="mobile-empty__action">
-              Create your first invoice
+          <div className="mobile-empty-state">
+            <div className="empty-icon">
+              <Icon name="invoice" size={48} color="var(--text-tertiary)" />
+            </div>
+            <h3>No Invoices Found</h3>
+            <p>Ready to create your first invoice?</p>
+            <a href="/invoices/new" className="mobile-empty-button">
+              Create Invoice
             </a>
           </div>
         ) : (
           <div className="mobile-invoice-list">
-            {invoices.map((invoice) => {
-              const status = getStatusConfig(invoice.status);
-              return (
-                <a
-                  key={invoice.id}
-                  href={`/mobile/invoices/${invoice.id}`}
-                  className="mobile-invoice-row"
-                >
-                  <div className="mobile-invoice-row__left">
-                    <span className="mobile-invoice-row__number">{invoice.invoiceNumber || `#${invoice.id}`}</span>
-                    <span className="mobile-invoice-row__customer">
-                      {invoice.buyer?.name || invoice.customerName || 'Unknown'}
-                    </span>
-                    <span className="mobile-invoice-row__date">
-                      {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
-                    </span>
+            {invoices.map((invoice) => (
+              <a
+                key={invoice.id}
+                href={`/invoices/${invoice.id}`}
+                className="mobile-invoice-row glass-panel"
+              >
+                <div className="mobile-invoice-row__left">
+                  <span className="mobile-invoice-row__number">{invoice.invoiceNumber || `#${invoice.id}`}</span>
+                  <span className="mobile-invoice-row__customer">
+                    {invoice.buyer?.name || invoice.customerName || 'Unknown'}
+                  </span>
+                  <span className="mobile-invoice-row__date">
+                    {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : ''}
+                  </span>
+                </div>
+                <div className="mobile-invoice-row__right">
+                  <span className="mobile-invoice-row__amount">
+                    {fmtCurrency(invoice.totalAmount)}
+                  </span>
+                  <div className="status-dot-wrapper">
+                    <div className="status-dot" style={{ backgroundColor: getStatusColor(invoice.status) }}></div>
+                    <span className="status-label">{invoice.status?.toLowerCase()}</span>
                   </div>
-                  <div className="mobile-invoice-row__right">
-                    <span className="mobile-invoice-row__amount">
-                      {fmtCurrency(invoice.totalAmount)}
+                  {Number(invoice.remainingBalance) > 0 && invoice.status !== 'PAID' && (
+                    <span className="mobile-invoice-row__balance">
+                      Due: {fmtCurrency(invoice.remainingBalance)}
                     </span>
-                    <span
-                      className="mobile-invoice-row__status"
-                      style={{ backgroundColor: status.color }}
-                    >
-                      {status.label}
-                    </span>
-                    {Number(invoice.remainingBalance) > 0 && invoice.status !== 'PAID' && (
-                      <span className="mobile-invoice-row__balance">
-                        Due: {fmtCurrency(invoice.remainingBalance)}
-                      </span>
-                    )}
-                  </div>
-                </a>
-              );
-            })}
+                  )}
+                </div>
+              </a>
+            ))}
           </div>
         )}
       </div>
@@ -169,3 +180,6 @@ const MobileInvoicesPage = () => {
 };
 
 export default MobileInvoicesPage;
+
+
+// export default MobileInvoicesPage;

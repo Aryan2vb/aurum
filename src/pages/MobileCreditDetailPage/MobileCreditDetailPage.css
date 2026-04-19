@@ -1,186 +1,163 @@
 .mobile-credit-detail {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  position: relative;
-  padding-bottom: 80px;
+  gap: 28px;
+  animation: fadeIn 0.4s ease-out;
 }
 
-/* Customer Card */
-.mobile-credit-detail__customer-card {
+.detail-hero {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  border-radius: 16px;
-}
-
-.mobile-credit-detail__customer-top {
-  display: flex;
   align-items: center;
-  gap: 12px;
+  text-align: center;
+  padding: 12px 0 8px;
 }
 
-.mobile-credit-detail__avatar {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  border-radius: 50%;
-  background-color: var(--accent-light);
+.detail-hero__avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  border-radius: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--accent-color);
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-md);
 }
 
-.mobile-credit-detail__customer-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.mobile-credit-detail__customer-name {
-  font-size: 18px;
-  font-weight: 600;
+.detail-hero h1 {
+  font-family: var(--font-family-display);
+  font-size: 26px;
+  font-weight: 800;
   color: var(--text-primary);
+  margin-bottom: 4px;
 }
 
-.mobile-credit-detail__customer-phone {
-  font-size: 12px;
+.detail-hero p {
+  font-size: 15px;
   color: var(--text-secondary);
 }
 
-.mobile-credit-detail__status {
-  font-size: 12px;
-  font-weight: 600;
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
+/* Stats Grid */
+.detail-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
-.mobile-credit-detail__amounts {
-  display: flex;
-  gap: 16px;
-  padding-top: 8px;
-}
-
-.mobile-credit-detail__amount-item {
+.detail-stat-card {
+  padding: 16px 12px;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  border: 1px solid var(--border-subtle);
 }
 
-.mobile-credit-detail__amount-label {
+.detail-stat-card .label {
   font-size: 11px;
-  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
 }
 
-.mobile-credit-detail__amount-value {
-  font-size: 18px;
+.detail-stat-card .value {
+  font-family: var(--font-family-display);
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.mobile-credit-detail__amount-value--paid {
-  color: var(--color-status-active);
-}
+.detail-stat-card.success .value { color: var(--color-success); }
+.detail-stat-card.error .value { color: var(--color-error); }
 
-.mobile-credit-detail__amount-value--due {
-  color: var(--color-status-overdue);
-}
-
-/* Transactions */
-.mobile-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mobile-section__title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-}
-
+/* Transaction List */
 .mobile-transaction-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .mobile-transaction-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  transition: transform 0.2s ease;
 }
 
-.mobile-transaction-item__date {
+.mobile-transaction-item:active {
+  transform: scale(0.98);
+}
+
+.trans-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--bg-app);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.trans-info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 50px;
+  gap: 1px;
 }
 
-.mobile-transaction-item__day {
-  font-size: 16px;
+.trans-type {
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.mobile-transaction-item__month {
-  font-size: 11px;
-  color: var(--text-secondary);
+.trans-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
-.mobile-transaction-item__type {
-  flex: 1;
-  font-size: 14px;
-  color: var(--text-secondary);
+.trans-amount {
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.mobile-transaction-item__amount {
-  font-size: 16px;
-  font-weight: 600;
+.trans-amount.success {
+  color: var(--color-success);
 }
 
 /* FAB */
 .mobile-fab {
   position: fixed;
-  bottom: 80px;
-  right: 16px;
-  width: 56px;
+  bottom: 100px;
+  left: 20px;
+  right: 20px;
   height: 56px;
-  border-radius: 50%;
-  background-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-xl);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   text-decoration: none;
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition-fast);
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: var(--shadow-lg);
+  z-index: 101;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .mobile-fab:active {
-  transform: scale(0.95);
-}
-
-/* Text Button */
-.mobile-text-button {
-  border: none;
-  background: transparent;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--accent-color);
-  cursor: pointer;
-  padding: 8px;
+  transform: scale(0.96) translateY(2px);
 }

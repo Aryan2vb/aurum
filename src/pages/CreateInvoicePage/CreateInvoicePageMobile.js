@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
+import MobileTemplate from '../../components/templates/MobileTemplate/MobileTemplate';
 import SearchBar from '../../components/molecules/SearchBar/SearchBar';
 import Input from '../../components/atoms/Input/Input';
 import Icon from '../../components/atoms/Icon/Icon';
@@ -314,52 +314,56 @@ const CreateInvoicePageMobile = () => {
   // Show loading state while fetching settings
   if (settingsLoading) {
     return (
-      <DashboardTemplate>
+      <MobileTemplate title="Create Invoice">
         <div className={styles.mobileContainer}>
-          <div className={styles.header}>
-            <button className={styles.backBtn} onClick={() => navigate('/invoices')}>
-              <Icon name="arrow-left" size={20} />
-            </button>
-            <h1 className={styles.headerTitle}>Create Invoice</h1>
-            <div></div>
-          </div>
           <div className={styles.loadingContainer}>
             <div className={styles.loadingSpinner}>
-              <Icon name="loader" size={24} />
+              <Icon name="loader" size={24} color="var(--color-primary)" />
             </div>
             <p className={styles.loadingText}>Loading invoice settings...</p>
           </div>
         </div>
-      </DashboardTemplate>
+      </MobileTemplate>
     );
   }
 
-  return (
-    <DashboardTemplate>
-      <div className={styles.mobileContainer}>
-        {/* Header */}
-        <div className={styles.header}>
-          <button className={styles.backBtn} onClick={() => navigate('/invoices')}>
-            <Icon name="arrow-left" size={20} />
-          </button>
-          <h1 className={styles.headerTitle}>Create Invoice</h1>
-          <button className={styles.saveBtn} onClick={handleSaveDraft} disabled={!canSubmit}>
-            <Icon name="save" size={18} />
-          </button>
-        </div>
+  const headerAction = (
+    <button className={styles.headerSaveBtn} onClick={handleSaveDraft} disabled={!canSubmit || loading}>
+      <Icon name="save" size={20} />
+    </button>
+  );
 
+  return (
+    <MobileTemplate title="New Invoice" headerAction={headerAction}>
+      <div className={styles.mobileContainer}>
         {/* Customer Selection */}
         <div className={styles.section}>
-          <h2 className={styles.sectionTitle}>Customer</h2>
+          <h2 className={styles.sectionTitle}>Customer Details</h2>
           <div className={styles.searchContainer}>
-            <SearchBar
-              placeholder="Search customer..."
-              value={searchQuery}
-              onChange={handleSearch}
-              results={searchResults}
-              onSelect={handleCustomerSelect}
-              loading={searching}
-            />
+            <div className={styles.searchWrapper}>
+              <SearchBar
+                placeholder="Search by name or number..."
+                value={searchQuery}
+                onChange={handleSearch}
+                showIcon={true}
+              />
+              {searching && <div className={styles.searchResults}><div className={styles.searchLoading}>Searching...</div></div>}
+              {!searching && searchResults.length > 0 && (
+                <div className={styles.searchResults}>
+                  {searchResults.map(customer => (
+                    <div key={customer.id} className={styles.searchResultItem} onClick={() => handleCustomerSelect(customer)}>
+                      <div className={styles.searchResultAvatar}>
+                        {(customer.fullName || customer.name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                      <div className={styles.searchResultInfo}>
+                        <div className={styles.searchResultName}>{customer.fullName || customer.name}</div>
+                        <div className={styles.searchResultPhone}>{customer.contactDetails?.[0]?.primaryPhone || customer.phone || 'No phone'}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           
           {invoiceData.buyer.name && (
@@ -601,7 +605,7 @@ const CreateInvoicePageMobile = () => {
           </button>
         </div>
       </div>
-    </DashboardTemplate>
+    </MobileTemplate>
   );
 };
 

@@ -1,0 +1,222 @@
+.mobile-signup-container {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background-color: var(--bg-app);
+  display: flex;
+  flex-direction: column;
+  color: var(--text-primary);
+}
+
+/* Blobs (Shared with Login) */
+.blob-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: 0.6;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  animation: float 20s infinite alternate ease-in-out;
+}
+
+.blob-1 {
+  width: 300px;
+  height: 300px;
+  background: var(--color-primary);
+  top: -100px;
+  left: -50px;
+}
+
+.blob-2 {
+  width: 250px;
+  height: 250px;
+  background: var(--color-accent);
+  bottom: -50px;
+  right: -50px;
+  animation-delay: -5s;
+}
+
+.blob-3 {
+  width: 200px;
+  height: 200px;
+  background: var(--color-gold);
+  top: 40%;
+  right: -80px;
+  animation-delay: -10s;
+}
+
+@keyframes float {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, 50px) scale(1.1); }
+  100% { transform: translate(-20px, -30px) scale(0.9); }
+}
+
+.signup-content {
+  position: relative;
+  z-index: 10;
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.signup-header {
+  text-align: center;
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.signup-logo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
+}
+
+.signup-header h1 {
+  font-family: var(--font-family-display);
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+
+.signup-header p {
+  font-size: 15px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.signup-card {
+  padding: 24px;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.signup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.error-alert {
+  padding: 12px 16px;
+  background: rgba(var(--color-error-rgb, 239, 68, 68), 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(var(--color-error-rgb, 239, 68, 68), 0.2);
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding-left: 4px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper svg {
+  position: absolute;
+  left: 16px;
+  pointer-events: none;
+}
+
+.input-wrapper input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px 0 48px;
+  background: var(--bg-surface-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb, 58, 109, 255), 0.1);
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 8px;
+  color: var(--text-tertiary);
+}
+
+.field-error {
+  font-size: 11px;
+  color: var(--color-error);
+  font-weight: 600;
+  margin-top: 4px;
+  padding-left: 4px;
+}
+
+.submit-btn {
+  height: 56px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 800;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.signup-footer {
+  margin-top: 24px;
+  text-align: center;
+}
+
+.signup-footer p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.signup-footer a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}

@@ -1,34 +1,32 @@
-import React from 'react';
-import MobileTemplate from '../../components/templates/MobileTemplate/MobileTemplate';
-import './MobileSettingsPage.css';
+import Icon from '../../components/atoms/Icon/Icon';
 
 const MobileSettingsPage = () => {
   const handleLogout = () => {
-    // Handle logout logic
     localStorage.clear();
     window.location.href = '/login';
   };
 
   const settingsSections = [
     {
-      title: 'ACCOUNT',
+      title: 'Account',
       items: [
-        { label: 'Organization', value: 'My Shop' },
-        { label: 'Email', value: 'you@example.com' },
-        { label: 'Plan', value: 'Starter' },
+        { label: 'Organization', value: 'My Shop', icon: 'customer' },
+        { label: 'Email', value: 'you@example.com', icon: 'invoice' },
+        { label: 'Plan', value: 'Business Pro', icon: 'dollar' },
       ],
     },
     {
-      title: 'NOTIFICATIONS',
+      title: 'App Settings',
       items: [
-        { label: 'Payment Reminders', value: 'On' },
-        { label: 'Overdue Alerts', value: 'On' },
+        { label: 'Theme', value: 'System Default', icon: 'settings' },
+        { label: 'Notifications', value: 'On', icon: 'notification' },
       ],
     },
     {
-      title: 'ABOUT',
+      title: 'Support',
       items: [
-        { label: 'Version', value: '1.0.0' },
+        { label: 'Help Center', value: '', icon: 'checkCircle' },
+        { label: 'Version', value: '2.4.0', icon: 'settings' },
       ],
     },
   ];
@@ -36,26 +34,49 @@ const MobileSettingsPage = () => {
   return (
     <MobileTemplate title="Settings">
       <div className="mobile-settings">
+        <header className="settings-profile-card glass-panel">
+          <div className="profile-avatar">AS</div>
+          <div className="profile-info">
+            <h2>Aryan Soni</h2>
+            <p>Admin • Aurum Enterprise</p>
+          </div>
+        </header>
+
         {settingsSections.map((section) => (
           <div key={section.title} className="mobile-settings-section">
             <h3 className="mobile-settings-section__title">{section.title}</h3>
-            <div className="mobile-settings-section__content">
-              {section.items.map((item) => (
-                <div key={item.label} className="mobile-settings-row">
-                  <span className="mobile-settings-row__label">{item.label}</span>
-                  <span className="mobile-settings-row__value">{item.value}</span>
+            <div className="mobile-settings-section__content glass-panel">
+              {section.items.map((item, idx) => (
+                <div key={item.label} className={`mobile-settings-row ${idx === section.items.length - 1 ? '' : 'has-divider'}`}>
+                  <div className="settings-item-left">
+                    <div className="settings-icon-wrapper">
+                      <Icon name={item.icon} size={18} />
+                    </div>
+                    <span className="mobile-settings-row__label">{item.label}</span>
+                  </div>
+                  <div className="settings-item-right">
+                    <span className="mobile-settings-row__value">{item.value}</span>
+                    <Icon name="arrowRight" size={12} color="var(--text-tertiary)" />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         ))}
 
-        <button onClick={handleLogout} className="mobile-settings__logout">
-          Sign Out
-        </button>
+        <div className="settings-footer">
+          <button onClick={handleLogout} className="mobile-settings__logout">
+            <Icon name="logout" size={18} />
+            <span>Sign Out</span>
+          </button>
+          <p className="footer-version">Designed with elegance by Antigravity</p>
+        </div>
       </div>
     </MobileTemplate>
   );
 };
 
 export default MobileSettingsPage;
+
+
+// export default MobileSettingsPage;

@@ -1,7 +1,30 @@
 .mobile-dashboard {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-greeting {
+  padding: 8px 0;
+}
+
+.dashboard-greeting h1 {
+  font-family: var(--font-family-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dashboard-greeting p {
+  font-size: 15px;
+  color: var(--text-secondary);
 }
 
 /* Metrics Row */
@@ -12,53 +35,50 @@
 }
 
 .mobile-metric-card {
-  position: relative;
+  background: var(--bg-surface);
+  padding: 16px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  padding: 12px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
-  overflow: hidden;
+  gap: 8px;
 }
 
-.mobile-metric-card__label {
-  font-size: 11px;
-  color: var(--text-secondary);
+.metric-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 4px;
 }
 
+.metric-accent .metric-icon-wrapper { background: var(--color-accent-light); color: var(--color-accent); }
+.metric-success .metric-icon-wrapper { background: var(--color-success-bg); color: var(--color-success); }
+.metric-error .metric-icon-wrapper { background: var(--color-error-bg); color: var(--color-error); }
+
 .mobile-metric-card__value {
+  font-family: var(--font-family-display);
   font-size: 18px;
   font-weight: 700;
   color: var(--text-primary);
 }
 
-.mobile-metric-card__indicator {
-  position: absolute;
-  top: 12px;
-  right: 8px;
-  width: 4px;
-  height: 36px;
-  border-radius: 2px;
-}
-
-.mobile-metric-card__indicator--accent {
-  background-color: var(--accent-color);
-}
-
-.mobile-metric-card__indicator--active {
-  background-color: var(--color-status-active);
-}
-
-.mobile-metric-card__indicator--overdue {
-  background-color: var(--color-status-overdue);
+.mobile-metric-card__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 /* Sections */
 .mobile-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .mobile-section__header {
@@ -68,15 +88,16 @@
 }
 
 .mobile-section__title {
+  font-family: var(--font-family-display);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  margin: 0;
 }
 
 .mobile-section__link {
-  font-size: 14px;
-  color: var(--accent-color);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-accent);
   text-decoration: none;
 }
 
@@ -84,117 +105,127 @@
 .mobile-activity-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .mobile-activity-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-activity-item:active {
+  transform: scale(0.98);
 }
 
 .mobile-activity-item__avatar {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  border-radius: 50%;
-  background-color: var(--accent-light);
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--color-accent-light);
+  color: var(--color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
   font-size: 14px;
-  font-weight: 600;
-  color: var(--accent-color);
 }
 
 .mobile-activity-item__info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  gap: 2px;
 }
 
 .mobile-activity-item__name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .mobile-activity-item__status {
   font-size: 12px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
+}
+
+.mobile-activity-item__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .mobile-activity-item__amount {
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
+  font-family: var(--font-family-display);
+  font-size: 15px;
+  font-weight: 700;
 }
 
 /* Quick Actions */
 .mobile-quick-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 .mobile-quick-action {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
+  gap: 10px;
   text-decoration: none;
-  transition: transform var(--transition-fast);
-}
-
-.mobile-quick-action:active {
-  transform: scale(0.95);
 }
 
 .mobile-quick-action__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background-color: var(--accent-light);
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent-color);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-spring);
+}
+
+.mobile-quick-action:active .mobile-quick-action__icon {
+  transform: translateY(-4px) scale(1.05);
 }
 
 .mobile-quick-action__label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-primary);
-  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
-/* Icon Button */
+/* Header Actions */
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .mobile-icon-button {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  border-radius: 10px;
-  background-color: var(--accent-light);
-  color: var(--accent-color);
-  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color var(--transition-fast);
+  transition: all 0.2s ease;
+}
+
+.mobile-icon-button.secondary {
+  background: var(--bg-app);
+  border: 1px solid var(--border-subtle);
+}
+
+.mobile-icon-button.primary {
+  background: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .mobile-icon-button:active {
-  background-color: var(--accent);
+  transform: scale(0.9);
 }

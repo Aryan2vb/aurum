@@ -12,67 +12,61 @@ const MobileCustomersPage = () => {
     { id: 5, name: 'Vikram Singh', phone: '+91 54321 09876', due: '₹12,000', status: 'active' },
   ];
 
-  const getStatusConfig = (status) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'active':
-        return { label: 'Active', color: 'var(--color-status-active)' };
-      case 'overdue':
-        return { label: 'Overdue', color: 'var(--color-status-overdue)' };
-      case 'paid':
-        return { label: 'Paid', color: 'var(--color-status-paid)' };
-      default:
-        return { label: status, color: 'var(--text-secondary)' };
+      case 'active': return 'var(--color-success)';
+      case 'overdue': return 'var(--color-error)';
+      case 'paid': return 'var(--text-tertiary)';
+      default: return 'var(--text-secondary)';
     }
   };
 
   const headerAction = (
-    <button className="mobile-icon-button">
-      <Icon name="add" size={20} />
+    <button className="mobile-icon-button primary">
+      <Icon name="add" size={20} color="white" />
     </button>
   );
 
   return (
     <MobileTemplate title="Customers" headerAction={headerAction}>
       <div className="mobile-customers">
-        {/* Search Bar */}
-        <div className="mobile-search-bar">
-          <Icon name="search" size={16} />
-          <input
-            type="text"
-            className="mobile-search-bar__input"
-            placeholder="Search customers..."
-          />
+        <div className="mobile-search-wrapper">
+          <div className="mobile-search-bar glass-panel">
+            <Icon name="search" size={18} color="var(--text-tertiary)" />
+            <input
+              type="text"
+              className="mobile-search-bar__input"
+              placeholder="Search customers..."
+            />
+          </div>
+          <button className="filter-button">
+            <Icon name="filter" size={18} />
+          </button>
         </div>
 
-        {/* Customer List */}
         <div className="mobile-customer-list">
-          {customers.map((customer) => {
-            const status = getStatusConfig(customer.status);
-            return (
-              <a
-                key={customer.id}
-                href={`/mobile/customers/${customer.id}`}
-                className="mobile-customer-row"
-              >
-                <div className="mobile-customer-row__avatar">
-                  {customer.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          {customers.map((customer) => (
+            <a
+              key={customer.id}
+              href={`/customers/${customer.id}`}
+              className="mobile-customer-row glass-panel"
+            >
+              <div className="mobile-customer-row__avatar">
+                {customer.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="mobile-customer-row__info">
+                <span className="mobile-customer-row__name">{customer.name}</span>
+                <span className="mobile-customer-row__phone">{customer.phone}</span>
+              </div>
+              <div className="mobile-customer-row__right">
+                <span className="mobile-customer-row__due">{customer.due}</span>
+                <div className="status-dot-wrapper">
+                  <div className="status-dot" style={{ backgroundColor: getStatusColor(customer.status) }}></div>
+                  <span className="status-label">{customer.status}</span>
                 </div>
-                <div className="mobile-customer-row__info">
-                  <span className="mobile-customer-row__name">{customer.name}</span>
-                  <span className="mobile-customer-row__phone">{customer.phone}</span>
-                </div>
-                <div className="mobile-customer-row__right">
-                  <span className="mobile-customer-row__due">{customer.due}</span>
-                  <span
-                    className="mobile-customer-row__status"
-                    style={{ backgroundColor: status.color }}
-                  >
-                    {status.label}
-                  </span>
-                </div>
-              </a>
-            );
-          })}
+              </div>
+            </a>
+          ))}
         </div>
       </div>
     </MobileTemplate>
@@ -80,3 +74,6 @@ const MobileCustomersPage = () => {
 };
 
 export default MobileCustomersPage;
+
+
+// export default MobileCustomersPage;

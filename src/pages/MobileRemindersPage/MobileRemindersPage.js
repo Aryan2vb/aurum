@@ -11,8 +11,6 @@ const MobileRemindersPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState(7);
-  const [showPaymentPanel, setShowPaymentPanel] = useState(false);
-  const [selectedCreditId, setSelectedCreditId] = useState(null);
 
   const loadReminders = async () => {
     try {
@@ -30,20 +28,13 @@ const MobileRemindersPage = () => {
 
   useEffect(() => { loadReminders(); }, [timeRange]);
 
-  const handleRecordPayment = (reminder) => {
-    setSelectedCreditId(reminder.creditId);
-    setShowPaymentPanel(true);
-  };
-
   const handleReschedule = async (creditId, currentDate, newDate) => {
-    // Optimistic update
     setReminders(prev =>
       prev.map(r => r.creditId === creditId ? { ...r, nextReminderDate: newDate } : r)
     );
     try {
       await updateReminderDate(creditId, newDate);
     } catch (err) {
-      // Revert on error
       setReminders(prev =>
         prev.map(r => r.creditId === creditId ? { ...r, nextReminderDate: currentDate } : r)
       );
@@ -61,51 +52,56 @@ const MobileRemindersPage = () => {
 
   const getUrgencyClass = (days) => {
     if (days === null) return '';
-    if (days < 0) return 'overdue';
-    if (days === 0) return 'today';
-    if (days <= 3) return 'soon';
+    if (days < 0) return 'is-overdue';
+    if (days === 0) return 'is-today';
+    if (days <= 3) return 'is-soon';
     return '';
   };
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'No date';
     const days = getDaysUntil(dateStr);
-    if (days === 0) return 'Today';
+    if (days === 0) return 'Due today';
     if (days === 1) return 'Tomorrow';
     if (days === -1) return 'Yesterday';
     if (days < 0) return `${Math.abs(days)} days overdue`;
-    if (days <= 7) return `In ${days} days`;
     return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
   return (
     <MobileTemplate title="Reminders">
       <div className="mobile-reminders">
-        {/* Time Range Filter */}
+        {/* Filter Pills */}
         <div className="mobile-reminders-filters">
           {TIME_RANGES.map(days => (
             <button
               key={days}
-              className={`mobile-reminders-filter ${timeRange === days ? 'active' : ''}`}
+              className={`reminder-filter-pill ${timeRange === days ? 'active' : ''}`}
               onClick={() => setTimeRange(days)}
             >
-              {days} days
+              {days} Days
             </button>
           ))}
         </div>
 
-        {/* Content */}
+        {/* List Content */}
         {loading ? (
-          <div className="mobile-loading">Loading...</div>
+          <div className="mobile-loading-shimmer">
+            {[1, 2, 3].map(i => <div key={i} className="shimmer-item" />)}
+          </div>
         ) : error ? (
-          <div className="mobile-error">
+          <div className="mobile-empty-state">
+            <Icon name="notification" size={48} color="var(--color-error)" />
             <p>{error}</p>
-            <button onClick={loadReminders}>Retry</button>
+            <button className="mobile-empty-button" onClick={loadReminders}>Retry</button>
           </div>
         ) : reminders.length === 0 ? (
-          <div className="mobile-empty">
-            <div className="mobile-empty__icon">📋</div>
-            <p>No reminders in the next {timeRange} days</p>
+          <div className="mobile-empty-state">
+            <div className="empty-icon">
+              <Icon name="checkCircle" size={48} color="var(--color-success)" />
+            </div>
+            <h3>All Caught Up!</h3>
+            <p>No reminders for the next {timeRange} days.</p>
           </div>
         ) : (
           <div className="mobile-reminders-list">
@@ -113,45 +109,42 @@ const MobileRemindersPage = () => {
               const days = getDaysUntil(reminder.nextReminderDate);
               const urgency = getUrgencyClass(days);
               return (
-                <div key={reminder.creditId} className={`mobile-reminder-card ${urgency}`}>
-                  <div className="mobile-reminder-card__left">
-                    <div className="mobile-reminder-card__avatar">
-                      {(reminder.customerName || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                <div key={reminder.creditId} className={`mobile-reminder-card glass-panel ${urgency}`}>
+                  <div className="card-top">
+                    <div className="customer-meta">
+                      <div className="customer-avatar">
+                        {(reminder.customerName || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="customer-info">
+                        <span className="customer-name">{reminder.customerName || 'Unknown'}</span>
+                        <span className="due-date-meta">{formatDate(reminder.nextReminderDate)}</span>
+                      </div>
                     </div>
-                    <div className="mobile-reminder-card__info">
-                      <span className="mobile-reminder-card__name">
-                        {reminder.customerName || 'Unknown'}
-                      </span>
-                      <span className="mobile-reminder-card__phone">
-                        {reminder.phone || 'No phone'}
-                      </span>
-                      <span className="mobile-reminder-card__date">
-                        {formatDate(reminder.nextReminderDate)}
-                      </span>
+                    <div className="reminder-amount">
+                      ₹{(Number(reminder.outstandingAmount) || 0).toLocaleString('en-IN')}
                     </div>
                   </div>
-                  <div className="mobile-reminder-card__right">
-                    <span className="mobile-reminder-card__amount">
-                      ₹{(Number(reminder.outstandingAmount) || 0).toLocaleString('en-IN')}
-                    </span>
-                    <div className="mobile-reminder-card__actions">
-                      <button
-                        className="mobile-reminder-card__action mobile-reminder-card__action--pay"
-                        onClick={() => handleRecordPayment(reminder)}
-                      >
-                        Pay
-                      </button>
-                      <button
-                        className="mobile-reminder-card__action mobile-reminder-card__action--later"
-                        onClick={() => {
-                          const newDate = new Date();
-                          newDate.setDate(newDate.getDate() + 7);
-                          handleReschedule(reminder.creditId, reminder.nextReminderDate, newDate.toISOString().slice(0, 10));
-                        }}
-                      >
-                        +7 days
-                      </button>
-                    </div>
+                  
+                  <div className="card-actions">
+                    <a href={`/credits/${reminder.creditId}`} className="action-btn secondary">
+                      <Icon name="customer" size={16} />
+                      <span>Profile</span>
+                    </a>
+                    <button
+                      className="action-btn tertiary"
+                      onClick={() => {
+                        const newDate = new Date();
+                        newDate.setDate(newDate.getDate() + 7);
+                        handleReschedule(reminder.creditId, reminder.nextReminderDate, newDate.toISOString().slice(0, 10));
+                      }}
+                    >
+                      <Icon name="add" size={16} />
+                      <span>+7 Days</span>
+                    </button>
+                    <a href={`/credits/${reminder.creditId}/payment`} className="action-btn primary">
+                      <Icon name="dollar" size={16} color="white" />
+                      <span>Pay</span>
+                    </a>
                   </div>
                 </div>
               );
@@ -164,3 +157,6 @@ const MobileRemindersPage = () => {
 };
 
 export default MobileRemindersPage;
+
+
+// export default MobileRemindersPage;

@@ -1,61 +1,114 @@
 .mobile-add-credit {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-primary);
-}
-
-.mobile-add-credit__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.mobile-add-credit__back {
-  font-size: 16px;
-  color: var(--text-primary);
-  text-decoration: none;
-}
-
-.mobile-add-credit__title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
+  gap: 24px;
+  animation: fadeIn 0.4s ease-out;
+  padding: 8px 0 100px;
 }
 
 .mobile-add-credit__form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  flex: 1;
+  gap: 20px;
 }
 
-.mobile-add-credit__submit {
+.mobile-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-left: 2px;
+}
+
+.mobile-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.mobile-form-input {
+  width: 100%;
   height: 52px;
-  margin-top: 16px;
-  background-color: var(--accent);
-  color: var(--on-accent);
-  border: none;
-  border-radius: 12px;
+  padding: 0 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.mobile-form-input.has-prefix {
+  padding-left: 40px;
+}
+
+.mobile-form-input.is-textarea {
+  height: auto;
+  padding: 14px 18px;
+  resize: none;
+}
+
+.mobile-form-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px rgba(58, 109, 255, 0.05);
+}
+
+.input-prefix {
+  position: absolute;
+  left: 16px;
   font-size: 16px;
   font-weight: 600;
-  font-family: var(--font-family-sans);
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
+  color: var(--text-tertiary);
+  pointer-events: none;
 }
 
-.mobile-add-credit__submit:hover {
-  background-color: var(--accent-hover);
+.form-row-dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-.mobile-add-credit__submit:active {
+.form-footer-action {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px 24px 34px;
+  background: var(--bg-surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border-subtle);
+  z-index: 100;
+}
+
+.mobile-submit-button {
+  width: 100%;
+  height: 56px;
+  background: var(--color-primary);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
+  transition: all 0.2s ease;
+}
+
+.mobile-submit-button:active {
   transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.mobile-text-button {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  padding: 8px;
 }

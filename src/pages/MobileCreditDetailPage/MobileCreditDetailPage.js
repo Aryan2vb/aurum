@@ -3,8 +3,8 @@ import MobileTemplate from '../../components/templates/MobileTemplate/MobileTemp
 import Icon from '../../components/atoms/Icon/Icon';
 import './MobileCreditDetailPage.css';
 
-const MobileCreditDetailPage = ({ match }) => {
-  // Mock data - in real app this would come from API based on match.params.id
+const MobileCreditDetailPage = () => {
+  // Mock data
   const customer = {
     id: 1,
     name: 'Rajesh Kumar',
@@ -16,85 +16,70 @@ const MobileCreditDetailPage = ({ match }) => {
   };
 
   const transactions = [
-    { id: 1, date: '12 Mar', amount: '₹5,000', type: 'Payment' },
-    { id: 2, date: '28 Feb', amount: '₹5,000', type: 'Payment' },
-    { id: 3, date: '15 Jan', amount: '₹15,000', type: 'Credit Created' },
+    { id: 1, date: '12 Mar', amount: '₹5,000', type: 'Payment', status: 'completed' },
+    { id: 2, date: '28 Feb', amount: '₹5,000', type: 'Payment', status: 'completed' },
+    { id: 3, date: '15 Jan', amount: '₹15,000', type: 'Credit Created', status: 'completed' },
   ];
 
   const headerAction = (
-    <button className="mobile-text-button">Edit</button>
+    <button className="mobile-icon-button secondary">
+      <Icon name="edit" size={20} />
+    </button>
   );
 
   return (
     <MobileTemplate title="" headerAction={headerAction}>
       <div className="mobile-credit-detail">
-        {/* Customer Info Card */}
-        <div className="mobile-credit-detail__customer-card">
-          <div className="mobile-credit-detail__customer-top">
-            <div className="mobile-credit-detail__avatar">
-              {customer.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
-            <div className="mobile-credit-detail__customer-info">
-              <span className="mobile-credit-detail__customer-name">{customer.name}</span>
-              <span className="mobile-credit-detail__customer-phone">{customer.phone}</span>
-            </div>
-            <span
-              className="mobile-credit-detail__status"
-              style={{ backgroundColor: 'var(--color-status-active)' }}
-            >
-              Active
-            </span>
+        <header className="detail-hero">
+          <div className="detail-hero__avatar">
+            {customer.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
+          <h1>{customer.name}</h1>
+          <p>{customer.phone}</p>
+        </header>
 
-          <div className="mobile-credit-detail__amounts">
-            <div className="mobile-credit-detail__amount-item">
-              <span className="mobile-credit-detail__amount-label">Total</span>
-              <span className="mobile-credit-detail__amount-value">{customer.total}</span>
-            </div>
-            <div className="mobile-credit-detail__amount-item">
-              <span className="mobile-credit-detail__amount-label">Paid</span>
-              <span className="mobile-credit-detail__amount-value mobile-credit-detail__amount-value--paid">
-                {customer.paid}
-              </span>
-            </div>
-            <div className="mobile-credit-detail__amount-item">
-              <span className="mobile-credit-detail__amount-label">Due</span>
-              <span className="mobile-credit-detail__amount-value mobile-credit-detail__amount-value--due">
-                {customer.due}
-              </span>
-            </div>
+        <div className="detail-stats-grid">
+          <div className="detail-stat-card glass-panel">
+            <span className="label">Total</span>
+            <span className="value">{customer.total}</span>
+          </div>
+          <div className="detail-stat-card glass-panel success">
+            <span className="label">Paid</span>
+            <span className="value">{customer.paid}</span>
+          </div>
+          <div className="detail-stat-card glass-panel error">
+            <span className="label">Due</span>
+            <span className="value">{customer.due}</span>
           </div>
         </div>
 
-        {/* Transactions */}
         <section className="mobile-section">
-          <h2 className="mobile-section__title">Transactions</h2>
+          <div className="mobile-section__header">
+            <h2 className="mobile-section__title">History</h2>
+          </div>
           <div className="mobile-transaction-list">
             {transactions.map((trans) => (
-              <div key={trans.id} className="mobile-transaction-item">
-                <div className="mobile-transaction-item__date">
-                  <span className="mobile-transaction-item__day">{trans.date.split(' ')[0]}</span>
-                  <span className="mobile-transaction-item__month">{trans.date.split(' ')[1]}</span>
+              <div key={trans.id} className="mobile-transaction-item glass-panel">
+                <div className="trans-icon">
+                  <Icon name={trans.type === 'Payment' ? 'payment' : 'udhar'} size={18} />
                 </div>
-                <span className="mobile-transaction-item__type">{trans.type}</span>
-                <span
-                  className="mobile-transaction-item__amount"
-                  style={{
-                    color: trans.type === 'Payment'
-                      ? 'var(--color-status-active)'
-                      : 'var(--text-primary)'
-                  }}
-                >
-                  {trans.amount}
-                </span>
+                <div className="trans-info">
+                  <span className="trans-type">{trans.type}</span>
+                  <span className="trans-date">{trans.date}</span>
+                </div>
+                <div className="trans-right">
+                  <span className={`trans-amount ${trans.type === 'Payment' ? 'success' : ''}`}>
+                    {trans.type === 'Payment' ? `+${trans.amount}` : trans.amount}
+                  </span>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Record Payment FAB */}
-        <a href="/mobile/credits/1/payment" className="mobile-fab">
-          <Icon name="dollar" size={24} />
+        <a href={`/credits/${customer.id}/payment`} className="mobile-fab">
+          <Icon name="dollar" size={24} color="white" />
+          <span>Record Payment</span>
         </a>
       </div>
     </MobileTemplate>
@@ -102,3 +87,6 @@ const MobileCreditDetailPage = ({ match }) => {
 };
 
 export default MobileCreditDetailPage;
+
+
+// export default MobileCreditDetailPage;

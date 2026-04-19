@@ -1,177 +1,231 @@
 .mobile-reports {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
+  animation: fadeIn 0.4s ease-out;
 }
 
-/* Tabs */
-.mobile-reports-tabs {
+/* Category Tabs */
+.reports-category-tabs {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   overflow-x: auto;
   padding-bottom: 4px;
+  -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-.mobile-reports-tabs::-webkit-scrollbar {
+.reports-category-tabs::-webkit-scrollbar {
   display: none;
 }
 
-.mobile-reports-tab {
-  padding: 10px 16px;
-  border-radius: 12px;
-  border: none;
-  background-color: var(--bg-secondary);
+.category-tab-btn {
+  flex: 0 0 auto;
+  padding: 10px 20px;
+  border-radius: 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-secondary);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: all var(--transition-fast);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
 }
 
-.mobile-reports-tab.active {
-  background-color: var(--accent-color);
-  color: var(--on-accent);
+.category-tab-btn.active {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* Filter Bar */
-.mobile-reports-filters {
+/* Filters */
+.reports-filters-area {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.mobile-reports-presets {
+.filters-presets {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   scrollbar-width: none;
 }
 
-.mobile-reports-presets::-webkit-scrollbar {
+.filters-presets::-webkit-scrollbar {
   display: none;
 }
 
-.mobile-reports-preset {
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background: transparent;
+.preset-pill {
+  flex: 0 0 auto;
+  padding: 6px 14px;
+  border-radius: 10px;
   font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  cursor: pointer;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
 }
 
-.mobile-reports-preset:active {
-  background-color: var(--bg-tertiary);
-}
-
-.mobile-reports-dates {
+.filters-dates {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
 }
 
-.mobile-date-input {
-  flex: 1;
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background-color: var(--bg-secondary);
-  font-size: 13px;
-  color: var(--text-primary);
+.minimal-date-input {
+  border: none;
+  background: transparent;
   font-family: var(--font-family-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 120px;
 }
 
-/* Content */
-.mobile-reports-content {
+.minimal-date-input:focus {
+  outline: none;
+}
+
+/* Content Area */
+.reports-dynamic-content {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-/* Summary Cards */
-.mobile-report-summary {
+.report-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 
-.mobile-report-card {
+.report-summary-card {
+  padding: 18px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
+  gap: 8px;
+  border: 1px solid var(--border-subtle);
 }
 
-.mobile-report-card--highlight {
-  background-color: var(--accent-light);
+.report-summary-card.highlight {
+  background: linear-gradient(135deg, rgba(var(--color-accent-rgb, 58, 109, 255), 0.1), transparent);
+  border-color: rgba(var(--color-accent-rgb, 58, 109, 255), 0.2);
 }
 
-.mobile-report-card__label {
+.summary-label {
   font-size: 11px;
-  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  letter-spacing: 0.05em;
 }
 
-.mobile-report-card__amount {
-  font-size: 16px;
-  font-weight: 700;
+.summary-value {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
-.mobile-report-card__count {
-  font-size: 16px;
-  font-weight: 700;
+.summary-count {
+  font-size: 20px;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
 /* Table */
-.mobile-report-table-wrap {
+.report-table-container {
   overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
 }
 
-.mobile-report-table {
+.report-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
 }
 
-.mobile-report-table th {
+.report-table th {
+  padding: 14px 16px;
+  background: var(--bg-app);
   text-align: left;
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--border-color);
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
-.mobile-report-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--border-light);
+.report-table td {
+  padding: 14px 16px;
+  font-size: 13px;
   color: var(--text-primary);
+  border-top: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 
-.mobile-report-table .text-right {
-  text-align: right;
+.customer-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.mobile-report-table .text-secondary {
-  color: var(--text-secondary);
+.customer-cell .name {
+  font-weight: 700;
+}
+
+.customer-cell .phone {
   font-size: 11px;
+  color: var(--text-tertiary);
 }
 
-/* States */
-.mobile-report-empty,
-.mobile-report-loading {
+/* Loading & Empty */
+.report-loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 0;
+  gap: 16px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--bg-surface);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.report-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
   text-align: center;
-  padding: 32px;
+  gap: 12px;
+}
+
+.report-empty-state p {
+  font-size: 15px;
   color: var(--text-secondary);
-  font-size: 14px;
+}
+
+.view-header {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 800;
+  margin: 12px 0 4px 4px;
+  color: var(--text-primary);
 }

@@ -1,83 +1,90 @@
-/* Design Tokens for Udhar Management System */
+/* Premium Mobile-First Design Tokens */
 
 :root {
-  /* Primary Colors - Calm Blue */
-  --color-primary-50: #f0f9ff;
-  --color-primary-100: #e0f2fe;
-  --color-primary-500: #0ea5e9;
-  --color-primary-600: #0284c7;
-  --color-primary-900: #0c4a6e;
-
-  /* Status Colors - Calm, Non-Alarming */
-  --color-status-active: #10b981;
-  --color-status-overdue: #f59e0b; /* Amber, not red */
-  --color-status-paid: #6b7280;
-  --color-status-cancelled: #9ca3af;
-
-  /* Risk Levels - Subtle Indicators */
-  --color-risk-low: #10b981;
-  --color-risk-medium: #f59e0b;
-  --color-risk-high: #ef4444;
-  --color-risk-very-high: #dc2626;
-
-  /* Behavior Tags */
-  --color-behavior-clear: #10b981;
-  --color-behavior-regular: #3b82f6;
-  --color-behavior-delayed: #f59e0b;
-  --color-behavior-risky: #ef4444;
-
-  /* Neutral Palette */
-  --color-neutral-50: #f9fafb;
-  --color-neutral-100: #f3f4f6;
-  --color-neutral-200: #e5e7eb;
-  --color-neutral-300: #d1d5db;
-  --color-neutral-400: #9ca3af;
-  --color-neutral-500: #6b7280;
-  --color-neutral-600: #4b5563;
-  --color-neutral-700: #374151;
-  --color-neutral-800: #1f2937;
-  --color-neutral-900: #111827;
-
   /* Typography */
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-family-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-family-sans: 'Inter', -apple-system, sans-serif;
+  --font-family-display: 'Outfit', 'Inter', -apple-system, sans-serif;
+  
+  /* Core Foundation Variables */
+  --color-primary: #000000;
+  --color-primary-light: #1A1A1A;
+  --color-accent: #3A6DFF;
+  --color-accent-light: #EEF2FF;
+  --color-gold: #D4AF37;
+  
+  /* Status Colors */
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-error: #EF4444;
+  --color-error-bg: #FEF2F2;
 
-  --font-size-xs: 0.75rem;    /* 12px */
-  --font-size-sm: 0.875rem;   /* 14px */
-  --font-size-base: 1rem;     /* 16px */
-  --font-size-lg: 1.125rem;   /* 18px */
-  --font-size-xl: 1.25rem;    /* 20px */
-  --font-size-2xl: 1.5rem;    /* 24px */
-  --font-size-3xl: 1.875rem;  /* 30px */
-
-  --font-weight-normal: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-
+  /* Typography Scales */
+  --font-size-xs: 0.75rem;    
+  --font-size-sm: 0.875rem;   
+  --font-size-base: 1rem;     
+  --font-size-lg: 1.125rem;   
+  --font-size-xl: 1.25rem;    
+  --font-size-2xl: 1.5rem;    
+  --font-size-3xl: 2rem;
+  
   /* Spacing */
-  --spacing-xs: 0.25rem;   /* 4px */
-  --spacing-sm: 0.5rem;   /* 8px */
-  --spacing-md: 1rem;     /* 16px */
-  --spacing-lg: 1.5rem;   /* 24px */
-  --spacing-xl: 2rem;     /* 32px */
-  --spacing-2xl: 3rem;   /* 48px */
-  --spacing-3xl: 4rem;   /* 64px */
-
-  /* Shadows - Subtle */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-none: none;
-
-  /* Border Radius */
-  --radius-sm: 0.25rem;   /* 4px */
-  --radius-md: 0.5rem;    /* 8px */
-  --radius-lg: 0.75rem;   /* 12px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  --shadow-glow: 0 0 16px rgba(58, 109, 255, 0.3);
+  
+  /* Animations */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.3s;
+}
 
-  /* Transitions – subtle, no bounce (<150ms for UI) */
-  --transition-fast: 120ms ease;
-  --transition-base: 150ms ease;
-  --transition-slow: 200ms ease;
+/* Base Light Theme */
+:root, [data-theme='light'] {
+  --bg-app: #F8F9FB;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FFFFFF;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --border-subtle: #F3F4F6;
+  --border-default: #E5E7EB;
+}
+
+/* Base Dark Theme - For Premium Dark Mode */
+[data-theme='dark'] {
+  --bg-app: #0A0A0B;
+  --bg-surface: #131316;
+  --bg-surface-elevated: #1C1C21;
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --text-tertiary: #6B7280;
+  --border-subtle: #1F2937;
+  --border-default: #374151;
+  --color-accent-light: #1E2540;
+  --color-success-bg: #062F22;
+  --color-warning-bg: #3B2404;
+  --color-error-bg: #3E1010;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.6);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.8);
 }

@@ -12,22 +12,18 @@ const MobileCreditsListPage = () => {
     { id: 5, name: 'Vikram Singh', amount: '₹18,000', due: '₹12,000', status: 'active' },
   ];
 
-  const getStatusConfig = (status) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'active':
-        return { label: 'Active', color: 'var(--color-status-active)' };
-      case 'overdue':
-        return { label: 'Overdue', color: 'var(--color-status-overdue)' };
-      case 'paid':
-        return { label: 'Paid', color: 'var(--color-status-paid)' };
-      default:
-        return { label: status, color: 'var(--text-secondary)' };
+      case 'active': return 'var(--color-success)';
+      case 'overdue': return 'var(--color-error)';
+      case 'paid': return 'var(--text-tertiary)';
+      default: return 'var(--text-secondary)';
     }
   };
 
   const headerAction = (
-    <a href="/mobile/credits/new" className="mobile-icon-button">
-      <Icon name="add" size={20} />
+    <a href="/credits/new" className="mobile-icon-button primary">
+      <Icon name="add" size={20} color="white" />
     </a>
   );
 
@@ -35,35 +31,30 @@ const MobileCreditsListPage = () => {
     <MobileTemplate title="Credits" headerAction={headerAction}>
       <div className="mobile-credits">
         <div className="mobile-credits-list">
-          {credits.map((credit) => {
-            const status = getStatusConfig(credit.status);
-            return (
-              <a
-                key={credit.id}
-                href={`/mobile/credits/${credit.id}`}
-                className="mobile-credit-row"
-              >
-                <div className="mobile-credit-row__avatar">
-                  {credit.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          {credits.map((credit) => (
+            <a
+              key={credit.id}
+              href={`/credits/${credit.id}`}
+              className="mobile-credit-row glass-panel"
+            >
+              <div className="mobile-credit-row__avatar">
+                {credit.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="mobile-credit-row__info">
+                <span className="mobile-credit-row__name">{credit.name}</span>
+                <span className="mobile-credit-row__amounts">
+                  Total Udhar: <span className="value">{credit.amount}</span>
+                </span>
+              </div>
+              <div className="mobile-credit-row__right">
+                <span className="mobile-credit-row__due">{credit.due}</span>
+                <div className="status-dot-wrapper">
+                  <div className="status-dot" style={{ backgroundColor: getStatusColor(credit.status) }}></div>
+                  <span className="status-label">{credit.status}</span>
                 </div>
-                <div className="mobile-credit-row__info">
-                  <span className="mobile-credit-row__name">{credit.name}</span>
-                  <span className="mobile-credit-row__amounts">
-                    Total: {credit.amount}
-                  </span>
-                </div>
-                <div className="mobile-credit-row__right">
-                  <span className="mobile-credit-row__due">Due: {credit.due}</span>
-                  <span
-                    className="mobile-credit-row__status"
-                    style={{ backgroundColor: status.color }}
-                  >
-                    {status.label}
-                  </span>
-                </div>
-              </a>
-            );
-          })}
+              </div>
+            </a>
+          ))}
         </div>
       </div>
     </MobileTemplate>
@@ -71,3 +62,6 @@ const MobileCreditsListPage = () => {
 };
 
 export default MobileCreditsListPage;
+
+
+// export default MobileCreditsListPage;

@@ -1,71 +1,109 @@
 import React from 'react';
 import './MobileAddCreditPage.css';
 
+import MobileTemplate from '../../components/templates/MobileTemplate/MobileTemplate';
+import Icon from '../../components/atoms/Icon/Icon';
+
 const MobileAddCreditPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Handle form submission
+    window.location.href = '/credits';
   };
 
+  const headerAction = (
+    <button className="mobile-text-button" onClick={() => window.history.back()}>
+      Cancel
+    </button>
+  );
+
   return (
-    <div className="mobile-add-credit">
-      <header className="mobile-add-credit__header">
-        <a href="/mobile/credits" className="mobile-add-credit__back">← Cancel</a>
-        <h1 className="mobile-add-credit__title">New Udhar</h1>
-        <div style={{ width: 60 }} />
-      </header>
+    <MobileTemplate title="New Udhar" headerAction={headerAction}>
+      <div className="mobile-add-credit">
+        <form className="mobile-add-credit__form" onSubmit={handleSubmit}>
+          <div className="mobile-form-group">
+            <label className="mobile-form-label">Customer Name</label>
+            <div className="mobile-input-wrapper">
+              <input
+                type="text"
+                className="mobile-form-input"
+                placeholder="Ex. Rajesh Kumar"
+                required
+              />
+            </div>
+          </div>
 
-      <form className="mobile-add-credit__form" onSubmit={handleSubmit}>
-        <div className="mobile-form-group">
-          <label className="mobile-form-label">Customer Name</label>
-          <input
-            type="text"
-            className="mobile-form-input"
-            placeholder="Enter customer name"
-          />
-        </div>
+          <div className="mobile-form-group">
+            <label className="mobile-form-label">Phone Number (Optional)</label>
+            <div className="mobile-input-wrapper">
+              <input
+                type="tel"
+                className="mobile-form-input"
+                placeholder="+91 00000 00000"
+              />
+            </div>
+          </div>
 
-        <div className="mobile-form-group">
-          <label className="mobile-form-label">Phone Number</label>
-          <input
-            type="tel"
-            className="mobile-form-input"
-            placeholder="+91 "
-          />
-        </div>
+          <div className="form-row-dual">
+            <div className="mobile-form-group">
+              <label className="mobile-form-label">Total Amount</label>
+              <div className="mobile-input-wrapper">
+                <span className="input-prefix">₹</span>
+                <input
+                  type="number"
+                  className="mobile-form-input has-prefix"
+                  placeholder="0"
+                  required
+                />
+              </div>
+            </div>
 
-        <div className="mobile-form-group">
-          <label className="mobile-form-label">Total Amount</label>
-          <input
-            type="number"
-            className="mobile-form-input"
-            placeholder="₹0"
-          />
-        </div>
+            <div className="mobile-form-group">
+              <label className="mobile-form-label">Amount Paid</label>
+              <div className="mobile-input-wrapper">
+                <span className="input-prefix">₹</span>
+                <input
+                  type="number"
+                  className="mobile-form-input has-prefix"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
 
-        <div className="mobile-form-group">
-          <label className="mobile-form-label">Amount Paid</label>
-          <input
-            type="number"
-            className="mobile-form-input"
-            placeholder="₹0"
-          />
-        </div>
+          <div className="mobile-form-group">
+            <label className="mobile-form-label">Due Date</label>
+            <div className="mobile-input-wrapper">
+              <input
+                type="date"
+                className="mobile-form-input"
+                required
+              />
+            </div>
+          </div>
 
-        <div className="mobile-form-group">
-          <label className="mobile-form-label">Due Date</label>
-          <input
-            type="date"
-            className="mobile-form-input"
-          />
-        </div>
+          <div className="mobile-form-group">
+            <label className="mobile-form-label">Notes</label>
+            <div className="mobile-input-wrapper">
+              <textarea
+                className="mobile-form-input is-textarea"
+                placeholder="Add any specific details..."
+                rows="3"
+              ></textarea>
+            </div>
+          </div>
 
-        <button type="submit" className="mobile-add-credit__submit">
-          Create Udhar
-        </button>
-      </form>
-    </div>
+          <div className="form-footer-action">
+            <button type="submit" className="mobile-submit-button">
+              Create Entry
+            </button>
+          </div>
+        </form>
+      </div>
+    </MobileTemplate>
   );
 };
 
 export default MobileAddCreditPage;
+
+
+// export default MobileAddCreditPage;

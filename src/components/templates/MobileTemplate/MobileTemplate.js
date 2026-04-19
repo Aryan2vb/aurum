@@ -4,11 +4,11 @@ import Icon from '../../atoms/Icon/Icon';
 import './MobileTemplate.css';
 
 const navItems = [
-  { iconName: 'home', label: 'Home', path: '/mobile/dashboard' },
-  { iconName: 'customer', label: 'Customers', path: '/mobile/customers' },
-  { iconName: 'udhar', label: 'Credits', path: '/mobile/credits' },
-  { iconName: 'invoice', label: 'Invoices', path: '/mobile/invoices' },
-  { iconName: 'settings', label: 'Settings', path: '/mobile/settings' },
+  { iconName: 'home', label: 'Home', path: '/dashboard' },
+  { iconName: 'customer', label: 'Customers', path: '/customers' },
+  { iconName: 'udhar', label: 'Credits', path: '/credits' },
+  { iconName: 'invoice', label: 'Invoices', path: '/invoices' },
+  { iconName: 'settings', label: 'Settings', path: '/settings' },
 ];
 
 const MobileTemplate = ({ children, title, headerAction }) => {
@@ -21,18 +21,20 @@ const MobileTemplate = ({ children, title, headerAction }) => {
       <main className="mobile-content">
         {children}
       </main>
-      <nav className="mobile-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `mobile-nav__item ${isActive ? 'active' : ''}`}
-          >
-            <Icon name={item.iconName} size={20} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <div className="mobile-nav-container">
+        <nav className="mobile-nav">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `mobile-nav__item ${isActive ? 'active' : ''}`}
+            >
+              <Icon name={item.iconName} size={22} color={({ isActive }) => isActive ? 'var(--color-accent)' : 'var(--text-secondary)'} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
     </div>
   );
 };
