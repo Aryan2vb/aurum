@@ -354,7 +354,7 @@ const CreateInvoicePage = () => {
       if (id) {
         res = await updateInvoice(id, { ...buildPayload(), finalize: true });
       } else {
-        res = await createInvoice({ ...buildPayload(), finalize: true });
+        res = await createInvoice(buildPayload());
       }
       if (res?.id) navigate(`/invoices`);
       else alert('Failed to finalize invoice');
