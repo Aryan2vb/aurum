@@ -771,6 +771,7 @@ const CustomerInspectorPanel = ({
               <h3 className="section-title">Personal</h3>
               <div className="property-list">
                 <InlineEditableField label="Full name" value={customer.fullName} fieldKey="fullName" onSave={handleFieldSave} isSaving={savingField === 'fullName'} />
+                <InlineEditableField label="GSTIN" value={customer.gstin} fieldKey="gstin" onSave={handleFieldSave} isSaving={savingField === 'gstin'} placeholder="Add GSTIN..." />
                 <InlineEditableField label="Father name" value={customer.fatherName} fieldKey="fatherName" onSave={handleFieldSave} isSaving={savingField === 'fatherName'} placeholder="Add father name..." />
                 <InlineEditableField label="Mother name" value={customer.motherName} fieldKey="motherName" onSave={handleFieldSave} isSaving={savingField === 'motherName'} placeholder="Add mother name..." />
                 <InlineEditableField label="Spouse name" value={customer.spouseName} fieldKey="spouseName" onSave={handleFieldSave} isSaving={savingField === 'spouseName'} placeholder="Add spouse name..." />
