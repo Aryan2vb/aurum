@@ -27,7 +27,7 @@ const defaultItem = () => ({
   stoneCharges: 0,
   netWeight: 0,
   huid: '',
-  purity: '',
+  purity: 'None',
   amount: 0,
 });
 
@@ -114,7 +114,7 @@ const CreateInvoicePage = () => {
               ...i,
               rate: i.metalRate,
               makingCharges: i.makingCharges,
-              purity: i.purityLabel,
+              purity: i.purityLabel || i.purity || 'None',
             })),
             metadata: {
               ...prev.metadata,
@@ -152,7 +152,7 @@ const CreateInvoicePage = () => {
       hsnSac: item.hsnSac || '71131910',
       quantity: item.quantity || 1,
       unit: item.unit || 'GMS',
-      purity: item.purity || '',
+      purity: item.purity || 'None',
     }));
 
     const hsnSummaryMap = {};
@@ -310,14 +310,14 @@ const CreateInvoicePage = () => {
       templateType: theme,
       modeOfPayment: payments[0]?.mode || 'UPI',
       items: invoiceData.items.map(item => {
-        const { purityValue, purityBasis } = parsePurity(item.purity || '');
+        const { purityValue, purityBasis } = parsePurity(item.purity && item.purity !== 'None' ? item.purity : '22K');
         return {
           description: item.description,
           hsnSac: item.hsnSac,
           quantity: parseFloat(item.quantity) || 1,
           metalType: item.metalType || 'GOLD',
           metalRate: parseFloat(item.rate) || 0,
-          purityLabel: item.purity || '',
+          purityLabel: item.purity && item.purity !== 'None' ? item.purity : '',
           purityValue,
           purityBasis,
           grossWeight: parseFloat(item.grossWeight) || 0,
