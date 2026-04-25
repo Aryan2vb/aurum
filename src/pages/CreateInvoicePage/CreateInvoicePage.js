@@ -483,6 +483,11 @@ const CreateInvoicePage = () => {
                   </div>
 
                   <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Qty</span>
+                    <input className={styles.fieldInput} type="number" placeholder="1" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                  </div>
+
+                  <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>Gross (g)</span>
                     <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.grossWeight} onChange={e => updateItem(idx, 'grossWeight', e.target.value)} />
                   </div>

@@ -17,6 +17,7 @@ export const parsePurity = (purityLabel = '22K') => {
 };
 
 export const calcItemAmount = (item) => {
+  const quantity = parseFloat(item.quantity || 1);
   // Per user request: Metal rate is already for the specific carat, so no conversion needed.
   const effectiveRate = parseFloat(item.rate || item.metalRate || 0);
   const netWeight = parseFloat(item.grossWeight || 0) - parseFloat(item.stoneWeight || 0);
@@ -25,7 +26,7 @@ export const calcItemAmount = (item) => {
   const makingChargesAmount =
     makingChargesType === 'PER_GRAM' ? makingChargesRaw * netWeight :
     makingChargesType === 'PERCENTAGE_ON_METAL' ? (effectiveRate * netWeight) * (makingChargesRaw / 100) :
-    makingChargesRaw; // FLAT_PER_ITEM
+    makingChargesRaw * quantity; // FLAT_PER_ITEM multiplied by quantity
   const stoneCharges = parseFloat(item.stoneCharges || 0);
   return {
     effectiveRate,

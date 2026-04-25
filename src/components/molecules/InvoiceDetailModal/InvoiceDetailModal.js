@@ -195,6 +195,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                         <th>Metal</th>
 
                         <th>HSN</th>
+                        <th>Qty</th>
                         <th>Net Wt.</th>
                         <th>Rate</th>
                         <th>Making</th>
@@ -210,6 +211,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td>{item.metalType || '—'}</td>
 
                           <td>{item.hsnSac || '—'}</td>
+                          <td>{item.quantity || 1}</td>
                           <td>{item.netWeight ? `${item.netWeight}g` : '—'}</td>
                           <td>{formatCurrency(item.effectiveRate || item.unitPrice)}</td>
                           <td>{formatCurrency(item.makingChargesAmount || item.makingCharges)}</td>
