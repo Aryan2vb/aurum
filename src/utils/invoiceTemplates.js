@@ -18,7 +18,7 @@ export function generateInvoiceHtml(data) {
     const formatCurrency = (amount) =>
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 
-    const hallmarkingCharge = data.hallmarkingCharge !== undefined ? data.hallmarkingCharge : 0;
+    const hallmarkingCharge = data.totalHallmarkingCharges !== undefined ? data.totalHallmarkingCharges : 0;
 
     const itemRows = items.map(item => {
         const { effectiveRate, makingChargesAmount } = calcItemAmount(item);
@@ -479,7 +479,7 @@ export function generateJewelleryInvoiceHtml(data) {
             <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) + ' GM' : (item.quantity || 0) + ' ' + (item.unit || '')}</td>
             <td class="rgt">${fmt(item.rate || 0)}</td>
             <td class="rgt">${item.makingCharges ? fmt(parseFloat(item.makingCharges) * parseFloat(item.quantity || 0)) : '-'}</td>
-            <td class="rgt">${item.huid ? '45.00' : '-'}</td>
+            <td class="rgt">${(item.hallmarkingCharge || item.hallmarkCharge) ? fmt(parseFloat(item.hallmarkingCharge || item.hallmarkCharge || 0)) : (item.huid ? '0.00' : '-')}</td>
             <td class="rgt">${fmt(item.amount || 0)}</td>
         </tr>`).join('');
 

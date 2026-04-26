@@ -28,6 +28,7 @@ const defaultItem = () => ({
   stoneCharges: 0,
   netWeight: 0,
   huid: '',
+  hallmarkCharge: '',
   amount: 0,
 });
 
@@ -52,7 +53,7 @@ const CreateInvoicePage = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [payments, setPayments] = useState([{ mode: 'UPI', amount: 0 }]);
-  const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
+  const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const searchDebounceRef = useRef(null);
@@ -64,7 +65,6 @@ const CreateInvoicePage = () => {
   const [invoiceData, setInvoiceData] = useState({
     buyer: { name: '', phone: '', address: '', stateCode: '' },
     taxes: { cgstRate: 1.5, sgstRate: 1.5, taxType: 'CGST_SGST' },
-    hallmarkCharges: 0,
     metadata: { modeOfPayment: 'UPI', deliveryNote: '', destination: '' },
     declaration: 'We declare that this invoice shows the actual price of the goods described.',
     items: [defaultItem()],
@@ -114,6 +114,7 @@ const CreateInvoicePage = () => {
               rate: i.metalRate,
               makingCharges: i.makingCharges,
               purity: i.purityLabel,
+              hallmarkCharge: parseFloat(i.hallmarkingCharge) || 0,
             })),
             metadata: {
               ...prev.metadata,
@@ -138,12 +139,12 @@ const CreateInvoicePage = () => {
   }, [id]);
 
   const calc = useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
+    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
   [invoiceData, paidAmount]);
 
   // Regenerate preview on data change — uses calcInvoiceTotals (single source of truth)
   useEffect(() => {
-    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
+    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
 
     const hydratedItems = previewCalc.hydratedItems.map((item, idx) => ({
       ...item,
@@ -327,6 +328,7 @@ const CreateInvoicePage = () => {
           makingChargesType: item.makingChargesType,
           stoneCharges: parseFloat(item.stoneCharges) || 0,
           isHallmarked: !!item.huid,
+          hallmarkingCharge: parseFloat(item.hallmarkCharge) || 0,
           huid: item.huid || undefined,
         };
       }),
@@ -522,6 +524,10 @@ const CreateInvoicePage = () => {
                     <input className={styles.fieldInput} type="number" placeholder="0" value={item.stoneCharges} onChange={e => updateItem(idx, 'stoneCharges', e.target.value)} />
                   </div>
                   <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>HM Charge ₹</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} disabled={!item.huid} />
+                  </div>
+                  <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>HUID</span>
                     <input className={styles.fieldInput} placeholder="—" value={item.huid} onChange={e => updateItem(idx, 'huid', e.target.value)} />
                   </div>
@@ -593,10 +599,6 @@ const CreateInvoicePage = () => {
               <div className={styles.advField}>
                 <label>Tax CGST/SGST %</label>
                 <input type="number" step="0.1" value={invoiceData.taxes.cgstRate} onChange={e => setInvoiceData(prev => ({ ...prev, taxes: { ...prev.taxes, cgstRate: parseFloat(e.target.value) || 0, sgstRate: parseFloat(e.target.value) || 0 } }))} disabled={invoiceData.taxes.taxType === 'NONE'} />
-              </div>
-              <div className={styles.advField}>
-                <label>Hallmark Charges ₹</label>
-                <input type="number" value={invoiceData.hallmarkCharges} onChange={e => setInvoiceData(prev => ({ ...prev, hallmarkCharges: parseFloat(e.target.value) || 0 }))} placeholder="0" />
               </div>
               <div className={styles.advField}>
                 <label>Auto-Udhar creation</label>

@@ -28,23 +28,27 @@ export const calcItemAmount = (item) => {
     makingChargesType === 'PERCENTAGE_ON_METAL' ? (effectiveRate * netWeight) * (makingChargesRaw / 100) :
     makingChargesRaw * quantity; // FLAT_PER_ITEM multiplied by quantity
   const stoneCharges = parseFloat(item.stoneCharges || 0);
+  
+  const isHallmarked = !!item.huid;
+  const hallmarkCharge = isHallmarked ? parseFloat(item.hallmarkCharge || 0) : 0;
+  
   return {
     effectiveRate,
     netWeight,
     makingChargesAmount,
-    amount: (effectiveRate * netWeight) + makingChargesAmount + stoneCharges,
+    hallmarkCharge,
+    amount: (effectiveRate * netWeight) + makingChargesAmount + stoneCharges + hallmarkCharge,
   };
 };
 
-export const calcInvoiceTotals = (items, hallmarkCharges, cgstRate, sgstRate, paidAmount = 0) => {
+export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0) => {
   let subtotal = 0;
   const hydratedItems = items.map(item => {
-    const { effectiveRate, netWeight, amount } = calcItemAmount(item);
+    const { effectiveRate, netWeight, amount, hallmarkCharge } = calcItemAmount(item);
     subtotal += amount;
-    return { ...item, effectiveRate, netWeight, amount };
+    return { ...item, effectiveRate, netWeight, amount, hallmarkCharge };
   });
 
-  subtotal += parseFloat(hallmarkCharges || 0);
   const cgst = Math.round(subtotal * ((cgstRate || 0) / 100) * 100) / 100;
   const sgst = Math.round(subtotal * ((sgstRate || 0) / 100) * 100) / 100;
   const gross = subtotal + cgst + sgst;
