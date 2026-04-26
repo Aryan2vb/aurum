@@ -1,7 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Button from '../Button/Button';
 import Icon from '../Icon/Icon';
 import './ConfirmationModal.css';
+
+/**
+ * Helper to convert hex to rgba or handle CSS variables for alpha backgrounds
+ */
+const convertColorWithAlpha = (color, alpha = 0.082) => {
+  if (!color) return 'transparent';
+  if (color.startsWith('var(')) return color;
+  
+  // Handle hex colors
+  let r = 0, g = 0, b = 0;
+  if (color.length === 4) {
+    r = parseInt(color[1] + color[1], 16);
+    g = parseInt(color[2] + color[2], 16);
+    b = parseInt(color[3] + color[3], 16);
+  } else if (color.length === 7) {
+    r = parseInt(color.substring(1, 3), 16);
+    g = parseInt(color.substring(3, 5), 16);
+    b = parseInt(color.substring(5, 7), 16);
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
 
 const ConfirmationModal = ({
   isOpen,
@@ -14,6 +35,17 @@ const ConfirmationModal = ({
   type = 'warning', // 'warning', 'danger', 'info'
   isLoading = false
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -34,13 +66,15 @@ const ConfirmationModal = ({
     }
   };
 
+  const iconColor = getIconColor();
+
   return (
     <div className="confirmation-modal-overlay" onClick={onClose}>
       <div className="confirmation-modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="confirmation-modal-header">
           <div 
             className="confirmation-modal-icon" 
-            style={{ backgroundColor: `${getIconColor()}15`, color: getIconColor() }}
+            style={{ backgroundColor: convertColorWithAlpha(iconColor), color: iconColor }}
           >
             <Icon name={getIcon()} size={24} />
           </div>

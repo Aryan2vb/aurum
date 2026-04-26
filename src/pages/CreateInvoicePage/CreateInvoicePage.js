@@ -344,18 +344,18 @@ const CreateInvoicePage = () => {
   const handleSubmit = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
 
-    const payload = buildPayload();
     const total = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount).total;
 
     const proceedWithSave = async () => {
       setConfirmation(prev => ({ ...prev, isOpen: false }));
       try {
         setLoading(true);
+        const currentPayload = buildPayload();
         let res;
         if (id) {
-          res = await updateInvoice(id, { ...payload, finalize: true });
+          res = await updateInvoice(id, { ...currentPayload, finalize: true });
         } else {
-          res = await createInvoice(payload);
+          res = await createInvoice(currentPayload);
         }
         if (res?.id) navigate(`/invoices`);
         else alert('Failed to finalize invoice');
@@ -405,25 +405,40 @@ const CreateInvoicePage = () => {
   const handleSaveDraft = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
 
+    const proceedWithSaveDraft = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('draft');
+        const currentPayload = buildPayload();
+        let res;
+        if (id) {
+          res = await updateInvoice(id, currentPayload);
+        } else {
+          res = await createDraft(currentPayload);
+        }
+        if (res?.id) navigate(`/invoices`);
+        else alert('Failed to save draft');
+      } catch (e) {
+        console.error(e);
+        alert('Network error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     // Warning for finalized invoices
     if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
-      if (!window.confirm('This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?')) {
-        return;
-      }
+      setConfirmation({
+        isOpen: true,
+        title: 'Update Finalized Invoice',
+        type: 'warning',
+        message: 'This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?',
+        onConfirm: proceedWithSaveDraft
+      });
+      return;
     }
 
-    try {
-      setLoading('draft');
-      let res;
-      if (id) {
-        res = await updateInvoice(id, buildPayload());
-      } else {
-        res = await createDraft(buildPayload());
-      }
-      if (res?.id) navigate(`/invoices`);
-      else alert('Failed to save draft');
-    } catch (e) { console.error(e); alert('Network error'); }
-    finally { setLoading(false); }
+    await proceedWithSaveDraft();
   };
 
   return (
@@ -723,7 +738,7 @@ const CreateInvoicePage = () => {
       title={confirmation.title}
       message={confirmation.message}
       type={confirmation.type}
-      isLoading={loading}
+      isLoading={Boolean(loading)}
     />
   </>
 );
