@@ -5,8 +5,9 @@ import { whoami, clearSession } from '../../services/authService';
 let lastValidatedToken = null;
 let validatePromise = null;
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('authToken');
+  const userRole = localStorage.getItem('userRole');
   const [status, setStatus] = useState(token ? 'checking' : 'no-token');
 
   useEffect(() => {
@@ -64,6 +65,11 @@ const ProtectedRoute = ({ children }) => {
 
   if (status === 'checking') {
     return null;
+  }
+
+  // Role check
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    return <Navigate to="/invoices" replace />;
   }
 
   return children;

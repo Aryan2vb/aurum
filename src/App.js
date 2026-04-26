@@ -174,7 +174,7 @@ function App() {
             <Route
               path="/reports"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['OWNER']}>
                   <ReportsPage />
                 </ProtectedRoute>
               }

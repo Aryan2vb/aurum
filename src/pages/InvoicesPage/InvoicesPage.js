@@ -1,18 +1,12 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
 import RecordPaymentModal from '../../components/molecules/RecordPaymentModal/RecordPaymentModal';
 import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
-import SummaryCard from '../../components/molecules/SummaryCard/SummaryCard';
 import { getInvoices } from '../../services/invoicesService';
 import './InvoicesPage.css';
 
-// Format currency
-const formatCurrency = (amount) => {
-  if (amount === undefined || amount === null) return '—';
-  return `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
 
 const InvoicesPage = () => {
   const navigate = useNavigate();
@@ -85,23 +79,6 @@ const InvoicesPage = () => {
     fetchInvoices();
   }, [fetchInvoices]);
 
-  // Calculate stats from invoices
-  const stats = useMemo(() => {
-    const totalReceivables = invoices.reduce((sum, inv) => sum + (Number(inv.totalAmount) || 0), 0);
-    const unpaidBalance = invoices.reduce((sum, inv) => sum + (Number(inv.financialDetails?.balance) || 0), 0);
-    const gstCollected = invoices.reduce((sum, inv) => sum + (Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0)), 0);
-    
-    // Count overdue (for demonstration, using simplified logic)
-    const overdueCount = invoices.filter(inv => Number(inv.financialDetails?.balance) > 0 && inv.status !== 'PAID').length;
-
-    return {
-      totalReceivables: formatCurrency(totalReceivables),
-      unpaidBalance: formatCurrency(unpaidBalance),
-      gstCollected: formatCurrency(gstCollected),
-      overdueCount
-    };
-  }, [invoices]);
-
   const handleFiltersChange = (newFilters) => {
     setFilters(newFilters);
     setPage(1); // Reset to first page on filter change
@@ -130,33 +107,6 @@ const InvoicesPage = () => {
   return (
     <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
       <div className="invoices-page-container">
-        <div className="stats-grid">
-          <SummaryCard 
-            title="Total Receivables" 
-            value={stats.totalReceivables} 
-            trend="+12.4%" 
-            trendType="up" 
-            icon="payments" 
-            iconColor="#2563eb" 
-          />
-          <SummaryCard 
-            title="Unpaid Balance" 
-            value={stats.unpaidBalance} 
-            trend={`${stats.overdueCount} Overdue`} 
-            trendType="warning" 
-            icon="pending_actions" 
-            iconColor="#dc2626" 
-          />
-          <SummaryCard 
-            title="GST Collected (Total)" 
-            value={stats.gstCollected} 
-            trend="Active" 
-            trendType="info" 
-            icon="account_balance_wallet" 
-            iconColor="#059669" 
-          />
-        </div>
-        
         <InvoiceTable 
           data={invoices}
           isLoading={loading}
