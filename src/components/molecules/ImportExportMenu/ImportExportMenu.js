@@ -69,14 +69,48 @@ const ImportExportMenu = ({
     
     // Some flattening functions (like for invoices) might return an array of rows per original item
     // We flatten everything into a single array
-    return dataToExport.flatMap(item => {
+    let flattened = dataToExport.flatMap(item => {
       const result = flattenRow(item);
       return Array.isArray(result) ? result : [result];
     });
+
+    // Post-processing for Invoices (Continuous Serial No. and Aggregation Row)
+    if (resourceName === 'invoices' && flattened.length > 0) {
+      // 1. Continuous Serial No.
+      flattened = flattened.map((row, idx) => ({
+        ...row,
+        'Serial No.': idx + 1
+      }));
+
+      // 2. Calculation for Totals Row
+      const numericColumns = [
+        'Net Wt. Gold', 'Net Wt. Silver', 'Amount', 'Labour Total', 
+        'Hallmark Chrgs', 'Gst 3%', 'Round off', 'Total', 'Bank', 'Cash'
+      ];
+
+      const totals = {
+        'Serial No.': 'TOTAL',
+        'Invoice No.': '',
+        'Date': '',
+        'Customer Name': '',
+        'Last Name': '',
+        'Item Name': `${flattened.length} rows`
+      };
+
+      numericColumns.forEach(col => {
+        const sum = flattened.reduce((acc, row) => acc + (parseFloat(row[col]) || 0), 0);
+        totals[col] = sum.toFixed(col.includes('Wt') ? 3 : 2);
+      });
+
+      flattened.push(totals);
+    }
+
+    return flattened;
   };
 
   const exportToCSV = async (close) => {
-    if (!hasSelection) {
+    // If onExportTrigger is not provided, we must have selection or data
+    if (!onExportTrigger && !hasSelection && data.length === 0) {
       alert(`Please select at least one ${resourceName} to export`);
       close();
       return;
@@ -116,7 +150,8 @@ const ImportExportMenu = ({
   };
 
   const exportToExcel = async (close) => {
-    if (!hasSelection) {
+    // If onExportTrigger is not provided, we must have selection or data
+    if (!onExportTrigger && !hasSelection && data.length === 0) {
       alert(`Please select at least one ${resourceName} to export`);
       close();
       return;
@@ -180,7 +215,7 @@ const ImportExportMenu = ({
 
   const exportLabel = hasSelection 
     ? `Export ${selectedCount} selected as` 
-    : `Select ${resourceName} to export`;
+    : `Export all matching filters as`;
 
   return (
     <Dropdown className="import-export-menu" trigger={trigger} align="right">
@@ -189,14 +224,12 @@ const ImportExportMenu = ({
           <DropdownItem 
             icon={<DownloadIcon />} 
             onClick={() => exportToCSV(close)}
-            disabled={!hasSelection}
           >
             {exportLabel} CSV
           </DropdownItem>
           <DropdownItem 
             icon={<DownloadIcon />} 
             onClick={() => exportToExcel(close)}
-            disabled={!hasSelection}
           >
             {exportLabel} XLSX
           </DropdownItem>
