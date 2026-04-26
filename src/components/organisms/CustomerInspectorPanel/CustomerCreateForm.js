@@ -30,6 +30,7 @@ const CustomerCreateForm = ({
   const [formData, setFormData] = useState({
     fullName: initialFullName || '',
     primaryPhone: '',
+    gstin: '',
     address: '',
   });
   const [validationErrors, setValidationErrors] = useState({});
@@ -144,6 +145,7 @@ const CustomerCreateForm = ({
     // Build the customer data payload
     const customerData = {
       fullName: formData.fullName.trim(),
+      gstin: formData.gstin.trim() || undefined,
     };
     
     // Only include contact details if phone is provided and valid
@@ -264,6 +266,32 @@ const CustomerCreateForm = ({
               </span>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="form-divider" />
+
+      {/* ============================================ */}
+      {/* TAX FIELD: GSTIN                            */}
+      {/* ============================================ */}
+      <div className="form-section">
+        <h3 className="form-section-title">Tax Info</h3>
+        
+        <div className="form-field">
+          <label className="form-label" htmlFor="gstin">
+            GSTIN
+          </label>
+          <input
+            id="gstin"
+            type="text"
+            value={formData.gstin}
+            onChange={handleChange('gstin')}
+            placeholder="15-digit GSTIN"
+            className="form-input"
+            disabled={isSaving}
+            autoComplete="off"
+            style={{ textTransform: 'uppercase' }}
+          />
         </div>
       </div>
 

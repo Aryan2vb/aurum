@@ -21,7 +21,6 @@ const defaultItem = () => ({
   rate: 0,
   makingCharges: 0,
   metalType: 'GOLD',
-  purity: '22K',
   grossWeight: 0,
   stoneWeight: 0,
   makingChargesType: 'PER_GRAM',
@@ -29,6 +28,7 @@ const defaultItem = () => ({
   netWeight: 0,
   huid: '',
   hallmarkCharge: '',
+  purity: 'None',
   amount: 0,
 });
 
@@ -40,6 +40,7 @@ const makingOptions = [
 ];
 
 const paymentModes = ['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OLD_GOLD', 'OTHER'];
+const purityOptions = ['None', '916/22k', '833/20k', '75/18k', 'F'];
 
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
@@ -113,7 +114,7 @@ const CreateInvoicePage = () => {
               ...i,
               rate: i.metalRate,
               makingCharges: i.makingCharges,
-              purity: i.purityLabel,
+              purity: i.purityLabel || i.purity || 'None',
               hallmarkCharge: parseFloat(i.hallmarkingCharge) || 0,
             })),
             metadata: {
@@ -152,7 +153,7 @@ const CreateInvoicePage = () => {
       hsnSac: item.hsnSac || '71131910',
       quantity: item.quantity || 1,
       unit: item.unit || 'GMS',
-      purity: item.purity || '22K',
+      purity: item.purity || 'None',
     }));
 
     const hsnSummaryMap = {};
@@ -256,10 +257,8 @@ const CreateInvoicePage = () => {
     
     // Side-effects for metal type selection
     if (field === 'metalType' && value === 'SILVER') {
-      updatedItem.purity = '1000'; // Fine pure silver for (Rate + Labour) * Weight formula
       updatedItem.makingChargesType = 'PER_GRAM'; // Common for Silver
     } else if (field === 'metalType' && value === 'GOLD') {
-      updatedItem.purity = '22K';
       updatedItem.makingChargesType = 'PER_GRAM';
     }
     
@@ -312,14 +311,14 @@ const CreateInvoicePage = () => {
       templateType: theme,
       modeOfPayment: payments[0]?.mode || 'UPI',
       items: invoiceData.items.map(item => {
-        const { purityValue, purityBasis } = parsePurity(item.purity || '22K');
+        const { purityValue, purityBasis } = parsePurity(item.purity && item.purity !== 'None' ? item.purity : '22K');
         return {
           description: item.description,
           hsnSac: item.hsnSac,
           quantity: parseFloat(item.quantity) || 1,
           metalType: item.metalType || 'GOLD',
           metalRate: parseFloat(item.rate) || 0,
-          purityLabel: item.purity || '22K',
+          purityLabel: item.purity && item.purity !== 'None' ? item.purity : '',
           purityValue,
           purityBasis,
           grossWeight: parseFloat(item.grossWeight) || 0,
@@ -356,7 +355,7 @@ const CreateInvoicePage = () => {
       if (id) {
         res = await updateInvoice(id, { ...buildPayload(), finalize: true });
       } else {
-        res = await createInvoice({ ...buildPayload(), finalize: true });
+        res = await createInvoice(buildPayload());
       }
       if (res?.id) navigate(`/invoices`);
       else alert('Failed to finalize invoice');
@@ -526,6 +525,13 @@ const CreateInvoicePage = () => {
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>HM Charge ₹</span>
                     <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} disabled={!item.huid} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Purity</span>
+                    <select className={styles.fieldSelect} value={item.purity} onChange={e => updateItem(idx, 'purity', e.target.value)}>
+                      {purityOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                      {!purityOptions.includes(item.purity) && <option value={item.purity}>{item.purity}</option>}
+                    </select>
                   </div>
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>HUID</span>

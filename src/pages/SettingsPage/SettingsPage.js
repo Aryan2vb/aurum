@@ -42,6 +42,8 @@ const SettingsPage = () => {
     bisLogoUrl: '',
     signatureUrl: '',
     qrCodeUrl: '',
+    footerImageUrl: '',
+    whatsappGroupQrUrl: '',
     bankName: '',
     bankBranch: '',
     bankAccountName: '',
@@ -145,6 +147,8 @@ const SettingsPage = () => {
           bisLogoUrl: settings.bisLogoUrl || '',
           signatureUrl: settings.signatureUrl || '',
           qrCodeUrl: settings.qrCodeUrl || '',
+          footerImageUrl: settings.footerImageUrl || '',
+          whatsappGroupQrUrl: settings.whatsappGroupQrUrl || '',
           bankName: settings.bankName || '',
           bankBranch: settings.bankBranch || '',
           bankAccountName: settings.bankAccountName || '',
@@ -379,6 +383,23 @@ const SettingsPage = () => {
                           currentUrl={invoiceSettingsForm.signatureUrl}
                           loading={assetLoading.signatureUrl}
                           onUpload={handleAssetUpload}
+                        />
+                        <AssetCard
+                          label="Footer Image"
+                          field="footerImageUrl"
+                          assetType="ORG_FOOTER_IMAGE"
+                          currentUrl={invoiceSettingsForm.footerImageUrl}
+                          loading={assetLoading.footerImageUrl}
+                          onUpload={handleAssetUpload}
+                        />
+                        <AssetCard
+                          label="WhatsApp QR"
+                          field="whatsappGroupQrUrl"
+                          assetType="ORG_WHATSAPP_QR"
+                          currentUrl={invoiceSettingsForm.whatsappGroupQrUrl}
+                          loading={assetLoading.whatsappGroupQrUrl}
+                          onUpload={handleAssetUpload}
+                          square
                         />
                       </div>
                     </div>
