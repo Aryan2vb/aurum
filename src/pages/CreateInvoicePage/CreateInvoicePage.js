@@ -8,6 +8,7 @@ import { searchCustomers } from '../../services/customersService';
 import { getInvoiceById, getInvoiceSettings, createInvoice, createDraft, updateInvoice } from '../../services/invoicesService';
 import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
 import { calcInvoiceTotals, parsePurity } from '../../utils/invoiceCalc';
+import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
 import styles from './CreateInvoicePage.module.css';
 
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -27,6 +28,7 @@ const defaultItem = () => ({
   stoneCharges: 0,
   netWeight: 0,
   huid: '',
+  hallmarkCharge: '',
   purity: 'None',
   amount: 0,
 });
@@ -52,10 +54,11 @@ const CreateInvoicePage = () => {
   const [searching, setSearching] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
-  const [payments, setPayments] = useState([{ mode: 'UPI', amount: 0 }]);
-  const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
+  const [payments, setPayments] = useState([]);
+  const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
+  const [confirmation, setConfirmation] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const searchDebounceRef = useRef(null);
 
   const paidAmount = useMemo(() => 
@@ -65,7 +68,6 @@ const CreateInvoicePage = () => {
   const [invoiceData, setInvoiceData] = useState({
     buyer: { name: '', phone: '', address: '', stateCode: '' },
     taxes: { cgstRate: 1.5, sgstRate: 1.5, taxType: 'CGST_SGST' },
-    hallmarkCharges: 0,
     metadata: { modeOfPayment: 'UPI', deliveryNote: '', destination: '' },
     declaration: 'We declare that this invoice shows the actual price of the goods described.',
     items: [defaultItem()],
@@ -115,6 +117,7 @@ const CreateInvoicePage = () => {
               rate: i.metalRate,
               makingCharges: i.makingCharges,
               purity: i.purityLabel || i.purity || 'None',
+              hallmarkCharge: parseFloat(i.hallmarkingCharge) || 0,
             })),
             metadata: {
               ...prev.metadata,
@@ -139,12 +142,12 @@ const CreateInvoicePage = () => {
   }, [id]);
 
   const calc = useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
+    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
   [invoiceData, paidAmount]);
 
   // Regenerate preview on data change — uses calcInvoiceTotals (single source of truth)
   useEffect(() => {
-    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
+    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
 
     const hydratedItems = previewCalc.hydratedItems.map((item, idx) => ({
       ...item,
@@ -326,6 +329,7 @@ const CreateInvoicePage = () => {
           makingChargesType: item.makingChargesType,
           stoneCharges: parseFloat(item.stoneCharges) || 0,
           isHallmarked: !!item.huid,
+          hallmarkingCharge: item.huid ? (parseFloat(item.hallmarkCharge) || 0) : 0,
           huid: item.huid || undefined,
         };
       }),
@@ -340,52 +344,105 @@ const CreateInvoicePage = () => {
   const handleSubmit = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
 
-    // Warning for finalized invoices
-    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
-      if (!window.confirm('This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?')) {
-        return;
+    const total = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount).total;
+
+    const proceedWithSave = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading(true);
+        const currentPayload = buildPayload();
+        let res;
+        if (id) {
+          res = await updateInvoice(id, { ...currentPayload, finalize: true });
+        } else {
+          res = await createInvoice(currentPayload);
+        }
+        if (res?.id) navigate(`/invoices`);
+        else alert('Failed to finalize invoice');
+      } catch (err) {
+        console.error(err);
+        alert(err.response?.data?.message || 'Error saving invoice');
+      } finally {
+        setLoading(false);
       }
+    };
+
+    // Check for overpayment
+    if (paidAmount > total) {
+      setConfirmation({
+        isOpen: true,
+        title: 'Overpayment Detected',
+        type: 'danger',
+        message: (
+          <>
+            Total payments (<span className="confirmation-modal-highlight">₹{paidAmount.toLocaleString()}</span>) exceed the invoice total (<span className="confirmation-modal-highlight">₹{total.toLocaleString()}</span>).
+            <br /><br />
+            This will create a credit balance of <strong style={{color: '#ef4444'}}>₹{(paidAmount - total).toLocaleString()}</strong> for this customer.
+            <br /><br />
+            Are you sure you want to record this overpayment?
+          </>
+        ),
+        onConfirm: proceedWithSave
+      });
+      return;
     }
 
-    try {
-      setLoading(true);
-      let res;
-      if (id) {
-        res = await updateInvoice(id, { ...buildPayload(), finalize: true });
-      } else {
-        res = await createInvoice(buildPayload());
-      }
-      if (res?.id) navigate(`/invoices`);
-      else alert('Failed to finalize invoice');
-    } catch (e) { console.error(e); alert('Network error'); }
-    finally { setLoading(false); }
+    // Warning for finalized invoices
+    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
+      setConfirmation({
+        isOpen: true,
+        title: 'Update Finalized Invoice',
+        type: 'warning',
+        message: 'This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?',
+        onConfirm: proceedWithSave
+      });
+      return;
+    }
+
+    await proceedWithSave();
   };
 
   const handleSaveDraft = async () => {
     if (!selectedCustomerId) { alert('Select a customer first'); return; }
 
+    const proceedWithSaveDraft = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('draft');
+        const currentPayload = buildPayload();
+        let res;
+        if (id) {
+          res = await updateInvoice(id, currentPayload);
+        } else {
+          res = await createDraft(currentPayload);
+        }
+        if (res?.id) navigate(`/invoices`);
+        else alert('Failed to save draft');
+      } catch (e) {
+        console.error(e);
+        alert('Network error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     // Warning for finalized invoices
     if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
-      if (!window.confirm('This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?')) {
-        return;
-      }
+      setConfirmation({
+        isOpen: true,
+        title: 'Update Finalized Invoice',
+        type: 'warning',
+        message: 'This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?',
+        onConfirm: proceedWithSaveDraft
+      });
+      return;
     }
 
-    try {
-      setLoading('draft');
-      let res;
-      if (id) {
-        res = await updateInvoice(id, buildPayload());
-      } else {
-        res = await createDraft(buildPayload());
-      }
-      if (res?.id) navigate(`/invoices`);
-      else alert('Failed to save draft');
-    } catch (e) { console.error(e); alert('Network error'); }
-    finally { setLoading(false); }
+    await proceedWithSaveDraft();
   };
 
   return (
+    <>
     <DashboardTemplate headerTitle="Create Invoice" headerTabs={[]}>
       <div className={styles.pageWrapper}>
 
@@ -482,6 +539,11 @@ const CreateInvoicePage = () => {
                   </div>
 
                   <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Qty</span>
+                    <input className={styles.fieldInput} type="number" placeholder="1" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                  </div>
+
+                  <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>Gross (g)</span>
                     <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.grossWeight} onChange={e => updateItem(idx, 'grossWeight', e.target.value)} />
                   </div>
@@ -492,6 +554,13 @@ const CreateInvoicePage = () => {
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>Net (g)</span>
                     <div className={styles.fieldComputed}>{((parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0)).toFixed(3)}</div>
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>Purity</span>
+                    <select className={styles.fieldSelect} value={item.purity} onChange={e => updateItem(idx, 'purity', e.target.value)}>
+                      {purityOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                      {!purityOptions.includes(item.purity) && <option value={item.purity}>{item.purity}</option>}
+                    </select>
                   </div>
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>Metal Rate ₹/g</span>
@@ -516,15 +585,12 @@ const CreateInvoicePage = () => {
                     <input className={styles.fieldInput} type="number" placeholder="0" value={item.stoneCharges} onChange={e => updateItem(idx, 'stoneCharges', e.target.value)} />
                   </div>
                   <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Purity</span>
-                    <select className={styles.fieldSelect} value={item.purity} onChange={e => updateItem(idx, 'purity', e.target.value)}>
-                      {purityOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                      {!purityOptions.includes(item.purity) && <option value={item.purity}>{item.purity}</option>}
-                    </select>
-                  </div>
-                  <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>HUID</span>
                     <input className={styles.fieldInput} placeholder="—" value={item.huid} onChange={e => updateItem(idx, 'huid', e.target.value)} />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <span className={styles.fieldLabel}>HM Charge ₹</span>
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} disabled={!item.huid} />
                   </div>
                 </div>
               </div>
@@ -596,10 +662,6 @@ const CreateInvoicePage = () => {
                 <input type="number" step="0.1" value={invoiceData.taxes.cgstRate} onChange={e => setInvoiceData(prev => ({ ...prev, taxes: { ...prev.taxes, cgstRate: parseFloat(e.target.value) || 0, sgstRate: parseFloat(e.target.value) || 0 } }))} disabled={invoiceData.taxes.taxType === 'NONE'} />
               </div>
               <div className={styles.advField}>
-                <label>Hallmark Charges ₹</label>
-                <input type="number" value={invoiceData.hallmarkCharges} onChange={e => setInvoiceData(prev => ({ ...prev, hallmarkCharges: parseFloat(e.target.value) || 0 }))} placeholder="0" />
-              </div>
-              <div className={styles.advField}>
                 <label>Auto-Udhar creation</label>
                 <input type="checkbox" checked={autoCreateUdhar} onChange={e => setAutoCreateUdhar(e.target.checked)} />
               </div>
@@ -668,7 +730,18 @@ const CreateInvoicePage = () => {
 
       </div>
     </DashboardTemplate>
-  );
+
+    <ConfirmationModal 
+      isOpen={confirmation.isOpen}
+      onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+      onConfirm={confirmation.onConfirm}
+      title={confirmation.title}
+      message={confirmation.message}
+      type={confirmation.type}
+      isLoading={Boolean(loading)}
+    />
+  </>
+);
 };
 
 export default CreateInvoicePage;

@@ -179,6 +179,7 @@ const InvoiceTable = ({
               ledgerPhone: buyer.phone || '',            // Item fields
               ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
               ledgerHsn: item.hsnSac || '',
+              ledgerQuantity: item.quantity || 1,
               ledgerItemName: item.description || '',
               ledgerPurity: item.purityLabel || item.purity || '',
               ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
@@ -228,6 +229,7 @@ const InvoiceTable = ({
         // Ledger computed fields
         ledgerMetal: metalLabel,
         ledgerHsn: items.map(i => i.hsnSac).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '),
+        ledgerQuantity: items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0),
         ledgerItemName: items.map(i => i.description).filter(Boolean).join(', '),
         ledgerPurity: items.map(i => i.purityLabel || i.purity).filter(Boolean).join(', '),
         ledgerNetWeightGold: netWeightGold,
@@ -495,6 +497,12 @@ const InvoiceTable = ({
       id: 'ledgerHsn',
       header: 'Hsn',
       size: 80,
+    }),
+    // Quantity
+    columnHelper.accessor('ledgerQuantity', {
+      id: 'ledgerQuantity',
+      header: 'Qty',
+      size: 60,
     }),
     // Item Name
     columnHelper.accessor('ledgerItemName', {

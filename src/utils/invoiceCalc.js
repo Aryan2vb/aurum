@@ -17,6 +17,7 @@ export const parsePurity = (purityLabel = '22K') => {
 };
 
 export const calcItemAmount = (item) => {
+  const quantity = parseFloat(item.quantity || 1);
   // Per user request: Metal rate is already for the specific carat, so no conversion needed.
   const effectiveRate = parseFloat(item.rate || item.metalRate || 0);
   const netWeight = parseFloat(item.grossWeight || 0) - parseFloat(item.stoneWeight || 0);
@@ -25,25 +26,29 @@ export const calcItemAmount = (item) => {
   const makingChargesAmount =
     makingChargesType === 'PER_GRAM' ? makingChargesRaw * netWeight :
     makingChargesType === 'PERCENTAGE_ON_METAL' ? (effectiveRate * netWeight) * (makingChargesRaw / 100) :
-    makingChargesRaw; // FLAT_PER_ITEM
+    makingChargesRaw * quantity; // FLAT_PER_ITEM multiplied by quantity
   const stoneCharges = parseFloat(item.stoneCharges || 0);
+  
+  const isHallmarked = !!item.huid;
+  const hallmarkCharge = isHallmarked ? parseFloat(item.hallmarkCharge || 0) : 0;
+  
   return {
     effectiveRate,
     netWeight,
     makingChargesAmount,
-    amount: (effectiveRate * netWeight) + makingChargesAmount + stoneCharges,
+    hallmarkCharge,
+    amount: (effectiveRate * netWeight) + makingChargesAmount + stoneCharges + hallmarkCharge,
   };
 };
 
-export const calcInvoiceTotals = (items, hallmarkCharges, cgstRate, sgstRate, paidAmount = 0) => {
+export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0) => {
   let subtotal = 0;
   const hydratedItems = items.map(item => {
-    const { effectiveRate, netWeight, amount } = calcItemAmount(item);
+    const { effectiveRate, netWeight, amount, hallmarkCharge } = calcItemAmount(item);
     subtotal += amount;
-    return { ...item, effectiveRate, netWeight, amount };
+    return { ...item, effectiveRate, netWeight, amount, hallmarkCharge };
   });
 
-  subtotal += parseFloat(hallmarkCharges || 0);
   const cgst = Math.round(subtotal * ((cgstRate || 0) / 100) * 100) / 100;
   const sgst = Math.round(subtotal * ((sgstRate || 0) / 100) * 100) / 100;
   const gross = subtotal + cgst + sgst;

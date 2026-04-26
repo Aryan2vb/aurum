@@ -113,7 +113,7 @@ const CreateInvoicePageMobile = () => {
 
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
+    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
   [invoiceData, paidAmount]);
 
   const performSearch = useCallback(async (query) => {
@@ -174,7 +174,7 @@ const CreateInvoicePageMobile = () => {
       const rate = parseFloat(newItems[index].rate) || 0;
       const makingCharges = parseFloat(newItems[index].makingCharges) || 0;
       const stoneCharges = parseFloat(newItems[index].stoneCharges) || 0;
-      const hallmarkingCharge = newItems[index].huid ? 45 : 0;
+      const hallmarkingCharge = newItems[index].huid ? (parseFloat(newItems[index].hallmarkCharge) || 0) : 0;
       newItems[index].amount = (newItems[index].netWeight * rate) + makingCharges + stoneCharges + hallmarkingCharge;
     }
     
@@ -200,6 +200,7 @@ const CreateInvoicePageMobile = () => {
         stoneCharges: 0,
         netWeight: 0,
         huid: "",
+        hallmarkCharge: 0,
         amount: 0
       }]
     }));

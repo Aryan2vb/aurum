@@ -5,7 +5,6 @@ import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/In
 import RecordPaymentModal from '../../components/molecules/RecordPaymentModal/RecordPaymentModal';
 import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
 import SummaryCard from '../../components/molecules/SummaryCard/SummaryCard';
-import Icon from '../../components/atoms/Icon/Icon';
 import { getInvoices } from '../../services/invoicesService';
 import './InvoicesPage.css';
 
@@ -24,7 +23,6 @@ const InvoicesPage = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedPaymentInvoice, setSelectedPaymentInvoice] = useState(null);
   const [showItems, setShowItems] = useState(false);
-  const [showCreateMenu, setShowCreateMenu] = useState(false);
   
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -132,35 +130,6 @@ const InvoicesPage = () => {
   return (
     <DashboardTemplate headerTitle="Invoices" headerTabs={[]}>
       <div className="invoices-page-container">
-        {/* Floating Action Button */}
-        <div className="floating-actions">
-          <div className="fab-container">
-            <button 
-              className="fab-main" 
-              onClick={() => setShowCreateMenu(!showCreateMenu)}
-            >
-              <Icon name="add" size={24} />
-            </button>
-            {showCreateMenu && (
-              <div className="fab-menu">
-                <button 
-                  className="fab-item desktop"
-                  onClick={() => navigate('/invoices/new')}
-                >
-                  <Icon name="computer" size={16} />
-                  <span>Desktop</span>
-                </button>
-                <button 
-                  className="fab-item mobile"
-                  onClick={() => navigate('/invoices/new/mobile')}
-                >
-                  <Icon name="phone" size={16} />
-                  <span>Mobile</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
         <div className="stats-grid">
           <SummaryCard 
             title="Total Receivables" 
