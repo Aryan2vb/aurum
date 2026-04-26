@@ -322,6 +322,8 @@ const InvoiceTable = ({
         search: searchQuery,
         limit: 1000,
         includeItems: true,
+        sortBy: 'invoiceDate',
+        sortOrder: 'asc',
       });
 
       if (response && response.data) {

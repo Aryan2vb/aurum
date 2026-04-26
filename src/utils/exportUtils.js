@@ -59,76 +59,134 @@ export const flattenCustomerData = (customer) => {
  * Flatten nested invoice object into a single-level object (including line items)
  */
 export const flattenInvoiceData = (invoice) => {
-  const basicInfo = {
-    id: invoice.id || '',
-    invoiceNumber: invoice.invoiceNumber || '',
-    invoiceDate: invoice.invoiceDate || '',
-    financialYear: invoice.financialYear || '',
-    status: invoice.status || '',
-    
-    // Customer Info
-    customerName: invoice.customer?.fullName || invoice.buyerSnapshot?.name || '',
-    customerCode: invoice.customer?.customerCode || '',
-    customerPhone: invoice.customer?.contactDetails?.[0]?.primaryPhone || invoice.buyerSnapshot?.phone || '',
-    customerAddress: invoice.buyerSnapshot?.address || '',
-    customerGstin: invoice.buyerSnapshot?.gstin || '',
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
 
-    // Financial Info
-    taxType: invoice.taxType || '',
-    subtotal: invoice.subtotal || '',
-    cgstAmount: invoice.cgstAmount || '',
-    sgstAmount: invoice.sgstAmount || '',
-    igstAmount: invoice.igstAmount || '',
-    roundOff: invoice.roundOff || '',
-    totalAmount: invoice.totalAmount || '',
-    paidAmount: invoice.paidAmount || '',
-    balance: invoice.remainingBalance || 0,
-    paymentMode: invoice.modeOfPayment || '',
-    bankName: invoice.companySnapshot?.bankDetails?.bankName || '',
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-    itemCount: invoice._count?.items || 0,
-    notes: invoice.notes || '',
-    createdAt: invoice.createdAt || '',
+    // Detect date-only strings (YYYY-MM-DD format)
+    const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateOnlyRegex.test(dateStr)) {
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+
+      // Validate month (1-12)
+      if (month < 1 || month > 12) return '';
+
+      // Validate day within month's max days
+      const daysInMonth = [31, (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+      if (day < 1 || day > daysInMonth[month - 1]) return '';
+
+      const monthName = months[month - 1];
+      return `${String(day).padStart(2, '0')} ${monthName} ${year}`;
+    }
+
+    // For non-date-only inputs, use existing Date parsing
+    const date = new Date(dateStr);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
   };
 
-  // If there are items, we create a row per item for a granular export
-  if (invoice.items && invoice.items.length > 0) {
-    return invoice.items.map(item => ({
-      ...basicInfo,
-      // Item Details
-      itemSlNo: item.slNo,
-      itemDescription: item.description,
-      itemHsnSac: item.hsnSac || '',
-      itemQuantity: item.quantity,
-      itemUnit: item.unit || 'GMS',
+  const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
+  const customerFullName = invoice.customer?.fullName || buyer.name || '';
+  const nameParts = customerFullName.split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
 
-      itemGrossWeight: item.grossWeight || '',
-      itemNetWeightGold: item.metalType !== 'SILVER' ? (item.netWeight || 0) : 0,
-      itemNetWeightSilver: item.metalType === 'SILVER' ? (item.netWeight || 0) : 0,
-      itemMetalRate: item.effectiveRate || item.metalRate || '',
-      itemMakingCharges: item.makingChargesAmount || item.makingCharges || '',
-      itemHuid: item.huid || '',
-      itemTaxableAmount: item.taxableAmount,
-      itemTotalAmount: item.totalAmount,
-      // Aggregated-style fields for row-per-item export
-      metal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
-      bank: (invoice.modeOfPayment !== 'CASH') ? item.totalAmount : 0,
-      cash: (invoice.modeOfPayment === 'CASH') ? item.totalAmount : 0,
-    }));
+  const items = invoice.items || [];
+  
+  // Calculate total payments per mode for the whole invoice
+  const bankSum = (invoice.payments || [])
+    .filter(p => p.mode !== 'CASH')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const cashSum = (invoice.payments || [])
+    .filter(p => p.mode === 'CASH')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const totalBank = (invoice.payments && invoice.payments.length)
+    ? bankSum
+    : (invoice.modeOfPayment !== 'CASH' ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalCash = (invoice.payments && invoice.payments.length)
+    ? cashSum
+    : (invoice.modeOfPayment === 'CASH' ? Number(invoice.paidAmount || 0) : 0);
+
+  // If no items, return at least one row with basic info
+  if (items.length === 0) {
+    return [{
+      'Serial No.': 1,
+      'Invoice No.': invoice.invoiceNumber || 'DRAFT',
+      'Date': formatDate(invoice.invoiceDate),
+      'Customer Name': firstName,
+      'Last Name': lastName,
+      'Address': buyer.address || '',
+      'Contact No.': buyer.phone || '',
+      'Metal': '',
+      'Hsn': '',
+      'Item Name': '',
+      'Purity': '',
+      'Net Wt. Gold': '',
+      'Net Wt. Silver': '',
+      'Metel Rate PG': '',
+      'Amount': 0,
+      'Labour PG': '',
+      'Labour Total': 0,
+      'Hallmark Chrgs': 0,
+      'Gst 3%': 0,
+      'Round off': invoice.roundOff || 0,
+      'Total': invoice.totalAmount || 0,
+      'Bank': totalBank,
+      'Cash': totalCash,
+      'Gst No': buyer.gstin || ''
+    }];
   }
 
-  // Fallback for aggregated view export (if items are NOT included)
-  const items = invoice.items || [];
-  const netWeightGold = items.filter(i => i.metalType !== 'SILVER').reduce((sum, i) => sum + (Number(i.netWeight) || 0), 0);
-  const netWeightSilver = items.filter(i => i.metalType === 'SILVER').reduce((sum, i) => sum + (Number(i.netWeight) || 0), 0);
+  // Map each item to a row
+  return items.map((item, idx) => {
+    const itemAmount = Number(item.taxableAmount || item.totalAmount || 0);
+    const itemLabour = Number(item.makingChargesAmount || 0);
+    const itemHallmark = Number(item.hallmarkingCharge || 0);
+    
+    // Proportional GST for the item (allocated based on item amount only, not labour)
+    const subtotal = Number(invoice.subtotal || invoice.taxableAmount || 0);
+    const ratio = subtotal > 0 ? itemAmount / subtotal : (1 / items.length);
 
-  return [{
-    ...basicInfo,
-    metal: items.some(i => i.metalType !== 'SILVER') && items.some(i => i.metalType === 'SILVER') ? 'Gold, Silver' : (items.some(i => i.metalType === 'SILVER') ? 'Silver' : 'Gold'),
-    itemDescription: items.map(i => i.description).join(', '),
-    netWeightGold,
-    netWeightSilver,
-    bank: (invoice.modeOfPayment !== 'CASH') ? invoice.totalAmount : 0,
-    cash: (invoice.modeOfPayment === 'CASH') ? invoice.totalAmount : 0,
-  }];
+    const totalGst = Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0);
+    const itemGst = totalGst * ratio;
+    
+    // We only put the full round-off on the first item to keep the total matching
+    const itemRoundOff = idx === 0 ? Number(invoice.roundOff || 0) : 0;
+    
+    return {
+      'Serial No.': item.slNo || (idx + 1),
+      'Invoice No.': invoice.invoiceNumber || 'DRAFT',
+      'Date': formatDate(invoice.invoiceDate),
+      'Customer Name': firstName,
+      'Last Name': lastName,
+      'Address': buyer.address || '',
+      'Contact No.': buyer.phone || '',
+      'Metal': item.metalType === 'SILVER' ? 'Silver' : 'Gold',
+      'Hsn': item.hsnSac || '',
+      'Item Name': item.description || '',
+      'Purity': item.purityLabel || item.purity || '',
+      'Net Wt. Gold': item.metalType !== 'SILVER' ? (Number(item.netWeight) || 0).toFixed(3) : '',
+      'Net Wt. Silver': item.metalType === 'SILVER' ? (Number(item.netWeight) || 0).toFixed(3) : '',
+      'Metel Rate PG': (Number(item.metalRate) || 0).toFixed(2),
+      'Amount': itemAmount.toFixed(2),
+      'Labour PG': (Number(item.makingCharges) || 0).toFixed(2),
+      'Labour Total': itemLabour.toFixed(2),
+      'Hallmark Chrgs': itemHallmark.toFixed(2),
+      'Gst 3%': itemGst.toFixed(2),
+      'Round off': itemRoundOff.toFixed(2),
+      'Total': (itemAmount + itemLabour + itemHallmark + itemGst + itemRoundOff).toFixed(2),
+      'Bank': idx === 0 ? totalBank.toFixed(2) : '',
+      'Cash': idx === 0 ? totalCash.toFixed(2) : '',
+      'Gst No': buyer.gstin || ''
+    };
+  });
 }
