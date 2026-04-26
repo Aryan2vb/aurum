@@ -113,7 +113,7 @@ const CreateInvoicePageMobile = () => {
 
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.hallmarkCharges, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
+    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
   [invoiceData, paidAmount]);
 
   const performSearch = useCallback(async (query) => {

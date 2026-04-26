@@ -18,7 +18,6 @@ export function generateInvoiceHtml(data) {
     const formatCurrency = (amount) =>
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 
-    const hallmarkingCharge = data.totalHallmarkingCharges !== undefined ? data.totalHallmarkingCharges : 0;
 
     const itemRows = items.map(item => {
         const { effectiveRate, makingChargesAmount } = calcItemAmount(item);
@@ -149,7 +148,6 @@ export function generateInvoiceHtml(data) {
       <tbody>
         ${itemRows}
         <tr class="tax-row"><td class="text-right font-bold">Taxable Value:</td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold">${formatCurrency(totalTaxableValue)}</td></tr>
-        ${hallmarkingCharge > 0 ? `<tr class="tax-row"><td class="text-right">Hallmarking Charges:</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(hallmarkingCharge)}</td></tr>` : ''}
         <tr class="tax-row"><td></td><td class="text-right font-bold">CGST(${taxes.cgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.cgstAmount || 0)}</td></tr>
         <tr class="tax-row"><td></td><td class="text-right font-bold">SGST(${taxes.sgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.sgstAmount || 0)}</td></tr>
         ${taxes.igstRate && taxes.igstRate > 0 ? `<tr class="tax-row"><td></td><td class="text-right font-bold">IGST(${taxes.igstRate}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.igstAmount || 0)}</td></tr>` : ''}
