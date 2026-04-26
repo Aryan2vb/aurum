@@ -255,15 +255,22 @@ const CreateInvoicePage = () => {
 
   const updateItem = (idx, field, value) => {
     let newItems = [...invoiceData.items];
-    const updatedItem = { ...newItems[idx], [field]: value };
-    
+    let updatedValue = value;
+
+    // Harden quantity field to ensure minimum value of 1
+    if (field === 'quantity') {
+      updatedValue = Math.max(1, parseInt(value, 10) || 1);
+    }
+
+    const updatedItem = { ...newItems[idx], [field]: updatedValue };
+
     // Side-effects for metal type selection
     if (field === 'metalType' && value === 'SILVER') {
       updatedItem.makingChargesType = 'PER_GRAM'; // Common for Silver
     } else if (field === 'metalType' && value === 'GOLD') {
       updatedItem.makingChargesType = 'PER_GRAM';
     }
-    
+
     newItems[idx] = updatedItem;
     setInvoiceData(prev => ({ ...prev, items: newItems }));
   };
@@ -317,7 +324,7 @@ const CreateInvoicePage = () => {
         return {
           description: item.description,
           hsnSac: item.hsnSac,
-          quantity: parseFloat(item.quantity) || 1,
+          quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
           metalType: item.metalType || 'GOLD',
           metalRate: parseFloat(item.rate) || 0,
           purityLabel: item.purity && item.purity !== 'None' ? item.purity : '',
@@ -540,7 +547,7 @@ const CreateInvoicePage = () => {
 
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>Qty</span>
-                    <input className={styles.fieldInput} type="number" placeholder="1" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
+                    <input className={styles.fieldInput} type="number" min="1" placeholder="1" value={item.quantity} onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value, 10) || 1))} />
                   </div>
 
                   <div className={styles.fieldGroup}>
