@@ -213,9 +213,11 @@ const ImportExportMenu = ({
     </button>
   );
 
-  const exportLabel = hasSelection 
-    ? `Export ${selectedCount} selected as` 
-    : `Export all matching filters as`;
+  const exportLabel = hasSelection
+    ? `Export ${selectedCount} selected as`
+    : (onExportTrigger
+        ? `Export all matching filters as`
+        : `Export all visible rows as`);
 
   return (
     <Dropdown className="import-export-menu" trigger={trigger} align="right">
