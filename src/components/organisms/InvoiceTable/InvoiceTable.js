@@ -69,6 +69,23 @@ const formatDate = (dateString) => {
   }
 };
 
+const getQuantity = (value) => {
+  const quantity = Number(value);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+};
+
+const getInvoiceQuantity = (invoice, items) => {
+  if (items.length > 0) {
+    return items.reduce((sum, item) => sum + getQuantity(item.quantity), 0);
+  }
+
+  return getQuantity(invoice.totalQuantity ?? invoice.quantity ?? invoice.itemQuantity ?? invoice.itemCount);
+};
+
+const getCustomerName = (row) => (
+  row.customer?.fullName || row.buyerSnapshot?.data?.name || row.buyerSnapshot?.name || ''
+);
+
 // ============================================
 // OPTIONS
 // ============================================
@@ -179,7 +196,7 @@ const InvoiceTable = ({
               ledgerPhone: buyer.phone || '',            // Item fields
               ledgerMetal: item.metalType === 'SILVER' ? 'Silver' : 'Gold',
               ledgerHsn: item.hsnSac || '',
-              ledgerQuantity: item.quantity || 1,
+              ledgerQuantity: getQuantity(item.quantity),
               ledgerItemName: item.description || '',
               ledgerPurity: item.purityLabel || item.purity || '',
               ledgerNetWeightGold: item.metalType !== 'SILVER' ? (parseFloat(item.netWeight) || 0) : 0,
@@ -229,7 +246,7 @@ const InvoiceTable = ({
         // Ledger computed fields
         ledgerMetal: metalLabel,
         ledgerHsn: items.map(i => i.hsnSac).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', '),
-        ledgerQuantity: items.reduce((sum, i) => sum + (Number(i.quantity) || 1), 0),
+        ledgerQuantity: getInvoiceQuantity(invoice, items),
         ledgerItemName: items.map(i => i.description).filter(Boolean).join(', '),
         ledgerPurity: items.map(i => i.purityLabel || i.purity).filter(Boolean).join(', '),
         ledgerNetWeightGold: netWeightGold,
@@ -349,8 +366,10 @@ const InvoiceTable = ({
 
   // Sync column visibility with showItems toggle
   React.useEffect(() => {
-    const itemSpecificColumns = {
+    const alwaysHiddenColumns = {
       lastName: false,
+    };
+    const itemSpecificColumns = {
       ledgerAddress: false,
       ledgerPhone: false,
       ledgerMetal: false,
@@ -366,9 +385,9 @@ const InvoiceTable = ({
     };
     
     if (!showItems) {
-      setColumnVisibility(itemSpecificColumns);
+      setColumnVisibility({ ...alwaysHiddenColumns, ...itemSpecificColumns });
     } else {
-      setColumnVisibility({});
+      setColumnVisibility(alwaysHiddenColumns);
     }
   }, [showItems]);
 
@@ -458,14 +477,11 @@ const InvoiceTable = ({
       cell: info => formatDate(info.getValue()),
       size: 90,
     }),
-    // Customer Name (first name)
-    columnHelper.accessor(row => {
-      const name = row.customer?.fullName || row.buyerSnapshot?.data?.name || row.buyerSnapshot?.name || '';
-      return name.split(' ')[0] || name;
-    }, {
+    // Customer Name
+    columnHelper.accessor(getCustomerName, {
       id: 'customer',
       header: 'Customer Name',
-      size: 140,
+      size: 180,
     }),
     // Last Name
     columnHelper.accessor(row => {
