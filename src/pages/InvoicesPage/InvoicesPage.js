@@ -53,7 +53,7 @@ const InvoicesPage = () => {
         limit: pageSize,
         sortBy: 'invoiceDate',
         sortOrder: 'desc',
-        includeItems: showItems,
+        includeItems: true,
       });
 
       if (response && response.data) {
@@ -73,7 +73,7 @@ const InvoicesPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filters, page, pageSize, showItems]);
+  }, [debouncedSearch, filters, page, pageSize]);
 
   useEffect(() => {
     fetchInvoices();

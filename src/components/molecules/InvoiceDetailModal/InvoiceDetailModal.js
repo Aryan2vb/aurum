@@ -26,6 +26,17 @@ const formatDate = (dateString) => {
   }
 };
 
+const formatCustomerAddress = (location) => {
+  if (!location) return '';
+  return [
+    location.address,
+    location.village,
+    location.tehsil,
+    location.district,
+    location.state,
+  ].filter(Boolean).join(', ');
+};
+
 const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => {
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
@@ -138,6 +149,11 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
 
   if (!isOpen) return null;
 
+  const buyer = invoice?.buyerSnapshot?.data || invoice?.buyerSnapshot || {};
+  const customerAddress = buyer.address || formatCustomerAddress(invoice?.customer?.locations?.[0]);
+  const customerState = buyer.state || invoice?.customer?.locations?.[0]?.state || '';
+  const customerStateCode = buyer.stateCode || invoice?.customer?.locations?.[0]?.stateCode || '';
+
   return (
     <SlideOver
       isOpen={isOpen}
@@ -165,11 +181,15 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
             <div className="invoice-top-row">
               <div className="invoice-top-customer">
                 <button className="invoice-customer-name-btn" onClick={() => { onClose(); navigate(`/customers/${invoice.customerId}`); }}>
-                  {invoice.buyerSnapshot?.name || invoice.customer?.fullName || 'N/A'}
+                  {buyer.name || invoice.customer?.fullName || 'N/A'}
                 </button>
-                <div className="invoice-customer-meta">{invoice.buyerSnapshot?.phone || invoice.customer?.contactDetails?.[0]?.primaryPhone || ''}</div>
-                <div className="invoice-customer-meta">{invoice.buyerSnapshot?.address || ''}</div>
-                <div className="invoice-customer-meta">{invoice.buyerSnapshot?.state || ''}{invoice.buyerSnapshot?.stateCode ? ` (${invoice.buyerSnapshot.stateCode})` : ''}</div>
+                <div className="invoice-customer-meta">{buyer.phone || invoice.customer?.contactDetails?.[0]?.primaryPhone || ''}</div>
+                {customerAddress && <div className="invoice-customer-meta">{customerAddress}</div>}
+                {(customerState || customerStateCode) && (
+                  <div className="invoice-customer-meta">
+                    {customerState}{customerStateCode ? ` (${customerStateCode})` : ''}
+                  </div>
+                )}
               </div>
               <div className="invoice-top-meta">
                 <StatusPill status={invoice.status} />
