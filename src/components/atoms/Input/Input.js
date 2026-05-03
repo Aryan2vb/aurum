@@ -8,6 +8,7 @@ const Input = ({
   onChange, 
   className = '',
   icon,
+  inputRef,
   ...props 
 }) => {
   return (
@@ -19,6 +20,7 @@ const Input = ({
         value={value}
         onChange={onChange}
         className="input"
+        ref={inputRef}
         {...props}
       />
     </div>
@@ -26,4 +28,3 @@ const Input = ({
 };
 
 export default Input;
-

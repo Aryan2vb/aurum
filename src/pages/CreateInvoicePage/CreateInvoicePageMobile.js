@@ -64,6 +64,8 @@ const CreateInvoicePageMobile = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const searchDebounceTimerRef = useRef(null);
+  const firstItemDescriptionRef = useRef(null);
+  const pendingItemDescriptionFocusRef = useRef(false);
 
   // Fetch invoice settings on component mount
   useEffect(() => {
@@ -120,14 +122,17 @@ const CreateInvoicePageMobile = () => {
     if (query.length < 2) {
       setSearchResults([]);
       setSearching(false);
-      return;
+      return [];
     }
     try {
       setSearching(true);
       const data = await searchCustomers({ query });
-      setSearchResults(data.data || data || []);
+      const results = data.data || data || [];
+      setSearchResults(results);
+      return results;
     } catch (error) {
       setSearchResults([]);
+      return [];
     } finally {
       setSearching(false);
     }
@@ -146,6 +151,7 @@ const CreateInvoicePageMobile = () => {
   };
 
   const handleCustomerSelect = (customer) => {
+    pendingItemDescriptionFocusRef.current = true;
     setSelectedCustomerId(customer.id);
     setSearchQuery('');
     setSearchResults([]);
@@ -158,6 +164,30 @@ const CreateInvoicePageMobile = () => {
         address: customer.locations?.[0]?.village || customer.locations?.[0]?.district || 'Unknown Address'
       }
     }));
+  };
+
+  useEffect(() => {
+    if (!pendingItemDescriptionFocusRef.current || !selectedCustomerId) return;
+
+    pendingItemDescriptionFocusRef.current = false;
+    window.requestAnimationFrame(() => {
+      firstItemDescriptionRef.current?.focus();
+    });
+  }, [selectedCustomerId]);
+
+  const handleCustomerSearchKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (query.length < 2) return;
+
+    if (searchDebounceTimerRef.current) clearTimeout(searchDebounceTimerRef.current);
+    const results = searchResults.length > 0 ? searchResults : await performSearch(query);
+
+    if (results.length > 0) {
+      handleCustomerSelect(results[0]);
+    }
   };
 
   const updateItem = (index, field, value) => {
@@ -357,6 +387,7 @@ const CreateInvoicePageMobile = () => {
               placeholder="Search customer..."
               value={searchQuery}
               onChange={handleSearch}
+              onKeyDown={handleCustomerSearchKeyDown}
               results={searchResults}
               onSelect={handleCustomerSelect}
               loading={searching}
@@ -436,6 +467,7 @@ const CreateInvoicePageMobile = () => {
                     value={item.description}
                     onChange={(e) => updateItem(index, 'description', e.target.value)}
                     className={styles.fullWidth}
+                    inputRef={index === 0 ? firstItemDescriptionRef : undefined}
                   />
                   
                   <div className={styles.metalSelector}>

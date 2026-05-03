@@ -16,7 +16,7 @@ const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFract
 const defaultItem = () => ({
   slNo: 1,
   description: '',
-  hsnSac: '71131910',
+  hsnSac: '711319',
   quantity: 1,
   unit: 'GMS',
   rate: 0,
@@ -60,6 +60,8 @@ const CreateInvoicePage = () => {
   const [showAdvanced, setShowAdvanced] = useState(true);
   const [confirmation, setConfirmation] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
   const searchDebounceRef = useRef(null);
+  const firstItemDescriptionRef = useRef(null);
+  const pendingItemDescriptionFocusRef = useRef(false);
 
   const paidAmount = useMemo(() => 
     payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
@@ -215,12 +217,14 @@ const CreateInvoicePage = () => {
   }, [invoiceData, theme, paidAmount, invoiceDate, payments]);
 
   const performSearch = useCallback(async (q) => {
-    if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
+    if (q.length < 2) { setSearchResults([]); setSearching(false); return []; }
     try {
       setSearching(true);
       const data = await searchCustomers({ query: q });
-      setSearchResults(data.data || data || []);
-    } catch { setSearchResults([]); }
+      const results = data.data || data || [];
+      setSearchResults(results);
+      return results;
+    } catch { setSearchResults([]); return []; }
     finally { setSearching(false); }
   }, []);
 
@@ -234,6 +238,7 @@ const CreateInvoicePage = () => {
   };
 
   const handleCustomerSelect = (c) => {
+    pendingItemDescriptionFocusRef.current = true;
     setSelectedCustomerId(c.id);
     setSearchQuery('');
     setSearchResults([]);
@@ -248,6 +253,32 @@ const CreateInvoicePage = () => {
     }));
   };
 
+  useEffect(() => {
+    if (!pendingItemDescriptionFocusRef.current || !selectedCustomerId || isCustomerPanelOpen) return;
+
+    pendingItemDescriptionFocusRef.current = false;
+    window.requestAnimationFrame(() => {
+      firstItemDescriptionRef.current?.focus();
+    });
+  }, [selectedCustomerId, isCustomerPanelOpen]);
+
+  const handleCustomerSearchKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (query.length < 2) return;
+
+    clearTimeout(searchDebounceRef.current);
+    const results = searchResults.length > 0 ? searchResults : await performSearch(query);
+
+    if (results.length > 0) {
+      handleCustomerSelect(results[0]);
+    } else {
+      setIsCustomerPanelOpen(true);
+    }
+  };
+
   const clearCustomer = () => {
     setSelectedCustomerId('');
     setInvoiceData(prev => ({ ...prev, buyer: { name: '', phone: '', address: '', stateCode: '' } }));
@@ -260,8 +291,10 @@ const CreateInvoicePage = () => {
     // Side-effects for metal type selection
     if (field === 'metalType' && value === 'SILVER') {
       updatedItem.makingChargesType = 'PER_GRAM'; // Common for Silver
+      updatedItem.hsnSac = '711311';
     } else if (field === 'metalType' && value === 'GOLD') {
       updatedItem.makingChargesType = 'PER_GRAM';
+      updatedItem.hsnSac = '711319';
     }
     
     newItems[idx] = updatedItem;
@@ -460,6 +493,7 @@ const CreateInvoicePage = () => {
                     placeholder="Search customer by name or phone..."
                     value={searchQuery}
                     onChange={handleSearchChange}
+                    onKeyDown={handleCustomerSearchKeyDown}
                   />
                   {searching && <Icon name="loader" size={13} className={styles.searchLoading} />}
                   {(searchResults.length > 0 || (searchQuery.length >= 2 && !searching)) && (
@@ -521,7 +555,7 @@ const CreateInvoicePage = () => {
                 {/* Top row: index + description + remove */}
                 <div className={styles.itemCardTop}>
                   <span className={styles.itemIndex}>{idx + 1}</span>
-                  <input className={styles.itemDescInput} placeholder="Item description..." value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} />
+                  <input ref={idx === 0 ? firstItemDescriptionRef : null} className={styles.itemDescInput} placeholder="Item description..." value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} />
                   <button className={styles.removeRowBtn} onClick={() => removeItem(idx)} disabled={invoiceData.items.length === 1}>
                     <Icon name="close" size={12} />
                   </button>
@@ -590,7 +624,7 @@ const CreateInvoicePage = () => {
                   </div>
                   <div className={styles.fieldGroup}>
                     <span className={styles.fieldLabel}>HM Charge ₹</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} disabled={!item.huid} />
+                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} />
                   </div>
                 </div>
               </div>
