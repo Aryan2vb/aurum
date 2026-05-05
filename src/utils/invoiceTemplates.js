@@ -18,12 +18,15 @@ export function generateInvoiceHtml(data) {
     const formatCurrency = (amount) =>
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 
+    const formatMetalRate = (amount) =>
+        new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(amount);
+
 
     const itemRows = items.map(item => {
         const { effectiveRate, makingChargesAmount } = calcItemAmount(item);
         const rateDisplay = makingChargesAmount > 0
-            ? `<strong>${formatCurrency(effectiveRate)}</strong><br/><span style="font-size:11px;">+ ${formatCurrency(makingChargesAmount)} Making Charge</span>`
-            : formatCurrency(effectiveRate);
+            ? `<strong>${formatMetalRate(effectiveRate)}</strong><br/><span style="font-size:11px;">+ ${formatCurrency(makingChargesAmount)} Making Charge</span>`
+            : formatMetalRate(effectiveRate);
 
         const descLines = (item.description || '').split('\n');
         const huidLine = item.huid ? `<br/><span class="text-sm"><strong>HUID:</strong> ${item.huid}</span>` : '';
@@ -493,7 +496,7 @@ export function generateJewelleryInvoiceHtml(data) {
             }</td>
             ${hasStoneCharges ? `<td class="ctr">${item.stoneCharges ? fmt(item.stoneCharges) : '-'}</td>` : ''}
             <td class="ctr">${(item.hallmarkingCharge || item.hallmarkCharge) ? fmt(parseFloat(item.hallmarkingCharge || item.hallmarkCharge || 0)) : (item.huid ? '0.00' : '-')}</td>
-            <td class="rgt">${fmt(item.amount || 0)}</td>
+            <td class="ctr">${fmt(item.amount || 0)}</td>
         </tr>`).join('');
 
     const columnCount = 10 + (hasStoneWeight ? 1 : 0) + (hasStoneCharges ? 1 : 0);
