@@ -480,7 +480,7 @@ export function generateJewelleryInvoiceHtml(data) {
 
         return `
         <tr>
-            <td>${(item.description || '').split('\\n')[0].replace(/GOLD JEWELLERY-\\d+\\n?/i, '').trim() || (item.description || '').split('\\n').pop()}</td>
+            <td>${(item.description || '').split('\n')[0].replace(/GOLD JEWELLERY-\d+\n?/i, '').trim() || (item.description || '').split('\n').pop()}</td>
             <td class="ctr">${item.quantity || 0}</td>
             <td class="ctr">${item.hsnSac || ''}</td>
             <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) : '-'}</td>
