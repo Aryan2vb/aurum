@@ -12,6 +12,11 @@ const formatCurrency = (amount) => {
   return `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
+const formatMetalRate = (amount) => {
+  if (amount === undefined || amount === null) return '—';
+  return `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+};
+
 // Format date
 const formatDate = (dateString) => {
   if (!dateString) return '—';
@@ -212,33 +217,62 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                       <tr>
                         <th>S.N</th>
                         <th>Item</th>
-                        <th>Metal</th>
-
-                        <th>HSN</th>
                         <th>Qty</th>
+                        <th>Gross</th>
+                        <th>Stone Wt</th>
                         <th>Net Wt.</th>
-                        <th>Rate</th>
-                        <th>Making</th>
-                        <th>HUID</th>
+                        <th>Metal Rate</th>
+                        <th>Making (Type)</th>
+                        <th>Making Amt</th>
+                        <th>Stone ₹</th>
+                        <th>HM ₹</th>
                         <th>Amount</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {invoice.items.map((item, index) => (
-                        <tr key={item.id || index}>
-                          <td>{item.slNo || index + 1}</td>
-                          <td>{item.description || '—'}{item.huid && <><br/><small>HUID: {item.huid}</small></>}</td>
-                          <td>{item.metalType || '—'}</td>
+                      {invoice.items.map((item, index) => {
+                        const effectiveRate = item.effectiveRate || item.unitPrice || item.metalRate;
+                        const netWeight = item.netWeight != null
+                          ? item.netWeight
+                          : (item.grossWeight != null && item.stoneWeight != null
+                            ? item.grossWeight - item.stoneWeight
+                            : null);
+                        const makingChargesAmount = item.makingChargesAmount != null
+                          ? item.makingChargesAmount
+                          : (item.makingChargesType === 'PERCENTAGE_ON_METAL'
+                            ? (effectiveRate && netWeight ? (item.makingCharges / 100) * effectiveRate * netWeight : null)
+                            : item.makingChargesType === 'PER_GRAM'
+                              ? (netWeight != null ? item.makingCharges * netWeight : null)
+                              : item.makingCharges);
 
-                          <td>{item.hsnSac || '—'}</td>
-                          <td>{item.quantity || 1}</td>
-                          <td>{item.netWeight ? `${item.netWeight}g` : '—'}</td>
-                          <td>{formatCurrency(item.effectiveRate || item.unitPrice)}</td>
-                          <td>{formatCurrency(item.makingChargesAmount || item.makingCharges)}</td>
-                          <td>{item.huid || '—'}</td>
-                          <td className="amount-cell">{formatCurrency(item.taxableAmount || item.totalAmount)}</td>
-                        </tr>
-                      ))}
+                        return (
+                          <tr key={item.id || index}>
+                            <td>{item.slNo || index + 1}</td>
+                            <td>
+                              {item.description || '—'}
+                              {item.huid && <><br/><small className="huid-tag">HUID: {item.huid}</small></>}
+                            </td>
+                            <td>{item.quantity || 1}</td>
+                            <td>{item.grossWeight ? `${item.grossWeight}g` : '—'}</td>
+                            <td>{item.stoneWeight ? `${item.stoneWeight}g` : '—'}</td>
+                            <td>{netWeight != null ? `${netWeight}g` : '—'}</td>
+                            <td>{formatMetalRate(effectiveRate)}</td>
+                            <td className="making-cell">
+                              {item.makingChargesType === 'PERCENTAGE_ON_METAL'
+                                ? `${item.makingCharges}%`
+                                : formatCurrency(item.makingCharges)
+                              }
+                              <div className="making-type">
+                                ({item.makingChargesType === 'PERCENTAGE_ON_METAL' ? '%' : item.makingChargesType === 'PER_GRAM' ? '/gm' : 'FLAT'})
+                              </div>
+                            </td>
+                            <td>{formatCurrency(makingChargesAmount)}</td>
+                            <td>{formatCurrency(item.stoneCharges)}</td>
+                            <td>{formatCurrency(item.hallmarkingCharge)}</td>
+                            <td className="amount-cell">{formatCurrency(item.taxableAmount || item.totalAmount)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -264,6 +298,12 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                   <div className="summary-row">
                     <span>Hallmarking:</span>
                     <span>{formatCurrency(invoice.totalHallmarkingCharges)}</span>
+                  </div>
+                )}
+                {invoice.items && invoice.items.reduce((sum, item) => sum + (parseFloat(item.stoneCharges) || 0), 0) > 0 && (
+                  <div className="summary-row">
+                    <span>Stone Charges:</span>
+                    <span>{formatCurrency(invoice.items.reduce((sum, item) => sum + (parseFloat(item.stoneCharges) || 0), 0))}</span>
                   </div>
                 )}
                 <div className="summary-row">

@@ -361,8 +361,8 @@ const CreateInvoicePage = () => {
           makingCharges: parseFloat(item.makingCharges) || 0,
           makingChargesType: item.makingChargesType,
           stoneCharges: parseFloat(item.stoneCharges) || 0,
-          isHallmarked: !!item.huid,
-          hallmarkingCharge: item.huid ? (parseFloat(item.hallmarkCharge) || 0) : 0,
+          isHallmarked: !!item.huid || (parseFloat(item.hallmarkCharge) > 0),
+          hallmarkingCharge: parseFloat(item.hallmarkCharge) || 0,
           huid: item.huid || undefined,
         };
       }),

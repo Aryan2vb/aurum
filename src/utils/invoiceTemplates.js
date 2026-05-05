@@ -18,12 +18,15 @@ export function generateInvoiceHtml(data) {
     const formatCurrency = (amount) =>
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
 
+    const formatMetalRate = (amount) =>
+        new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(amount);
+
 
     const itemRows = items.map(item => {
         const { effectiveRate, makingChargesAmount } = calcItemAmount(item);
         const rateDisplay = makingChargesAmount > 0
-            ? `<strong>${formatCurrency(effectiveRate)}</strong><br/><span style="font-size:11px;">+ ${formatCurrency(makingChargesAmount)} Making Charge</span>`
-            : formatCurrency(effectiveRate);
+            ? `<strong>${formatMetalRate(effectiveRate)}</strong><br/><span style="font-size:11px;">+ ${formatCurrency(makingChargesAmount)} Making Charge</span>`
+            : formatMetalRate(effectiveRate);
 
         const descLines = (item.description || '').split('\n');
         const huidLine = item.huid ? `<br/><span class="text-sm"><strong>HUID:</strong> ${item.huid}</span>` : '';
@@ -462,6 +465,9 @@ export function generateJewelleryInvoiceHtml(data) {
     const cashReceived = data.cashReceived !== undefined ? data.cashReceived : totalAmount;
     const amtBalance = data.amtBalance !== undefined ? data.amtBalance : 0;
     
+    const hasStoneWeight = items.some((i) => i.stoneWeight && Number(i.stoneWeight) > 0);
+    const hasStoneCharges = items.some((i) => i.stoneCharges && Number(i.stoneCharges) > 0);
+
     let paymentsHtml = '';
     if (data.payments && data.payments.length > 0) {
         paymentsHtml = data.payments.map(p => `<div>${p.mode}: &nbsp; ${fmt(p.amount)}</div>`).join('');
@@ -469,20 +475,37 @@ export function generateJewelleryInvoiceHtml(data) {
         paymentsHtml = `<div>CASH RECEIVED : &nbsp; ${fmt(cashReceived)}</div>`;
     }
 
-    const itemRows = items.map(item => `
+    const itemRows = items.map(item => {
+        const { effectiveRate, netWeight } = calcItemAmount(item);
+
+        return `
         <tr>
-            <td>${(item.description || '').split('\\n')[0].replace(/GOLD JEWELLERY-\\d+\\n?/i, '').trim() || (item.description || '').split('\\n').pop()}</td>
+            <td>${(item.description || '').split('\n')[0].replace(/GOLD JEWELLERY-\d+\n?/i, '').trim() || (item.description || '').split('\n').pop()}</td>
             <td class="ctr">${item.quantity || 0}</td>
             <td class="ctr">${item.hsnSac || ''}</td>
-            <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) + ' GM' : (item.quantity || 0) + ' ' + (item.unit || '')}</td>
-            <td class="rgt">${fmt(item.rate || 0)}</td>
-            <td class="rgt">${item.makingCharges ? fmt(parseFloat(item.makingCharges) * parseFloat(item.quantity || 0)) : '-'}</td>
-            <td class="rgt">${(item.hallmarkingCharge || item.hallmarkCharge) ? fmt(parseFloat(item.hallmarkingCharge || item.hallmarkCharge || 0)) : (item.huid ? '0.00' : '-')}</td>
-            <td class="rgt">${fmt(item.amount || 0)}</td>
-        </tr>`).join('');
+            <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) : '-'}</td>
+            ${hasStoneWeight ? `<td class="ctr">${item.stoneWeight ? fmt(item.stoneWeight) : '-'}</td>` : ''}
+            <td class="ctr">${netWeight ? fmt(netWeight) : '-'}</td>
+            <td class="ctr">${item.purity || '-'}</td>
+            <td class="ctr">${fmt(effectiveRate || 0)}</td>
+            <td class="ctr">${
+              item.makingCharges
+                ? item.makingChargesType === 'PERCENTAGE_ON_METAL'
+                  ? item.makingCharges + '%'
+                  : item.makingChargesType === 'PER_GRAM'
+                    ? item.makingCharges + '/gm'
+                    : fmt(item.makingCharges)
+                : '-'
+            }</td>
+            ${hasStoneCharges ? `<td class="ctr">${item.stoneCharges ? fmt(item.stoneCharges) : '-'}</td>` : ''}
+            <td class="ctr">${(item.hallmarkingCharge || item.hallmarkCharge) ? fmt(parseFloat(item.hallmarkingCharge || item.hallmarkCharge || 0)) : (item.huid ? '0.00' : '-')}</td>
+            <td class="ctr">${fmt(item.amount || 0)}</td>
+        </tr>`;
+    }).join('');
 
+    const columnCount = 10 + (hasStoneWeight ? 1 : 0) + (hasStoneCharges ? 1 : 0);
     const emptyRows = Array(Math.max(0, 6 - items.length))
-        .fill('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>')
+        .fill(`<tr>${Array(columnCount).fill('<td></td>').join('')}</tr>`)
         .join('');
 
     const termsDefault = `1. All disputes are subject to REWA Jurisdiction Only.
@@ -503,8 +526,8 @@ export function generateJewelleryInvoiceHtml(data) {
     <title>Tax Invoice - ${metadata.invoiceNo}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #000; background: #fff; }
-        .invoice { max-width: 800px; margin: 0 auto; padding: 20px; border: 2px solid #000; }
+        body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; }
+        .invoice { max-width: 800px; margin: 0 auto; padding: 20px; border: 1px solid #000; }
         .header { display: flex; align-items: flex-start; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid #000; }
         .header-left { display: flex; align-items: flex-start; gap: 12px; }
         .logo-circle { width: 60px; height: 60px; border: 2px solid #000; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: serif; font-size: 28px; font-weight: bold; flex-shrink: 0; }
@@ -569,8 +592,8 @@ export function generateJewelleryInvoiceHtml(data) {
         <div class="buyer-meta">
             <div class="buyer-info">
                 <div><strong>NAME &nbsp; : &nbsp; ${buyer.name || ''}</strong></div>
-                <div><strong>ADDRESS : </strong> ${buyer.address || ''}</div>
-                ${buyer.state ? `<div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${buyer.state}</div>` : ''}
+                ${buyer.phone ? `<div><strong>PHONE &nbsp;: &nbsp; ${buyer.phone}</strong></div>` : ''}
+                <div><strong>ADDRESS : </strong> ${buyer.address || ''}${buyer.state ? `, ${buyer.state}` : ''}</div>
             </div>
             <div class="meta-info">
                 <div><strong>INVOICE NO:</strong> ${metadata.invoiceNo || ''}</div>
@@ -579,16 +602,22 @@ export function generateJewelleryInvoiceHtml(data) {
             </div>
         </div>
         <table class="items-table">
-            <thead><tr>
-                <th class="lft" style="width:180px;">PROD DESC</th>
-                <th style="width:40px;">QTY</th>
-                <th style="width:70px;">HSN</th>
-                <th style="width:85px;">GS WT</th>
-                <th style="width:80px;">RATE</th>
-                <th style="width:65px;">MKG</th>
-                <th style="width:50px;">HMC</th>
-                <th style="width:100px;">FINAL AMT</th>
-            </tr></thead>
+            <thead>
+                <tr>
+                    <th class="lft" style="width: ${100 + (!hasStoneWeight ? 25 : 0) + (!hasStoneCharges ? 25 : 0)}px;">PROD DESC</th>
+                    <th style="width:30px;">QTY</th>
+                    <th style="width:55px;">HSN</th>
+                    <th style="width:45px;">GR WT</th>
+                    ${hasStoneWeight ? '<th style="width:45px;">ST WT</th>' : ''}
+                    <th style="width:45px;">NT WT</th>
+                    <th style="width:45px;">PURITY</th>
+                    <th style="width:70px;">RATE</th>
+                    <th style="width:50px;">MKG</th>
+                    ${hasStoneCharges ? '<th style="width:50px;">STONE</th>' : ''}
+                    <th style="width:50px;">HMC</th>
+                    <th style="width:85px;">FINAL AMT</th>
+                </tr>
+            </thead>
             <tbody>${itemRows}${emptyRows}</tbody>
         </table>
         <div class="totals-section">
