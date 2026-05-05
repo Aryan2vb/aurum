@@ -29,8 +29,8 @@ export const calcItemAmount = (item) => {
     makingChargesRaw * quantity; // FLAT_PER_ITEM multiplied by quantity
   const stoneCharges = parseFloat(item.stoneCharges || 0);
   
-  const isHallmarked = !!item.huid;
-  const hallmarkCharge = isHallmarked ? parseFloat(item.hallmarkCharge || 0) : 0;
+  const isHallmarked = !!item.huid || (parseFloat(item.hallmarkCharge) > 0);
+  const hallmarkCharge = parseFloat(item.hallmarkCharge || 0);
   
   return {
     effectiveRate,

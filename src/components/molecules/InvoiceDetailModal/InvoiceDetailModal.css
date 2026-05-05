@@ -203,6 +203,28 @@
   color: var(--text-primary);
 }
 
+.making-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.making-type {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.huid-tag {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  background: var(--bg-tertiary);
+  padding: 1px 4px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-top: 2px;
+}
+
 /* Financial Summary */
 .financial-summary {
   display: flex;

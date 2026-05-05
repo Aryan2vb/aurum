@@ -212,14 +212,15 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                       <tr>
                         <th>S.N</th>
                         <th>Item</th>
-                        <th>Metal</th>
-
-                        <th>HSN</th>
                         <th>Qty</th>
+                        <th>Gross</th>
+                        <th>Stone Wt</th>
                         <th>Net Wt.</th>
-                        <th>Rate</th>
-                        <th>Making</th>
-                        <th>HUID</th>
+                        <th>Metal Rate</th>
+                        <th>Making (Type)</th>
+                        <th>Making Amt</th>
+                        <th>Stone ₹</th>
+                        <th>HM ₹</th>
                         <th>Amount</th>
                       </tr>
                     </thead>
@@ -227,15 +228,27 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                       {invoice.items.map((item, index) => (
                         <tr key={item.id || index}>
                           <td>{item.slNo || index + 1}</td>
-                          <td>{item.description || '—'}{item.huid && <><br/><small>HUID: {item.huid}</small></>}</td>
-                          <td>{item.metalType || '—'}</td>
-
-                          <td>{item.hsnSac || '—'}</td>
+                          <td>
+                            {item.description || '—'}
+                            {item.huid && <><br/><small className="huid-tag">HUID: {item.huid}</small></>}
+                          </td>
                           <td>{item.quantity || 1}</td>
+                          <td>{item.grossWeight ? `${item.grossWeight}g` : '—'}</td>
+                          <td>{item.stoneWeight ? `${item.stoneWeight}g` : '—'}</td>
                           <td>{item.netWeight ? `${item.netWeight}g` : '—'}</td>
                           <td>{formatCurrency(item.effectiveRate || item.unitPrice)}</td>
-                          <td>{formatCurrency(item.makingChargesAmount || item.makingCharges)}</td>
-                          <td>{item.huid || '—'}</td>
+                          <td className="making-cell">
+                            {item.makingChargesType === 'PERCENTAGE_ON_METAL' 
+                              ? `${item.makingCharges}%` 
+                              : formatCurrency(item.makingCharges)
+                            }
+                            <div className="making-type">
+                              ({item.makingChargesType === 'PERCENTAGE_ON_METAL' ? '%' : item.makingChargesType === 'PER_GRAM' ? '/gm' : 'FLAT'})
+                            </div>
+                          </td>
+                          <td>{formatCurrency(item.makingChargesAmount)}</td>
+                          <td>{formatCurrency(item.stoneCharges)}</td>
+                          <td>{formatCurrency(item.hallmarkingCharge)}</td>
                           <td className="amount-cell">{formatCurrency(item.taxableAmount || item.totalAmount)}</td>
                         </tr>
                       ))}
@@ -264,6 +277,12 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                   <div className="summary-row">
                     <span>Hallmarking:</span>
                     <span>{formatCurrency(invoice.totalHallmarkingCharges)}</span>
+                  </div>
+                )}
+                {invoice.items && invoice.items.reduce((sum, item) => sum + (parseFloat(item.stoneCharges) || 0), 0) > 0 && (
+                  <div className="summary-row">
+                    <span>Stone Charges:</span>
+                    <span>{formatCurrency(invoice.items.reduce((sum, item) => sum + (parseFloat(item.stoneCharges) || 0), 0))}</span>
                   </div>
                 )}
                 <div className="summary-row">
