@@ -29,7 +29,7 @@ export const calcItemAmount = (item) => {
     makingChargesRaw * quantity; // FLAT_PER_ITEM multiplied by quantity
   const stoneCharges = parseFloat(item.stoneCharges || 0);
   
-  const hallmarkCharge = parseFloat(item.hallmarkCharge ?? item.hallmarkingCharge ?? 0);
+  const hallmarkCharge = parseFloat(item.hallmarkCharge ?? item.hallmarkingCharge ?? 0) || 0;
   
   return {
     effectiveRate,

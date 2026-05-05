@@ -475,16 +475,19 @@ export function generateJewelleryInvoiceHtml(data) {
         paymentsHtml = `<div>CASH RECEIVED : &nbsp; ${fmt(cashReceived)}</div>`;
     }
 
-    const itemRows = items.map(item => `
+    const itemRows = items.map(item => {
+        const { effectiveRate, netWeight } = calcItemAmount(item);
+
+        return `
         <tr>
             <td>${(item.description || '').split('\\n')[0].replace(/GOLD JEWELLERY-\\d+\\n?/i, '').trim() || (item.description || '').split('\\n').pop()}</td>
             <td class="ctr">${item.quantity || 0}</td>
             <td class="ctr">${item.hsnSac || ''}</td>
             <td class="ctr">${item.grossWeight ? fmt(item.grossWeight) : '-'}</td>
             ${hasStoneWeight ? `<td class="ctr">${item.stoneWeight ? fmt(item.stoneWeight) : '-'}</td>` : ''}
-            <td class="ctr">${item.netWeight ? fmt(item.netWeight) : '-'}</td>
+            <td class="ctr">${netWeight ? fmt(netWeight) : '-'}</td>
             <td class="ctr">${item.purity || '-'}</td>
-            <td class="ctr">${fmt(item.rate || 0)}</td>
+            <td class="ctr">${fmt(effectiveRate || 0)}</td>
             <td class="ctr">${
               item.makingCharges
                 ? item.makingChargesType === 'PERCENTAGE_ON_METAL'
@@ -497,7 +500,8 @@ export function generateJewelleryInvoiceHtml(data) {
             ${hasStoneCharges ? `<td class="ctr">${item.stoneCharges ? fmt(item.stoneCharges) : '-'}</td>` : ''}
             <td class="ctr">${(item.hallmarkingCharge || item.hallmarkCharge) ? fmt(parseFloat(item.hallmarkingCharge || item.hallmarkCharge || 0)) : (item.huid ? '0.00' : '-')}</td>
             <td class="ctr">${fmt(item.amount || 0)}</td>
-        </tr>`).join('');
+        </tr>`;
+    }).join('');
 
     const columnCount = 10 + (hasStoneWeight ? 1 : 0) + (hasStoneCharges ? 1 : 0);
     const emptyRows = Array(Math.max(0, 6 - items.length))
