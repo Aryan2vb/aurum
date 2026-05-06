@@ -1,0 +1,142 @@
+.analytics-page {
+  width: 100%;
+  max-width: 1180px;
+}
+
+.analytics-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.analytics-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.analytics-filter button,
+.analytics-filter input {
+  min-height: 34px;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.analytics-filter button {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.analytics-summary-card,
+.analytics-panel {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.analytics-summary-card {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.95rem;
+}
+
+.analytics-summary-card span {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analytics-summary-card strong {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-panel {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.analytics-two-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.analytics-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.analytics-table th,
+.analytics-table td {
+  padding: 0.65rem 0.55rem;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.analytics-table th {
+  color: var(--text-tertiary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.analytics-table td {
+  color: var(--text-primary);
+}
+
+.analytics-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.analytics-state,
+.analytics-empty,
+.analytics-error {
+  display: grid;
+  place-items: center;
+  min-height: 180px;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+
+.analytics-error {
+  color: #dc2626;
+}
+
+@media (max-width: 760px) {
+  .analytics-summary,
+  .analytics-two-col {
+    grid-template-columns: 1fr;
+  }
+}

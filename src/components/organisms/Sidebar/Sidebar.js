@@ -49,15 +49,18 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
   const userRole = localStorage.getItem('userRole');
 
   const records = [
-    // { iconName: 'dashboard', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
+    { iconName: 'analytics', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
+    { iconName: 'dashboard', label: 'Analytics', path: '/analytics', color: '#0ea5e9' },
     { iconName: 'customer', label: 'Customers', path: '/customers', color: '#3b82f6' },
     { iconName: 'udhar', label: 'Udhar', path: '/credits', color: '#f59e0b' },
     { iconName: 'reminder', label: 'Reminders', path: '/reminders', color: '#10b981' },
     { iconName: 'invoice', label: 'Invoice Table', path: '/invoices', color: '#14b8a6' },
     { iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' },
     { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#8b5cf6' },
+    { iconName: 'reminder', label: 'Alerts', path: '/alerts', color: '#ef4444' },
   ].filter(item => {
     if (item.label === 'Reports' && userRole !== 'OWNER') return false;
+    if ((item.label === 'Dashboard' || item.label === 'Analytics' || item.label === 'Alerts') && !['OWNER', 'ADMIN'].includes(userRole)) return false;
     return true;
   });
 
