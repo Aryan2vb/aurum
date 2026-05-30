@@ -22,6 +22,8 @@ import InvoicesPage from './pages/InvoicesPage/InvoicesPage';
 import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
+import AnalyticsPage from './pages/AnalyticsPage/AnalyticsPage';
+import AlertsPage from './pages/AlertsPage/AlertsPage';
 import './App.css';
 
 function App() {
@@ -52,7 +54,7 @@ function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
                   <DashboardPage />
                 </ProtectedRoute>
               }
@@ -179,6 +181,22 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <AnalyticsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/alerts"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+                  <AlertsPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/invoices/new" replace />} />
             </Routes>
           </div>
@@ -189,4 +207,3 @@ function App() {
 }
 
 export default App;
-

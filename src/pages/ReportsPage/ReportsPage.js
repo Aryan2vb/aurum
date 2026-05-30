@@ -1,46 +1,67 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Tab from '../../components/molecules/Tab/Tab';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import {
   getSalesReport,
-  getGstReport,
   getCollectionsReport,
   getOutstandingReport,
-  getInventoryFlowReport,
 } from '../../services/reportsService';
+import {
+  getGstHsnAnalytics,
+  getInventoryMovement,
+  getLabourAnalytics,
+  getMetalAnalytics,
+  getSalesTrend,
+  getTopCustomers,
+  getTopItems,
+} from '../../services/analyticsService';
 import './ReportsPage.css';
 
+const INR = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const GM = (n) => Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' gm';
+
+const today = () => new Date().toISOString().slice(0, 10);
+const monthStart = () => {
+  const d = new Date();
+  d.setDate(1);
+  return d.toISOString().slice(0, 10);
+};
+
+const fmtLabel = (key) => key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim();
+
 const TABS = [
-  { id: 'sales',       label: 'Sales',          fetch: getSalesReport,        hasFilters: true },
-  { id: 'gst',         label: 'GST',            fetch: getGstReport,          hasFilters: true },
-  { id: 'collections', label: 'Collections',    fetch: getCollectionsReport,  hasFilters: true },
-  { id: 'outstanding', label: 'Outstanding',    fetch: getOutstandingReport,  hasFilters: false },
-  { id: 'inventory',   label: 'Inventory Flow', fetch: getInventoryFlowReport,hasFilters: true },
+  { id: 'daily-sales', label: 'Daily Sales', fetch: (f) => getSalesTrend({ ...f, granularity: 'day' }), view: 'salesTrend' },
+  { id: 'monthly-sales', label: 'Monthly Sales', fetch: (f) => getSalesTrend({ ...f, granularity: 'month' }), view: 'salesTrend' },
+  { id: 'invoice-register', label: 'Invoice Register', fetch: getGstHsnAnalytics, view: 'invoiceRegister' },
+  { id: 'gst', label: 'GST Summary', fetch: getGstHsnAnalytics, view: 'gst' },
+  { id: 'hsn', label: 'HSN Summary', fetch: getGstHsnAnalytics, view: 'hsn' },
+  { id: 'collections', label: 'Cash/Bank', fetch: getCollectionsReport, view: 'collections' },
+  { id: 'customer', label: 'Customer', fetch: getTopCustomers, view: 'customer' },
+  { id: 'item', label: 'Item', fetch: getTopItems, view: 'item' },
+  { id: 'metal', label: 'Metal', fetch: getMetalAnalytics, view: 'metal' },
+  { id: 'labour', label: 'Labour', fetch: getLabourAnalytics, view: 'labour' },
+  { id: 'outstanding', label: 'Outstanding', fetch: getOutstandingReport, view: 'outstanding', hasFilters: false },
+  { id: 'sales', label: 'Sales Summary', fetch: getSalesReport, view: 'summaryOnly' },
+  { id: 'inventory', label: 'Inventory Movement', fetch: getInventoryMovement, view: 'inventory' },
 ];
 
-const fmtLabel = (key) => key.replace(/([A-Z])/g, ' $1').trim();
+const SummaryCards = ({ summary }) => {
+  if (!summary || !Object.keys(summary).length) return null;
+  return (
+    <div className="report-summary">
+      {Object.entries(summary).map(([key, value]) => (
+        <div key={key} className="report-summary-card">
+          <span className="report-summary-label">{fmtLabel(key)}</span>
+          <span className={typeof value === 'number' ? 'report-summary-amount' : 'report-summary-count'}>{String(value)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
 
-const fmtAmt = (v) => '₹' + (parseFloat(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/* ── Summary cards ── */
-const AMOUNT_KEYS = new Set(['totalSales','totalTaxable','totalCollections','totalCgst','totalSgst','totalIgst','totalTax','totalCollected','outstandingAmount','amount','taxableAmount','totalAmount','cgstAmount','sgstAmount','igstAmount']);
-
-const SummaryCards = ({ summary }) => (
-  <div className="report-summary">
-    {Object.entries(summary).map(([k, v]) => (
-      <div key={k} className="report-summary-card">
-        <span className="report-summary-label">{fmtLabel(k)}</span>
-        {AMOUNT_KEYS.has(k)
-          ? <span className="report-summary-amount">{fmtAmt(v)}</span>
-          : <span className="report-summary-count">{String(v)}</span>
-        }
-      </div>
-    ))}
-  </div>
-);
-
-/* ── Generic detail table ── */
 const DetailTable = ({ rows }) => {
   if (!rows?.length) return <p className="report-empty">No records found.</p>;
   const keys = Object.keys(rows[0]);
@@ -48,17 +69,18 @@ const DetailTable = ({ rows }) => {
     <div className="report-table-scroll">
       <table className="report-table">
         <thead>
-          <tr>{keys.map(k => <th key={k}>{fmtLabel(k)}</th>)}</tr>
+          <tr>{keys.map((key) => <th key={key}>{fmtLabel(key)}</th>)}</tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
-              {keys.map(k => {
-                const v = row[k];
-                if (v === null || v === undefined) return <td key={k}>—</td>;
-                if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v))
-                  return <td key={k}><DateDisplay date={v} format="absolute" size="sm" /></td>;
-                return <td key={k}>{String(v)}</td>;
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {keys.map((key) => {
+                const value = row[key];
+                if (value === null || value === undefined || value === '') return <td key={key}>-</td>;
+                if (value instanceof Date || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value))) {
+                  return <td key={key}><DateDisplay date={value} format="absolute" size="sm" /></td>;
+                }
+                return <td key={key}>{String(value)}</td>;
               })}
             </tr>
           ))}
@@ -68,209 +90,198 @@ const DetailTable = ({ rows }) => {
   );
 };
 
-/* ── Report renderers ── */
-const SalesReport = ({ data }) => {
-  if (!data) return null;
-  return <SummaryCards summary={data} />;
+const normalizeReport = (tab, data) => {
+  switch (tab.view) {
+    case 'salesTrend': {
+      const rows = (data?.trend || []).map((row) => ({
+        date: row.date,
+        sales: INR(row.sales),
+        invoices: row.count,
+        paid: INR(row.paid),
+        averageBill: INR(row.avgBillValue),
+        cumulative: INR(row.cumulative),
+      }));
+      const raw = data?.trend || [];
+      const total = raw.reduce((sum, row) => sum + Number(row.sales || 0), 0);
+      const count = raw.reduce((sum, row) => sum + Number(row.count || 0), 0);
+      return { summary: { totalSales: INR(total), invoiceCount: count, averageBill: INR(count ? total / count : 0) }, rows };
+    }
+    case 'invoiceRegister':
+      return { summary: data?.summary, rows: data?.invoiceRegister || [] };
+    case 'gst':
+      return { summary: data?.summary, rows: data?.invoiceRegister || [] };
+    case 'hsn':
+      return { summary: { rows: data?.hsnBreakdown?.length || 0 }, rows: data?.hsnBreakdown || [] };
+    case 'collections': {
+      const rows = (data?.recentPayments || []).map((payment) => ({
+        date: payment.createdAt,
+        invoice: payment.invoice?.invoiceNumber || '-',
+        mode: payment.mode,
+        reference: payment.reference || '-',
+        amount: INR(payment.amount),
+      }));
+      const summary = {
+        totalCollected: INR(data?.totalCollected),
+        ...Object.fromEntries(Object.entries(data?.groupedByMode || {}).map(([mode, amount]) => [mode, INR(amount)])),
+      };
+      return { summary, rows };
+    }
+    case 'customer':
+      return {
+        summary: { customers: data?.length || 0 },
+        rows: (data || []).map((row) => ({
+          customer: row.name,
+          phone: row.phone,
+          location: row.location,
+          invoices: row.invoiceCount,
+          purchase: INR(row.totalPurchase),
+          paid: INR(row.totalPaid),
+          outstanding: INR(row.outstanding),
+        })),
+      };
+    case 'item':
+      return {
+        summary: { items: data?.length || 0 },
+        rows: (data || []).map((row) => ({
+          item: row.description,
+          metal: row.metalType,
+          quantity: row.totalQty,
+          weight: GM(row.totalWeight),
+          value: INR(row.totalValue),
+          labour: INR(row.totalMaking),
+        })),
+      };
+    case 'metal':
+      return {
+        summary: { metals: data?.byMetal?.length || 0 },
+        rows: (data?.byMetal || []).map((row) => ({
+          metal: row.metalType,
+          itemCount: row.count,
+          value: INR(row.totalValue),
+          netWeight: GM(row.totalNetWeight),
+          grossWeight: GM(row.totalGrossWeight),
+          makingCharges: INR(row.totalMakingCharges),
+        })),
+      };
+    case 'labour':
+      return {
+        summary: {
+          totalLabour: INR(data?.summary?.totalLabour),
+          labourPercentage: `${data?.summary?.labourPercentage || 0}%`,
+          avgLabourPerGram: INR(data?.summary?.avgLabourPerGram),
+        },
+        rows: data?.byItem || [],
+      };
+    case 'outstanding': {
+      const rows = Array.isArray(data) ? data : (data?.data || []);
+      return {
+        summary: { customers: rows.length, totalOutstanding: INR(rows.reduce((sum, row) => sum + Number(row.outstandingAmount || 0), 0)) },
+        rows: rows.map((row) => ({ customer: row.customerName, phone: row.phone, outstanding: INR(row.outstandingAmount) })),
+      };
+    }
+    case 'summaryOnly':
+      return { summary: data || {}, rows: [] };
+    case 'inventory':
+      return {
+        summary: { items: data?.byItem?.length || 0 },
+        rows: (data?.byItem || []).map((row) => ({
+          item: row.description,
+          metal: row.metalType,
+          quantity: row.quantity,
+          netWeight: GM(row.netWeight),
+          value: INR(row.value),
+        })),
+      };
+    default:
+      return { summary: {}, rows: [] };
+  }
 };
-
-const GstReport = ({ data }) => {
-  if (!data) return null;
-  return (
-    <>
-      {data.summary && <SummaryCards summary={data.summary} />}
-      <DetailTable rows={data.details} />
-    </>
-  );
-};
-
-const CollectionsReport = ({ data }) => {
-  if (!data) return null;
-  return (
-    <>
-      <div className="report-summary">
-        <div className="report-summary-card">
-          <span className="report-summary-label">Total Collected</span>
-          <span className="report-summary-amount">{fmtAmt(data.totalCollected)}</span>
-        </div>
-        {data.groupedByMode && Object.entries(data.groupedByMode).map(([mode, amt]) => (
-          <div key={mode} className="report-summary-card">
-            <span className="report-summary-label">{mode}</span>
-            <span className="report-summary-amount">{fmtAmt(amt)}</span>
-          </div>
-        ))}
-      </div>
-      <DetailTable rows={data.recentPayments?.map(p => ({
-        date: p.createdAt,
-        invoice: p.invoice?.invoiceNumber || '—',
-        mode: p.mode,
-        reference: p.reference || '—',
-        amount: p.amount,
-      }))} />
-    </>
-  );
-};
-
-const OutstandingReport = ({ data }) => {
-  if (!data) return null;
-  const rows = Array.isArray(data) ? data : (data.data || []);
-  if (!rows.length) return <p className="report-empty">No outstanding dues.</p>;
-  const total = rows.reduce((s, r) => s + parseFloat(r.outstandingAmount || 0), 0);
-  return (
-    <>
-      <div className="report-summary">
-        <div className="report-summary-card">
-          <span className="report-summary-label">Total Outstanding</span>
-          <span className="report-summary-amount">{fmtAmt(total)}</span>
-        </div>
-        <div className="report-summary-card">
-          <span className="report-summary-label">Customers</span>
-          <span className="report-summary-count">{rows.length}</span>
-        </div>
-      </div>
-      <div className="report-table-scroll">
-        <table className="report-table">
-          <thead>
-            <tr><th>Customer</th><th>Phone</th><th className="report-th-right">Outstanding</th></tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.customerId}>
-                <td>{r.customerName}</td>
-                <td className="report-td-secondary">{r.phone || '—'}</td>
-                <td className="report-th-right">{fmtAmt(r.outstandingAmount)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-};
-
-const InventoryReport = ({ data }) => {
-  if (!data) return null;
-  const metals = Object.entries(data);
-  if (!metals.length) return <p className="report-empty">No inventory data.</p>;
-  return (
-    <div className="report-table-scroll">
-      <table className="report-table">
-        <thead>
-          <tr>
-            <th>Metal</th>
-            <th className="report-th-right">Count</th>
-            <th className="report-th-right">Gross Wt</th>
-            <th className="report-th-right">Net Wt</th>
-            <th>Purities</th>
-          </tr>
-        </thead>
-        <tbody>
-          {metals.map(([metal, info]) => (
-            <tr key={metal}>
-              <td><strong>{metal}</strong></td>
-              <td className="report-th-right">{info.count}</td>
-              <td className="report-th-right">{parseFloat(info.totalGrossWeight || 0).toFixed(2)}g</td>
-              <td className="report-th-right">{parseFloat(info.totalNetWeight || 0).toFixed(2)}g</td>
-              <td className="report-td-secondary">
-                {info.purities ? Object.entries(info.purities).map(([p, c]) => `${p}: ${c}`).join(' · ') : '—'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-const RENDERERS = {
-  sales:       SalesReport,
-  gst:         GstReport,
-  collections: CollectionsReport,
-  outstanding: OutstandingReport,
-  inventory:   InventoryReport,
-};
-
-/* ── Date filter bar ── */
-const PRESETS = [
-  { label: 'This Month', getValue: () => {
-    const now = new Date();
-    return { dateFrom: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10), dateTo: now.toISOString().slice(0,10) };
-  }},
-  { label: 'Last Month', getValue: () => {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const last  = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { dateFrom: first.toISOString().slice(0,10), dateTo: last.toISOString().slice(0,10) };
-  }},
-  { label: 'This Year', getValue: () => {
-    const now = new Date();
-    return { dateFrom: `${now.getFullYear()}-01-01`, dateTo: now.toISOString().slice(0,10) };
-  }},
-];
 
 const FilterBar = ({ filters, onChange }) => (
   <div className="report-filter-bar">
     <div className="report-filter-presets">
-      {PRESETS.map(p => (
-        <button key={p.label} className="report-preset-btn" onClick={() => onChange(p.getValue())}>{p.label}</button>
-      ))}
+      <button className="report-preset-btn" onClick={() => onChange({ dateFrom: monthStart(), dateTo: today() })}>This Month</button>
+      <button className="report-preset-btn" onClick={() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        onChange({ dateFrom: d.toISOString().slice(0, 10), dateTo: today() });
+      }}>Last 7 Days</button>
       <button className="report-preset-btn" onClick={() => onChange({ dateFrom: '', dateTo: '' })}>All Time</button>
     </div>
     <div className="report-filter-dates">
-      <input type="date" className="report-date-input" value={filters.dateFrom || ''} onChange={e => onChange({ ...filters, dateFrom: e.target.value })} />
-      <span className="report-date-sep">→</span>
-      <input type="date" className="report-date-input" value={filters.dateTo || ''} onChange={e => onChange({ ...filters, dateTo: e.target.value })} />
+      <input type="date" className="report-date-input" value={filters.dateFrom || ''} onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })} />
+      <span className="report-date-sep">to</span>
+      <input type="date" className="report-date-input" value={filters.dateTo || ''} onChange={(e) => onChange({ ...filters, dateTo: e.target.value })} />
     </div>
   </div>
 );
 
-/* ── Page ── */
 const ReportsPage = () => {
-  const [activeTab, setActiveTab] = useState('sales');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'daily-sales';
   const [cache, setCache] = useState({});
-  const [filters, setFilters] = useState({ dateFrom: '', dateTo: '' });
+  const [filters, setFilters] = useState({ dateFrom: monthStart(), dateTo: today() });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadReport = useCallback(async (tabId, f) => {
-    const tab = TABS.find(t => t.id === tabId);
-    const params = tab.hasFilters ? Object.fromEntries(Object.entries(f).filter(([,v]) => v)) : {};
-    const cacheKey = `${tabId}:${JSON.stringify(params)}`;
+  const tab = useMemo(() => TABS.find((entry) => entry.id === activeTab) || TABS[0], [activeTab]);
+  const params = useMemo(
+    () => tab.hasFilters === false ? {} : Object.fromEntries(Object.entries(filters).filter(([, value]) => value)),
+    [filters, tab.hasFilters],
+  );
+  const cacheKey = `${tab.id}:${JSON.stringify(params)}`;
+
+  const loadReport = useCallback(async () => {
     if (cache[cacheKey]) return;
     try {
       setLoading(true);
       setError(null);
       const result = await tab.fetch(params);
-      setCache(prev => ({ ...prev, [cacheKey]: result }));
-    } catch (e) {
-      setError(e.message || 'Failed to load report');
+      setCache((prev) => ({ ...prev, [cacheKey]: result }));
+    } catch (err) {
+      setError(err.message || 'Failed to load report');
     } finally {
       setLoading(false);
     }
-  }, [cache]);
+  }, [cache, cacheKey, params, tab]);
 
-  useEffect(() => { loadReport(activeTab, filters); }, [activeTab, filters]); // eslint-disable-line
+  useEffect(() => { loadReport(); }, [loadReport]);
 
-  const tab = TABS.find(t => t.id === activeTab);
-  const params = tab.hasFilters ? Object.fromEntries(Object.entries(filters).filter(([,v]) => v)) : {};
-  const cacheKey = `${activeTab}:${JSON.stringify(params)}`;
-  const Renderer = RENDERERS[activeTab];
+  const view = normalizeReport(tab, cache[cacheKey]);
+
+  const exportXlsx = () => {
+    const rows = view.rows?.length ? view.rows : [view.summary || {}];
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, tab.label.slice(0, 31));
+    XLSX.writeFile(workbook, `${tab.id}-report.xlsx`);
+  };
 
   return (
     <DashboardTemplate headerTitle="Reports" headerTabs={[]}>
       <div className="reports-page">
         <div className="reports-tabs">
-          {TABS.map(t => (
-            <Tab key={t.id} label={t.label} active={activeTab === t.id} onClick={() => setActiveTab(t.id)} />
+          {TABS.map((entry) => (
+            <Tab key={entry.id} label={entry.label} active={tab.id === entry.id} onClick={() => setSearchParams({ tab: entry.id })} />
           ))}
         </div>
 
-        {tab.hasFilters && <FilterBar filters={filters} onChange={setFilters} />}
+        {tab.hasFilters !== false && <FilterBar filters={filters} onChange={setFilters} />}
+
+        <div className="report-actions">
+          <button onClick={exportXlsx}>Export Excel</button>
+          <button onClick={() => window.print()}>Print / PDF</button>
+        </div>
 
         <div className="reports-content">
-          {loading && <p className="report-loading">Loading…</p>}
-          {error   && <p className="report-error">{error}</p>}
-          {!loading && !error && <Renderer data={cache[cacheKey]} />}
+          {loading && <p className="report-loading">Loading...</p>}
+          {error && <p className="report-error">{error}</p>}
+          {!loading && !error && (
+            <>
+              <SummaryCards summary={view.summary} />
+              <DetailTable rows={view.rows} />
+            </>
+          )}
         </div>
       </div>
     </DashboardTemplate>
