@@ -1,97 +1,145 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
-import Icon from '../../components/atoms/Icon/Icon';
-import Avatar from '../../components/atoms/Avatar/Avatar';
-import CustomerInspectorPanel from '../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel';
-import { searchCustomers } from '../../services/customersService';
-import { getInvoiceById, getInvoiceSettings, createInvoice, createDraft, updateInvoice } from '../../services/invoicesService';
-import { generateInvoiceHtml, generateJewelleryInvoiceHtml, generateModernInvoiceHtml } from '../../utils/invoiceTemplates';
-import { calcInvoiceTotals, parsePurity } from '../../utils/invoiceCalc';
-import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
-import styles from './CreateInvoicePage.module.css';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import DashboardTemplate from "../../components/templates/DashboardTemplate/DashboardTemplate";
+import Icon from "../../components/atoms/Icon/Icon";
+import Avatar from "../../components/atoms/Avatar/Avatar";
+import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
+import { searchCustomers } from "../../services/customersService";
+import {
+  getInvoiceById,
+  getInvoiceSettings,
+  createInvoice,
+  createDraft,
+  updateInvoice,
+} from "../../services/invoicesService";
+import {
+  generateInvoiceHtml,
+  generateJewelleryInvoiceHtml,
+  generateModernInvoiceHtml,
+} from "../../utils/invoiceTemplates";
+import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
+import ConfirmationModal from "../../components/atoms/ConfirmationModal/ConfirmationModal";
+import styles from "./CreateInvoicePage.module.css";
 
-const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = (n) =>
+  "₹" +
+  Number(n || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const defaultItem = () => ({
   slNo: 1,
-  description: '',
-  hsnSac: '711319',
+  description: "",
+  hsnSac: "711319",
   quantity: 1,
-  unit: 'GMS',
+  unit: "GMS",
   rate: 0,
   makingCharges: 0,
-  metalType: 'GOLD',
+  metalType: "GOLD",
   grossWeight: 0,
   stoneWeight: 0,
-  makingChargesType: 'PER_GRAM',
+  makingChargesType: "PER_GRAM",
   stoneCharges: 0,
   netWeight: 0,
-  huid: '',
-  hallmarkCharge: '',
-  purity: 'None',
+  huid: "",
+  hallmarkCharge: "",
+  purity: "None",
   amount: 0,
 });
 
-const metalOptions = ['GOLD', 'SILVER', 'PLATINUM'];
+const metalOptions = ["GOLD", "SILVER", "PLATINUM"];
 const makingOptions = [
-  { value: 'FLAT_PER_ITEM', label: 'Flat' },
-  { value: 'PER_GRAM', label: '/gm' },
-  { value: 'PERCENTAGE_ON_METAL', label: '%' },
+  { value: "FLAT_PER_ITEM", label: "Flat" },
+  { value: "PER_GRAM", label: "/gm" },
+  { value: "PERCENTAGE_ON_METAL", label: "%" },
 ];
 
-const paymentModes = ['UPI', 'CASH', 'BANK_TRANSFER', 'CHEQUE', 'CARD', 'OLD_GOLD', 'OTHER'];
-const purityOptions = ['None', '916/22k', '833/20k', '75/18k', 'F'];
+const paymentModes = [
+  "UPI",
+  "CASH",
+  "BANK_TRANSFER",
+  "CHEQUE",
+  "CARD",
+  "OLD_GOLD",
+  "OTHER",
+];
+const purityOptions = ["None", "916/22k", "833/20k", "75/18k", "F"];
+
+const formatCustomerAddress = (location) =>
+  [
+    location?.village,
+    location?.tehsil,
+    location?.district,
+    location?.state,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [theme, setTheme] = useState('classic');
+  const [theme, setTheme] = useState("classic");
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [payments, setPayments] = useState([]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
-  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [invoiceDate, setInvoiceDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
   const [showAdvanced, setShowAdvanced] = useState(true);
-  const [confirmation, setConfirmation] = useState({ isOpen: false, title: '', message: '', onConfirm: null });
+  const [confirmation, setConfirmation] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const searchDebounceRef = useRef(null);
   const firstItemDescriptionRef = useRef(null);
   const pendingItemDescriptionFocusRef = useRef(false);
 
-  const paidAmount = useMemo(() => 
-    payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-  , [payments]);
+  const paidAmount = useMemo(
+    () => payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+    [payments],
+  );
 
   const [invoiceData, setInvoiceData] = useState({
-    buyer: { name: '', phone: '', address: '', stateCode: '' },
-    taxes: { cgstRate: 1.5, sgstRate: 1.5, taxType: 'CGST_SGST' },
-    metadata: { modeOfPayment: 'UPI', deliveryNote: '', destination: '' },
-    declaration: 'We declare that this invoice shows the actual price of the goods described.',
+    buyer: { name: "", phone: "", address: "", stateCode: "" },
+    taxes: { cgstRate: 1.5, sgstRate: 1.5, taxType: "CGST_SGST" },
+    metadata: { modeOfPayment: "UPI", deliveryNote: "", destination: "" },
+    declaration:
+      "We declare that this invoice shows the actual price of the goods described.",
     items: [defaultItem()],
-    company: { name: '', address: '', gstin: '', state: '', stateCode: '' },
-    status: 'DRAFT',
+    company: { name: "", address: "", gstin: "", state: "", stateCode: "" },
+    status: "DRAFT",
   });
 
-  const [previewHtml, setPreviewHtml] = useState('');
+  const [previewHtml, setPreviewHtml] = useState("");
 
   // Fetch settings or existing invoice
   useEffect(() => {
     const loadData = async () => {
       try {
         const settings = await getInvoiceSettings();
-        setInvoiceData(prev => ({
+        setInvoiceData((prev) => ({
           ...prev,
           company: {
-            name: settings.companyName || '',
-            address: settings.address || '',
-            gstin: settings.gstin || '',
-            state: settings.state || '',
-            stateCode: settings.stateCode || '',
+            name: settings.companyName || "",
+            address: settings.address || "",
+            gstin: settings.gstin || "",
+            state: settings.state || "",
+            stateCode: settings.stateCode || "",
           },
           taxes: {
             ...prev.taxes,
@@ -107,62 +155,92 @@ const CreateInvoicePage = () => {
           const inv = await getInvoiceById(id);
           setSelectedCustomerId(inv.customerId);
           if (inv.payments?.length) {
-            setPayments(inv.payments.map(p => ({ mode: p.mode, amount: p.amount, reference: p.reference || '' })));
+            setPayments(
+              inv.payments.map((p) => ({
+                mode: p.mode,
+                amount: p.amount,
+                reference: p.reference || "",
+              })),
+            );
           } else {
-            setPayments([{ mode: inv.modeOfPayment || 'UPI', amount: inv.paidAmount || 0 }]);
+            setPayments([
+              { mode: inv.modeOfPayment || "UPI", amount: inv.paidAmount || 0 },
+            ]);
           }
           setInvoiceDate(inv.invoiceDate?.slice(0, 10));
-          setInvoiceData(prev => ({
+          setInvoiceData((prev) => ({
             ...prev,
-            items: inv.items.map(i => ({
+            items: inv.items.map((i) => ({
               ...i,
               rate: i.metalRate,
               makingCharges: i.makingCharges,
-              purity: i.purityLabel || i.purity || 'None',
+              purity: i.purityLabel || i.purity || "None",
               hallmarkCharge: parseFloat(i.hallmarkingCharge) || 0,
             })),
             metadata: {
               ...prev.metadata,
-              modeOfPayment: inv.modeOfPayment || 'UPI',
-              deliveryNote: inv.deliveryNote || '',
-              destination: inv.destination || '',
+              modeOfPayment: inv.modeOfPayment || "UPI",
+              deliveryNote: inv.deliveryNote || "",
+              destination: inv.destination || "",
             },
             buyer: {
-              name: inv.buyerSnapshot?.name || inv.customer?.fullName || '',
-              phone: inv.buyerSnapshot?.phone || inv.customer?.contactDetails?.[0]?.primaryPhone || '',
-              address: inv.buyerSnapshot?.address || (inv.customer?.locations?.[0] ? `${inv.customer.locations[0].village || ''} ${inv.customer.locations[0].district || ''}`.trim() : ''),
-              stateCode: inv.buyerSnapshot?.stateCode || inv.customer?.locations?.[0]?.stateCode || '',
+              name: inv.buyerSnapshot?.name || inv.customer?.fullName || "",
+              phone:
+                inv.buyerSnapshot?.phone ||
+                inv.customer?.contactDetails?.[0]?.primaryPhone ||
+                "",
+              address:
+                inv.buyerSnapshot?.address ||
+                (inv.customer?.locations?.[0]
+                  ? `${inv.customer.locations[0].village || ""} ${inv.customer.locations[0].district || ""}`.trim()
+                  : ""),
+              stateCode:
+                inv.buyerSnapshot?.stateCode ||
+                inv.customer?.locations?.[0]?.stateCode ||
+                "",
             },
             status: inv.status,
           }));
         }
       } catch (err) {
-        console.error('Failed to load invoice/settings', err);
+        console.error("Failed to load invoice/settings", err);
       }
     };
     loadData();
   }, [id]);
 
-  const calc = useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
-  [invoiceData, paidAmount]);
+  const calc = useMemo(
+    () =>
+      calcInvoiceTotals(
+        invoiceData.items,
+        invoiceData.taxes.cgstRate,
+        invoiceData.taxes.sgstRate,
+        paidAmount,
+      ),
+    [invoiceData, paidAmount],
+  );
 
   // Regenerate preview on data change — uses calcInvoiceTotals (single source of truth)
   useEffect(() => {
-    const previewCalc = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount);
+    const previewCalc = calcInvoiceTotals(
+      invoiceData.items,
+      invoiceData.taxes.cgstRate,
+      invoiceData.taxes.sgstRate,
+      paidAmount,
+    );
 
     const hydratedItems = previewCalc.hydratedItems.map((item, idx) => ({
       ...item,
       slNo: idx + 1,
-      hsnSac: item.hsnSac || '71131910',
+      hsnSac: item.hsnSac || "71131910",
       quantity: item.quantity || 1,
-      unit: item.unit || 'GMS',
-      purity: item.purity || 'None',
+      unit: item.unit || "GMS",
+      purity: item.purity || "None",
     }));
 
     const hsnSummaryMap = {};
-    hydratedItems.forEach(item => {
-      const hsn = item.hsnSac || '71131910';
+    hydratedItems.forEach((item) => {
+      const hsn = item.hsnSac || "71131910";
       if (!hsnSummaryMap[hsn]) {
         hsnSummaryMap[hsn] = {
           hsnSac: hsn,
@@ -173,13 +251,13 @@ const CreateInvoicePage = () => {
           cgstAmount: 0,
           sgstAmount: 0,
           igstAmount: 0,
-          totalTaxAmount: 0
+          totalTaxAmount: 0,
         };
       }
-      hsnSummaryMap[hsn].taxableValue += (item.amount || 0);
+      hsnSummaryMap[hsn].taxableValue += item.amount || 0;
     });
 
-    const hsnSummary = Object.values(hsnSummaryMap).map(s => {
+    const hsnSummary = Object.values(hsnSummaryMap).map((s) => {
       s.cgstAmount = (s.taxableValue * s.cgstRate) / 100;
       s.sgstAmount = (s.taxableValue * s.sgstRate) / 100;
       s.igstAmount = (s.taxableValue * s.igstRate) / 100;
@@ -201,38 +279,57 @@ const CreateInvoicePage = () => {
       cashReceived: parseFloat(paidAmount) || 0,
       amtBalance: previewCalc.outstanding,
       hsnSummary: hsnSummary,
-      payments: payments.map(p => ({ mode: p.mode, amount: parseFloat(p.amount) || 0 })),
+      payments: payments.map((p) => ({
+        mode: p.mode,
+        amount: parseFloat(p.amount) || 0,
+      })),
       metadata: {
         ...invoiceData.metadata,
-        invoiceNo: 'PREVIEW',
+        invoiceNo: "PREVIEW",
         date: invoiceDate,
       },
     };
 
     try {
-      if (theme === 'modern') setPreviewHtml(generateModernInvoiceHtml(hydratedData));
-      else if (theme === 'jewellery') setPreviewHtml(generateJewelleryInvoiceHtml(hydratedData));
+      if (theme === "modern")
+        setPreviewHtml(generateModernInvoiceHtml(hydratedData));
+      else if (theme === "jewellery")
+        setPreviewHtml(generateJewelleryInvoiceHtml(hydratedData));
       else setPreviewHtml(generateInvoiceHtml(hydratedData));
-    } catch (e) { /* silent */ }
+    } catch (e) {
+      /* silent */
+    }
   }, [invoiceData, theme, paidAmount, invoiceDate, payments]);
 
   const performSearch = useCallback(async (q) => {
-    if (q.length < 2) { setSearchResults([]); setSearching(false); return []; }
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return [];
+    }
     try {
       setSearching(true);
       const data = await searchCustomers({ query: q });
       const results = data.data || data || [];
       setSearchResults(results);
       return results;
-    } catch { setSearchResults([]); return []; }
-    finally { setSearching(false); }
+    } catch {
+      setSearchResults([]);
+      return [];
+    } finally {
+      setSearching(false);
+    }
   }, []);
 
   const handleSearchChange = (e) => {
     const q = e.target.value;
     setSearchQuery(q);
     clearTimeout(searchDebounceRef.current);
-    if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
     setSearching(true);
     searchDebounceRef.current = setTimeout(() => performSearch(q), 400);
   };
@@ -240,21 +337,26 @@ const CreateInvoicePage = () => {
   const handleCustomerSelect = (c) => {
     pendingItemDescriptionFocusRef.current = true;
     setSelectedCustomerId(c.id);
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchResults([]);
-    setInvoiceData(prev => ({
+    setInvoiceData((prev) => ({
       ...prev,
       buyer: {
-        name: c.fullName || c.name || '',
-        phone: c.contactDetails?.[0]?.primaryPhone || c.phone || '',
-        address: c.locations?.[0]?.village || c.locations?.[0]?.district || '',
-        stateCode: c.locations?.[0]?.stateCode || c.stateCode || '',
-      }
+        name: c.fullName || c.name || "",
+        phone: c.contactDetails?.[0]?.primaryPhone || c.phone || "",
+        address: formatCustomerAddress(c.locations?.[0]),
+        stateCode: c.locations?.[0]?.stateCode || c.stateCode || "",
+      },
     }));
   };
 
   useEffect(() => {
-    if (!pendingItemDescriptionFocusRef.current || !selectedCustomerId || isCustomerPanelOpen) return;
+    if (
+      !pendingItemDescriptionFocusRef.current ||
+      !selectedCustomerId ||
+      isCustomerPanelOpen
+    )
+      return;
 
     pendingItemDescriptionFocusRef.current = false;
     window.requestAnimationFrame(() => {
@@ -263,14 +365,15 @@ const CreateInvoicePage = () => {
   }, [selectedCustomerId, isCustomerPanelOpen]);
 
   const handleCustomerSearchKeyDown = async (e) => {
-    if (e.key !== 'Enter') return;
+    if (e.key !== "Enter") return;
 
     e.preventDefault();
     const query = searchQuery.trim();
     if (query.length < 2) return;
 
     clearTimeout(searchDebounceRef.current);
-    const results = searchResults.length > 0 ? searchResults : await performSearch(query);
+    const results =
+      searchResults.length > 0 ? searchResults : await performSearch(query);
 
     if (results.length > 0) {
       handleCustomerSelect(results[0]);
@@ -280,44 +383,48 @@ const CreateInvoicePage = () => {
   };
 
   const clearCustomer = () => {
-    setSelectedCustomerId('');
-    setInvoiceData(prev => ({ ...prev, buyer: { name: '', phone: '', address: '', stateCode: '' } }));
+    setSelectedCustomerId("");
+    setInvoiceData((prev) => ({
+      ...prev,
+      buyer: { name: "", phone: "", address: "", stateCode: "" },
+    }));
   };
 
   const updateItem = (idx, field, value) => {
     let newItems = [...invoiceData.items];
     const updatedItem = { ...newItems[idx], [field]: value };
-    
+
     // Side-effects for metal type selection
-    if (field === 'metalType' && value === 'SILVER') {
-      updatedItem.makingChargesType = 'PER_GRAM'; // Common for Silver
-      updatedItem.hsnSac = '711311';
-    } else if (field === 'metalType' && value === 'GOLD') {
-      updatedItem.makingChargesType = 'PER_GRAM';
-      updatedItem.hsnSac = '711319';
+    if (field === "metalType" && value === "SILVER") {
+      updatedItem.makingChargesType = "PER_GRAM"; // Common for Silver
+      updatedItem.hsnSac = "711311";
+    } else if (field === "metalType" && value === "GOLD") {
+      updatedItem.makingChargesType = "PER_GRAM";
+      updatedItem.hsnSac = "711319";
     }
-    
+
     newItems[idx] = updatedItem;
-    setInvoiceData(prev => ({ ...prev, items: newItems }));
+    setInvoiceData((prev) => ({ ...prev, items: newItems }));
   };
 
-  const addItem = () => setInvoiceData(prev => ({
-    ...prev,
-    items: [...prev.items, { ...defaultItem(), slNo: prev.items.length + 1 }]
-  }));
+  const addItem = () =>
+    setInvoiceData((prev) => ({
+      ...prev,
+      items: [...prev.items, { ...defaultItem(), slNo: prev.items.length + 1 }],
+    }));
 
   const removeItem = (idx) => {
     if (invoiceData.items.length === 1) return;
-    setInvoiceData(prev => ({
+    setInvoiceData((prev) => ({
       ...prev,
-      items: prev.items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, slNo: i + 1 }))
+      items: prev.items
+        .filter((_, i) => i !== idx)
+        .map((item, i) => ({ ...item, slNo: i + 1 })),
     }));
   };
 
-
-
   const handleAddPayment = () => {
-    setPayments([...payments, { mode: 'CASH', amount: 0 }]);
+    setPayments([...payments, { mode: "CASH", amount: 0 }]);
   };
 
   const handleRemovePayment = (index) => {
@@ -336,24 +443,26 @@ const CreateInvoicePage = () => {
     const payload = {
       customerId: selectedCustomerId,
       invoiceDate: invoiceDate,
-      payments: payments.map(p => ({
+      payments: payments.map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
-        reference: p.reference || undefined
+        reference: p.reference || undefined,
       })),
       paidAmount, // keep for backward compatibility
       autoCreateUdhar: autoCreateUdhar,
       templateType: theme,
-      modeOfPayment: payments[0]?.mode || 'UPI',
-      items: invoiceData.items.map(item => {
-        const { purityValue, purityBasis } = parsePurity(item.purity && item.purity !== 'None' ? item.purity : '22K');
+      modeOfPayment: payments[0]?.mode || "UPI",
+      items: invoiceData.items.map((item) => {
+        const { purityValue, purityBasis } = parsePurity(
+          item.purity && item.purity !== "None" ? item.purity : "22K",
+        );
         return {
           description: item.description,
           hsnSac: item.hsnSac,
           quantity: parseFloat(item.quantity) || 1,
-          metalType: item.metalType || 'GOLD',
+          metalType: item.metalType || "GOLD",
           metalRate: parseFloat(item.rate) || 0,
-          purityLabel: item.purity && item.purity !== 'None' ? item.purity : '',
+          purityLabel: item.purity && item.purity !== "None" ? item.purity : "",
           purityValue,
           purityBasis,
           grossWeight: parseFloat(item.grossWeight) || 0,
@@ -361,7 +470,7 @@ const CreateInvoicePage = () => {
           makingCharges: parseFloat(item.makingCharges) || 0,
           makingChargesType: item.makingChargesType,
           stoneCharges: parseFloat(item.stoneCharges) || 0,
-          isHallmarked: !!item.huid || (parseFloat(item.hallmarkCharge) > 0),
+          isHallmarked: !!item.huid || parseFloat(item.hallmarkCharge) > 0,
           hallmarkingCharge: parseFloat(item.hallmarkCharge) || 0,
           huid: item.huid || undefined,
         };
@@ -370,17 +479,32 @@ const CreateInvoicePage = () => {
     return payload;
   };
 
-  const canSubmit = selectedCustomerId &&
+  const canSubmit =
+    selectedCustomerId &&
     invoiceData.items.length > 0 &&
-    invoiceData.items.every(i => i.description && i.hsnSac && parseFloat(i.grossWeight) > 0 && parseFloat(i.rate) > 0);
+    invoiceData.items.every(
+      (i) =>
+        i.description &&
+        i.hsnSac &&
+        parseFloat(i.grossWeight) > 0 &&
+        parseFloat(i.rate) > 0,
+    );
 
   const handleSubmit = async () => {
-    if (!selectedCustomerId) { alert('Select a customer first'); return; }
+    if (!selectedCustomerId) {
+      alert("Select a customer first");
+      return;
+    }
 
-    const total = calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount).total;
+    const total = calcInvoiceTotals(
+      invoiceData.items,
+      invoiceData.taxes.cgstRate,
+      invoiceData.taxes.sgstRate,
+      paidAmount,
+    ).total;
 
     const proceedWithSave = async () => {
-      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      setConfirmation((prev) => ({ ...prev, isOpen: false }));
       try {
         setLoading(true);
         const currentPayload = buildPayload();
@@ -391,10 +515,10 @@ const CreateInvoicePage = () => {
           res = await createInvoice(currentPayload);
         }
         if (res?.id) navigate(`/invoices`);
-        else alert('Failed to finalize invoice');
+        else alert("Failed to finalize invoice");
       } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || 'Error saving invoice');
+        alert(err.response?.data?.message || "Error saving invoice");
       } finally {
         setLoading(false);
       }
@@ -404,30 +528,49 @@ const CreateInvoicePage = () => {
     if (paidAmount > total) {
       setConfirmation({
         isOpen: true,
-        title: 'Overpayment Detected',
-        type: 'danger',
+        title: "Overpayment Detected",
+        type: "danger",
         message: (
           <>
-            Total payments (<span className="confirmation-modal-highlight">₹{paidAmount.toLocaleString()}</span>) exceed the invoice total (<span className="confirmation-modal-highlight">₹{total.toLocaleString()}</span>).
-            <br /><br />
-            This will create a credit balance of <strong style={{color: '#ef4444'}}>₹{(paidAmount - total).toLocaleString()}</strong> for this customer.
-            <br /><br />
+            Total payments (
+            <span className="confirmation-modal-highlight">
+              ₹{paidAmount.toLocaleString()}
+            </span>
+            ) exceed the invoice total (
+            <span className="confirmation-modal-highlight">
+              ₹{total.toLocaleString()}
+            </span>
+            ).
+            <br />
+            <br />
+            This will create a credit balance of{" "}
+            <strong style={{ color: "#ef4444" }}>
+              ₹{(paidAmount - total).toLocaleString()}
+            </strong>{" "}
+            for this customer.
+            <br />
+            <br />
             Are you sure you want to record this overpayment?
           </>
         ),
-        onConfirm: proceedWithSave
+        onConfirm: proceedWithSave,
       });
       return;
     }
 
     // Warning for finalized invoices
-    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
+    if (
+      id &&
+      invoiceData.status !== "DRAFT" &&
+      invoiceData.status !== "CANCELLED"
+    ) {
       setConfirmation({
         isOpen: true,
-        title: 'Update Finalized Invoice',
-        type: 'warning',
-        message: 'This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?',
-        onConfirm: proceedWithSave
+        title: "Update Finalized Invoice",
+        type: "warning",
+        message:
+          "This invoice is already finalized. Saving changes will automatically update the customer's ledger and udhar records. Proceed?",
+        onConfirm: proceedWithSave,
       });
       return;
     }
@@ -436,12 +579,15 @@ const CreateInvoicePage = () => {
   };
 
   const handleSaveDraft = async () => {
-    if (!selectedCustomerId) { alert('Select a customer first'); return; }
+    if (!selectedCustomerId) {
+      alert("Select a customer first");
+      return;
+    }
 
     const proceedWithSaveDraft = async () => {
-      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      setConfirmation((prev) => ({ ...prev, isOpen: false }));
       try {
-        setLoading('draft');
+        setLoading("draft");
         const currentPayload = buildPayload();
         let res;
         if (id) {
@@ -450,23 +596,28 @@ const CreateInvoicePage = () => {
           res = await createDraft(currentPayload);
         }
         if (res?.id) navigate(`/invoices`);
-        else alert('Failed to save draft');
+        else alert("Failed to save draft");
       } catch (e) {
         console.error(e);
-        alert('Network error');
+        alert("Network error");
       } finally {
         setLoading(false);
       }
     };
 
     // Warning for finalized invoices
-    if (id && invoiceData.status !== 'DRAFT' && invoiceData.status !== 'CANCELLED') {
+    if (
+      id &&
+      invoiceData.status !== "DRAFT" &&
+      invoiceData.status !== "CANCELLED"
+    ) {
       setConfirmation({
         isOpen: true,
-        title: 'Update Finalized Invoice',
-        type: 'warning',
-        message: 'This invoice is already finalized. Saving changes will automatically update the customer\'s ledger and udhar records. Proceed?',
-        onConfirm: proceedWithSaveDraft
+        title: "Update Finalized Invoice",
+        type: "warning",
+        message:
+          "This invoice is already finalized. Saving changes will automatically update the customer's ledger and udhar records. Proceed?",
+        onConfirm: proceedWithSaveDraft,
       });
       return;
     }
@@ -476,306 +627,551 @@ const CreateInvoicePage = () => {
 
   return (
     <>
-    <DashboardTemplate headerTitle="Create Invoice" headerTabs={[]}>
-      <div className={styles.pageWrapper}>
+      <DashboardTemplate headerTitle="Create Invoice" headerTabs={[]}>
+        <div className={styles.pageWrapper}>
+          {/* ── Form Body ── */}
+          <div className={styles.formBody}>
+            {/* Customer + Date row */}
+            <div className={styles.topRow}>
+              <div className={styles.topRowCustomer}>
+                {!invoiceData.buyer.name ? (
+                  <div className={styles.customerSearchWrap}>
+                    <Icon
+                      name="search"
+                      size={13}
+                      className={styles.customerSearchIcon}
+                    />
+                    <input
+                      className={styles.customerSearchInput}
+                      placeholder="Search customer by name or phone..."
+                      value={searchQuery}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleCustomerSearchKeyDown}
+                    />
+                    {searching && (
+                      <Icon
+                        name="loader"
+                        size={13}
+                        className={styles.searchLoading}
+                      />
+                    )}
+                    {(searchResults.length > 0 ||
+                      (searchQuery.length >= 2 && !searching)) && (
+                      <div className={styles.searchResults}>
+                        {searchResults.map((c) => {
+                          const customerAddress = formatCustomerAddress(
+                            c.locations?.[0],
+                          );
 
-        {/* ── Form Body ── */}
-        <div className={styles.formBody}>
-
-          {/* Customer + Date row */}
-          <div className={styles.topRow}>
-            <div className={styles.topRowCustomer}>
-              {!invoiceData.buyer.name ? (
-                <div className={styles.customerSearchWrap}>
-                  <Icon name="search" size={13} className={styles.customerSearchIcon} />
-                  <input
-                    className={styles.customerSearchInput}
-                    placeholder="Search customer by name or phone..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={handleCustomerSearchKeyDown}
-                  />
-                  {searching && <Icon name="loader" size={13} className={styles.searchLoading} />}
-                  {(searchResults.length > 0 || (searchQuery.length >= 2 && !searching)) && (
-                    <div className={styles.searchResults}>
-                      {searchResults.map(c => (
-                        <div key={c.id} className={styles.searchResultItem} onClick={() => handleCustomerSelect(c)}>
-                          <Avatar name={c.fullName || c.name || '?'} size="sm" />
+                          return (
+                            <div
+                              key={c.id}
+                              className={styles.searchResultItem}
+                              onClick={() => handleCustomerSelect(c)}
+                            >
+                              <Avatar
+                                name={c.fullName || c.name || "?"}
+                                size="sm"
+                              />
+                              <div className={styles.searchResultInfo}>
+                                <strong>{c.fullName || c.name}</strong>
+                                <span className={styles.searchResultMeta}>
+                                  {c.contactDetails?.[0]?.primaryPhone ||
+                                    c.phone ||
+                                    "No phone"}
+                                </span>
+                              </div>
+                              {customerAddress && (
+                                <span className={styles.searchResultAddress}>
+                                  <Icon name="location" size={12} />
+                                  {customerAddress}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                        <div
+                          className={styles.addNewCustomerItem}
+                          onClick={() => setIsCustomerPanelOpen(true)}
+                        >
+                          <div className={styles.addIconCircle}>
+                            <Icon name="add" size={14} />
+                          </div>
                           <div className={styles.searchResultInfo}>
-                            <strong>{c.fullName || c.name}</strong>
-                            <span>{c.contactDetails?.[0]?.primaryPhone || c.phone || 'No phone'}</span>
+                            <strong>Add "{searchQuery}" as new customer</strong>
+                            <span>
+                              Create a new record and select automatically
+                            </span>
                           </div>
                         </div>
-                      ))}
-                      <div className={styles.addNewCustomerItem} onClick={() => setIsCustomerPanelOpen(true)}>
-                        <div className={styles.addIconCircle}>
-                          <Icon name="add" size={14} />
-                        </div>
-                        <div className={styles.searchResultInfo}>
-                          <strong>Add "{searchQuery}" as new customer</strong>
-                          <span>Create a new record and select automatically</span>
-                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.selectedCustomer}>
+                    <Avatar name={invoiceData.buyer.name} size="sm" />
+                    <div className={styles.selectedCustomerText}>
+                      <strong>{invoiceData.buyer.name}</strong>
+                      <span>{invoiceData.buyer.phone}</span>
+                    </div>
+                    <button
+                      className={styles.changeBtn}
+                      onClick={clearCustomer}
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className={styles.dateField}>
+                <label className={styles.dateLabel}>Invoice Date</label>
+                <input
+                  type="date"
+                  className={styles.dateInput}
+                  value={invoiceDate}
+                  onChange={(e) => setInvoiceDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Items */}
+            <div className={styles.itemsHeader}>
+              <h3>Line Items</h3>
+              <button className={styles.addItemBtn} onClick={addItem}>
+                <Icon name="add" size={12} /> Add
+              </button>
+            </div>
+
+            <div className={styles.itemCards}>
+              {invoiceData.items.map((item, idx) => (
+                <div key={idx} className={styles.itemCard}>
+                  {/* Top row: index + description + remove */}
+                  <div className={styles.itemCardTop}>
+                    <span className={styles.itemIndex}>{idx + 1}</span>
+                    <input
+                      ref={idx === 0 ? firstItemDescriptionRef : null}
+                      className={styles.itemDescInput}
+                      placeholder="Item description..."
+                      value={item.description}
+                      onChange={(e) =>
+                        updateItem(idx, "description", e.target.value)
+                      }
+                    />
+                    <button
+                      className={styles.removeRowBtn}
+                      onClick={() => removeItem(idx)}
+                      disabled={invoiceData.items.length === 1}
+                    >
+                      <Icon name="close" size={12} />
+                    </button>
+                  </div>
+
+                  {/* Field grid */}
+                  <div className={styles.itemFieldGrid}>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Metal</span>
+                      <div className={styles.metalCell}>
+                        {metalOptions.map((m) => (
+                          <button
+                            key={m}
+                            className={
+                              item.metalType === m ? styles.activeMetal : ""
+                            }
+                            onClick={() => updateItem(idx, "metalType", m)}
+                          >
+                            {m[0]}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div className={styles.selectedCustomer}>
-                  <Avatar name={invoiceData.buyer.name} size="sm" />
-                  <div className={styles.selectedCustomerText}>
-                    <strong>{invoiceData.buyer.name}</strong>
-                    <span>{invoiceData.buyer.phone}</span>
-                  </div>
-                  <button className={styles.changeBtn} onClick={clearCustomer}>Change</button>
-                </div>
-              )}
-            </div>
-            <div className={styles.dateField}>
-              <label className={styles.dateLabel}>Invoice Date</label>
-              <input
-                type="date"
-                className={styles.dateInput}
-                value={invoiceDate}
-                onChange={e => setInvoiceDate(e.target.value)}
-              />
-            </div>
-          </div>
 
-          {/* Items */}
-          <div className={styles.itemsHeader}>
-            <h3>Line Items</h3>
-            <button className={styles.addItemBtn} onClick={addItem}>
-              <Icon name="add" size={12} /> Add
-            </button>
-          </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Qty</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="1"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateItem(idx, "quantity", e.target.value)
+                        }
+                      />
+                    </div>
 
-          <div className={styles.itemCards}>
-            {invoiceData.items.map((item, idx) => (
-              <div key={idx} className={styles.itemCard}>
-                {/* Top row: index + description + remove */}
-                <div className={styles.itemCardTop}>
-                  <span className={styles.itemIndex}>{idx + 1}</span>
-                  <input ref={idx === 0 ? firstItemDescriptionRef : null} className={styles.itemDescInput} placeholder="Item description..." value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)} />
-                  <button className={styles.removeRowBtn} onClick={() => removeItem(idx)} disabled={invoiceData.items.length === 1}>
-                    <Icon name="close" size={12} />
-                  </button>
-                </div>
-
-                {/* Field grid */}
-                <div className={styles.itemFieldGrid}>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Metal</span>
-                    <div className={styles.metalCell}>
-                      {metalOptions.map(m => (
-                        <button key={m} className={item.metalType === m ? styles.activeMetal : ''} onClick={() => updateItem(idx, 'metalType', m)}>{m[0]}</button>
-                      ))}
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Gross (g)</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0.000"
+                        value={item.grossWeight}
+                        onChange={(e) =>
+                          updateItem(idx, "grossWeight", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Stone (g)</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0.000"
+                        value={item.stoneWeight}
+                        onChange={(e) =>
+                          updateItem(idx, "stoneWeight", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Net (g)</span>
+                      <div className={styles.fieldComputed}>
+                        {(
+                          (parseFloat(item.grossWeight) || 0) -
+                          (parseFloat(item.stoneWeight) || 0)
+                        ).toFixed(3)}
+                      </div>
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Purity</span>
+                      <select
+                        className={styles.fieldSelect}
+                        value={item.purity}
+                        onChange={(e) =>
+                          updateItem(idx, "purity", e.target.value)
+                        }
+                      >
+                        {purityOptions.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                        {!purityOptions.includes(item.purity) && (
+                          <option value={item.purity}>{item.purity}</option>
+                        )}
+                      </select>
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Metal Rate ₹/g</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0"
+                        value={item.rate}
+                        onChange={(e) =>
+                          updateItem(idx, "rate", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>HSN</span>
+                      <input
+                        className={styles.fieldInput}
+                        placeholder="71131910"
+                        value={item.hsnSac}
+                        onChange={(e) =>
+                          updateItem(idx, "hsnSac", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Making Type</span>
+                      <select
+                        className={styles.fieldSelect}
+                        value={item.makingChargesType}
+                        onChange={(e) =>
+                          updateItem(idx, "makingChargesType", e.target.value)
+                        }
+                      >
+                        {makingOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Making ₹</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0"
+                        value={item.makingCharges}
+                        onChange={(e) =>
+                          updateItem(idx, "makingCharges", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>Stone ₹</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0"
+                        value={item.stoneCharges}
+                        onChange={(e) =>
+                          updateItem(idx, "stoneCharges", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>HUID</span>
+                      <input
+                        className={styles.fieldInput}
+                        placeholder="—"
+                        value={item.huid}
+                        onChange={(e) =>
+                          updateItem(idx, "huid", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className={styles.fieldGroup}>
+                      <span className={styles.fieldLabel}>HM Charge ₹</span>
+                      <input
+                        className={styles.fieldInput}
+                        type="number"
+                        placeholder="0"
+                        value={item.hallmarkCharge}
+                        onChange={(e) =>
+                          updateItem(idx, "hallmarkCharge", e.target.value)
+                        }
+                      />
                     </div>
                   </div>
-
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Qty</span>
-                    <input className={styles.fieldInput} type="number" placeholder="1" value={item.quantity} onChange={e => updateItem(idx, 'quantity', e.target.value)} />
-                  </div>
-
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Gross (g)</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.grossWeight} onChange={e => updateItem(idx, 'grossWeight', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Stone (g)</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0.000" value={item.stoneWeight} onChange={e => updateItem(idx, 'stoneWeight', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Net (g)</span>
-                    <div className={styles.fieldComputed}>{((parseFloat(item.grossWeight) || 0) - (parseFloat(item.stoneWeight) || 0)).toFixed(3)}</div>
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Purity</span>
-                    <select className={styles.fieldSelect} value={item.purity} onChange={e => updateItem(idx, 'purity', e.target.value)}>
-                      {purityOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                      {!purityOptions.includes(item.purity) && <option value={item.purity}>{item.purity}</option>}
-                    </select>
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Metal Rate ₹/g</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.rate} onChange={e => updateItem(idx, 'rate', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>HSN</span>
-                    <input className={styles.fieldInput} placeholder="71131910" value={item.hsnSac} onChange={e => updateItem(idx, 'hsnSac', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Making Type</span>
-                    <select className={styles.fieldSelect} value={item.makingChargesType} onChange={e => updateItem(idx, 'makingChargesType', e.target.value)}>
-                      {makingOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Making ₹</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.makingCharges} onChange={e => updateItem(idx, 'makingCharges', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>Stone ₹</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.stoneCharges} onChange={e => updateItem(idx, 'stoneCharges', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>HUID</span>
-                    <input className={styles.fieldInput} placeholder="—" value={item.huid} onChange={e => updateItem(idx, 'huid', e.target.value)} />
-                  </div>
-                  <div className={styles.fieldGroup}>
-                    <span className={styles.fieldLabel}>HM Charge ₹</span>
-                    <input className={styles.fieldInput} type="number" placeholder="0" value={item.hallmarkCharge} onChange={e => updateItem(idx, 'hallmarkCharge', e.target.value)} />
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Advanced Section */}
-          <button className={styles.advancedToggle} onClick={() => setShowAdvanced(v => !v)}>
-            <span>Advanced</span>
-            <Icon name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={12} />
-          </button>
+            {/* Advanced Section */}
+            <button
+              className={styles.advancedToggle}
+              onClick={() => setShowAdvanced((v) => !v)}
+            >
+              <span>Advanced</span>
+              <Icon
+                name={showAdvanced ? "chevron-up" : "chevron-down"}
+                size={12}
+              />
+            </button>
 
-          {showAdvanced && (
-            <div className={styles.advancedSection}>
-
-              <div className={styles.advField}>
-                <label>Tax Type</label>
-                <select value={invoiceData.taxes.taxType} onChange={e => {
-                    const newType = e.target.value;
-                    let cgst = invoiceData.taxes.cgstRate;
-                    if (newType === 'NONE') cgst = 0;
-                    setInvoiceData(prev => ({ ...prev, taxes: { ...prev.taxes, taxType: newType, cgstRate: cgst, sgstRate: cgst } }));
-                }}>
-                  <option value="CGST_SGST">GST (CGST+SGST)</option>
-                  <option value="IGST">IGST</option>
-                  <option value="NONE">NONE</option>
-                </select>
-              </div>
-              {/* <div className={styles.advField}>
+            {showAdvanced && (
+              <div className={styles.advancedSection}>
+                <div className={styles.advField}>
+                  <label>Tax Type</label>
+                  <select
+                    value={invoiceData.taxes.taxType}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      let cgst = invoiceData.taxes.cgstRate;
+                      if (newType === "NONE") cgst = 0;
+                      setInvoiceData((prev) => ({
+                        ...prev,
+                        taxes: {
+                          ...prev.taxes,
+                          taxType: newType,
+                          cgstRate: cgst,
+                          sgstRate: cgst,
+                        },
+                      }));
+                    }}
+                  >
+                    <option value="CGST_SGST">GST (CGST+SGST)</option>
+                    <option value="IGST">IGST</option>
+                    <option value="NONE">NONE</option>
+                  </select>
+                </div>
+                {/* <div className={styles.advField}>
                 <label>State Code</label>
                 <input value={invoiceData.buyer.stateCode} onChange={e => setInvoiceData(prev => ({ ...prev, buyer: { ...prev.buyer, stateCode: e.target.value } }))} placeholder="07" />
               </div> */}
-              <div className={styles.paymentsSection}>
-                <div className={styles.sectionHeader}>
-                  <label>Payments / Split</label>
-                  <button type="button" className={styles.addSmallBtn} onClick={handleAddPayment}>
-                    + Add Mode
-                  </button>
-                </div>
-                {payments.map((p, idx) => (
-                  <div key={idx} className={styles.paymentRow}>
-                    <select 
-                      value={p.mode} 
-                      onChange={e => handleUpdatePayment(idx, 'mode', e.target.value)}
-                      className={styles.paymentModeSelect}
+                <div className={styles.paymentsSection}>
+                  <div className={styles.sectionHeader}>
+                    <label>Payments / Split</label>
+                    <button
+                      type="button"
+                      className={styles.addSmallBtn}
+                      onClick={handleAddPayment}
                     >
-                      {paymentModes.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                    <div className={styles.paymentAmountWrap}>
-                      <span className={styles.currencyPrefix}>₹</span>
-                      <input 
-                        type="number" 
-                        value={p.amount} 
-                        onChange={e => handleUpdatePayment(idx, 'amount', e.target.value)} 
-                        placeholder="0"
-                      />
-                    </div>
-                    {payments.length > 1 && (
-                      <button type="button" className={styles.removePaymentBtn} onClick={() => handleRemovePayment(idx)}>
-                        <Icon name="close" size={14} />
-                      </button>
-                    )}
+                      + Add Mode
+                    </button>
                   </div>
-                ))}
-              </div>
+                  {payments.map((p, idx) => (
+                    <div key={idx} className={styles.paymentRow}>
+                      <select
+                        value={p.mode}
+                        onChange={(e) =>
+                          handleUpdatePayment(idx, "mode", e.target.value)
+                        }
+                        className={styles.paymentModeSelect}
+                      >
+                        {paymentModes.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <div className={styles.paymentAmountWrap}>
+                        <span className={styles.currencyPrefix}>₹</span>
+                        <input
+                          type="number"
+                          value={p.amount}
+                          onChange={(e) =>
+                            handleUpdatePayment(idx, "amount", e.target.value)
+                          }
+                          placeholder="0"
+                        />
+                      </div>
+                      {payments.length > 1 && (
+                        <button
+                          type="button"
+                          className={styles.removePaymentBtn}
+                          onClick={() => handleRemovePayment(idx)}
+                        >
+                          <Icon name="close" size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
 
-              <div className={styles.advField}>
-                <label>Tax CGST/SGST %</label>
-                <input type="number" step="0.1" value={invoiceData.taxes.cgstRate} onChange={e => setInvoiceData(prev => ({ ...prev, taxes: { ...prev.taxes, cgstRate: parseFloat(e.target.value) || 0, sgstRate: parseFloat(e.target.value) || 0 } }))} disabled={invoiceData.taxes.taxType === 'NONE'} />
+                <div className={styles.advField}>
+                  <label>Tax CGST/SGST %</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={invoiceData.taxes.cgstRate}
+                    onChange={(e) =>
+                      setInvoiceData((prev) => ({
+                        ...prev,
+                        taxes: {
+                          ...prev.taxes,
+                          cgstRate: parseFloat(e.target.value) || 0,
+                          sgstRate: parseFloat(e.target.value) || 0,
+                        },
+                      }))
+                    }
+                    disabled={invoiceData.taxes.taxType === "NONE"}
+                  />
+                </div>
+                <div className={styles.advField}>
+                  <label>Auto-Udhar creation</label>
+                  <input
+                    type="checkbox"
+                    checked={autoCreateUdhar}
+                    onChange={(e) => setAutoCreateUdhar(e.target.checked)}
+                  />
+                </div>
               </div>
-              <div className={styles.advField}>
-                <label>Auto-Udhar creation</label>
-                <input type="checkbox" checked={autoCreateUdhar} onChange={e => setAutoCreateUdhar(e.target.checked)} />
+            )}
+          </div>
+
+          {/* ── Sticky Bottom Bar ── */}
+          <div className={styles.bottomBar}>
+            <div className={styles.totalBox}>
+              <span className={styles.totalLabel}>Total</span>
+              <span className={styles.totalAmount}>{fmt(calc.total)}</span>
+              <div className={styles.taxBreakdown}>
+                <span>
+                  CGST {invoiceData.taxes.cgstRate}% + SGST{" "}
+                  {invoiceData.taxes.sgstRate}%
+                </span>
+                {calc.outstanding > 0 && (
+                  <span style={{ color: "#f59e0b" }}>
+                    Bal: {fmt(calc.outstanding)}
+                  </span>
+                )}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* ── Sticky Bottom Bar ── */}
-        <div className={styles.bottomBar}>
-          <div className={styles.totalBox}>
-            <span className={styles.totalLabel}>Total</span>
-            <span className={styles.totalAmount}>{fmt(calc.total)}</span>
-            <div className={styles.taxBreakdown}>
-              <span>CGST {invoiceData.taxes.cgstRate}% + SGST {invoiceData.taxes.sgstRate}%</span>
-              {calc.outstanding > 0 && <span style={{ color: '#f59e0b' }}>Bal: {fmt(calc.outstanding)}</span>}
-            </div>
-          </div>
-
-          <div className={styles.actionBtns}>
-            <button className={`${styles.previewToggleBtn} ${showPreview ? styles.active : ''}`} onClick={() => setShowPreview(v => !v)}>
-              <Icon name="eye" size={14} /> Preview
-            </button>
-            <button className={`${styles.draftBtn}`} onClick={handleSaveDraft} disabled={!!loading || !canSubmit}>
-              {id ? 'Update Draft' : 'Save Draft'}
-            </button>
-            <button className={`${styles.confirmBtn}`} onClick={handleSubmit} disabled={!!loading || !canSubmit}>
-              {loading === true ? 'Processing...' : id ? 'Confirm & Finalize' : 'Confirm & Pay'}
-            </button>
-          </div>
-        </div>
-
-        {/* ── Preview Drawer ── */}
-        {showPreview && <div className={styles.previewOverlay} onClick={() => setShowPreview(false)} />}
-        <div className={`${styles.previewDrawer} ${showPreview ? styles.open : ''}`}>
-          <div className={styles.previewDrawerHeader}>
-            <h3>Invoice Preview</h3>
-            <button className={styles.closeBtn} onClick={() => setShowPreview(false)}>
-              <Icon name="close" size={16} />
-            </button>
-          </div>
-          <div className={styles.previewTabs}>
-            {['classic', 'modern', 'jewellery'].map(t => (
-              <button key={t} className={theme === t ? styles.activeTab : ''} onClick={() => setTheme(t)}>
-                {t.charAt(0).toUpperCase() + t.slice(1)}
+            <div className={styles.actionBtns}>
+              <button
+                className={`${styles.previewToggleBtn} ${showPreview ? styles.active : ""}`}
+                onClick={() => setShowPreview((v) => !v)}
+              >
+                <Icon name="eye" size={14} /> Preview
               </button>
-            ))}
+              <button
+                className={`${styles.draftBtn}`}
+                onClick={handleSaveDraft}
+                disabled={!!loading || !canSubmit}
+              >
+                {id ? "Update Draft" : "Save Draft"}
+              </button>
+              <button
+                className={`${styles.confirmBtn}`}
+                onClick={handleSubmit}
+                disabled={!!loading || !canSubmit}
+              >
+                {loading === true
+                  ? "Processing..."
+                  : id
+                    ? "Confirm & Finalize"
+                    : "Confirm & Pay"}
+              </button>
+            </div>
           </div>
-          <div className={styles.previewIframe}>
-            <iframe srcDoc={previewHtml} title="Preview" />
+
+          {/* ── Preview Drawer ── */}
+          {showPreview && (
+            <div
+              className={styles.previewOverlay}
+              onClick={() => setShowPreview(false)}
+            />
+          )}
+          <div
+            className={`${styles.previewDrawer} ${showPreview ? styles.open : ""}`}
+          >
+            <div className={styles.previewDrawerHeader}>
+              <h3>Invoice Preview</h3>
+              <button
+                className={styles.closeBtn}
+                onClick={() => setShowPreview(false)}
+              >
+                <Icon name="close" size={16} />
+              </button>
+            </div>
+            <div className={styles.previewTabs}>
+              {["classic", "modern", "jewellery"].map((t) => (
+                <button
+                  key={t}
+                  className={theme === t ? styles.activeTab : ""}
+                  onClick={() => setTheme(t)}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+            <div className={styles.previewIframe}>
+              <iframe srcDoc={previewHtml} title="Preview" />
+            </div>
           </div>
+
+          {/* ── Customer Create Panel ── */}
+          <CustomerInspectorPanel
+            isOpen={isCustomerPanelOpen}
+            onClose={() => setIsCustomerPanelOpen(false)}
+            mode="create"
+            initialData={{ fullName: searchQuery }}
+            onSuccess={(newCustomer) => {
+              if (newCustomer) {
+                handleCustomerSelect(newCustomer);
+              }
+              setIsCustomerPanelOpen(false);
+            }}
+          />
         </div>
+      </DashboardTemplate>
 
-        {/* ── Customer Create Panel ── */}
-        <CustomerInspectorPanel
-          isOpen={isCustomerPanelOpen}
-          onClose={() => setIsCustomerPanelOpen(false)}
-          mode="create"
-          initialData={{ fullName: searchQuery }}
-          onSuccess={(newCustomer) => {
-            if (newCustomer) {
-              handleCustomerSelect(newCustomer);
-            }
-            setIsCustomerPanelOpen(false);
-          }}
-        />
-
-      </div>
-    </DashboardTemplate>
-
-    <ConfirmationModal 
-      isOpen={confirmation.isOpen}
-      onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
-      onConfirm={confirmation.onConfirm}
-      title={confirmation.title}
-      message={confirmation.message}
-      type={confirmation.type}
-      isLoading={Boolean(loading)}
-    />
-  </>
-);
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        onClose={() => setConfirmation((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmation.onConfirm}
+        title={confirmation.title}
+        message={confirmation.message}
+        type={confirmation.type}
+        isLoading={Boolean(loading)}
+      />
+    </>
+  );
 };
 
 export default CreateInvoicePage;
