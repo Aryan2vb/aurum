@@ -24,6 +24,48 @@ export const getInvoices = async (params = {}) => {
   return parseResponse(response);
 };
 
+export const getNextSequence = async (date) => {
+  const token = localStorage.getItem('authToken');
+  const url = date 
+    ? buildApiUrl(`/invoices/next-sequence?date=${date}`)
+    : buildApiUrl('/invoices/next-sequence');
+    
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
+export const getMissingSequences = async (date) => {
+  const token = localStorage.getItem('authToken');
+  const url = date
+    ? buildApiUrl(`/invoices/missing-sequences?date=${date}`)
+    : buildApiUrl('/invoices/missing-sequences');
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
+export const getSequenceAvailability = async (sequence, date, excludeInvoiceId) => {
+  const token = localStorage.getItem('authToken');
+  const queryParams = new URLSearchParams({ sequence: String(sequence) });
+  if (date) queryParams.append('date', date);
+  if (excludeInvoiceId) queryParams.append('excludeInvoiceId', excludeInvoiceId);
+
+  const response = await fetch(buildApiUrl(`/invoices/sequence-availability?${queryParams.toString()}`), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
 export const getInvoiceById = async (invoiceId) => {
   const token = localStorage.getItem('authToken');
   const response = await fetch(buildApiUrl(`/invoices/${invoiceId}`), {

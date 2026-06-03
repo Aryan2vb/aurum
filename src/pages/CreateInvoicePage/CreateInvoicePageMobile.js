@@ -5,8 +5,17 @@ import SearchBar from '../../components/molecules/SearchBar/SearchBar';
 import Input from '../../components/atoms/Input/Input';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
+import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
+import SlideOver from '../../components/atoms/SlideOver/SlideOver';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice, createDraft, getInvoiceSettings } from '../../services/invoicesService';
+import {
+  createInvoice,
+  createDraft,
+  getInvoiceSettings,
+  getNextSequence,
+  getMissingSequences,
+  getSequenceAvailability,
+} from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePageMobile.module.css';
 
@@ -58,6 +67,22 @@ const CreateInvoicePageMobile = () => {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [invoiceData, setInvoiceData] = useState(defaultInvoiceState);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [sequenceData, setSequenceData] = useState(null);
+  const [manualSequence, setManualSequence] = useState('');
+  const [sequenceAvailability, setSequenceAvailability] = useState(null);
+  const [missingPanelOpen, setMissingPanelOpen] = useState(false);
+  const [missingSequencesData, setMissingSequencesData] = useState(null);
+  const [missingSequencesLoading, setMissingSequencesLoading] = useState(false);
+  const [missingSequencesError, setMissingSequencesError] = useState('');
+  const [confirmation, setConfirmation] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: undefined,
+    cancelText: undefined,
+  });
   
   // Customer Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +91,8 @@ const CreateInvoicePageMobile = () => {
   const searchDebounceTimerRef = useRef(null);
   const firstItemDescriptionRef = useRef(null);
   const pendingItemDescriptionFocusRef = useRef(false);
+  const sequenceEditedRef = useRef(false);
+  const lastSuggestedSequenceRef = useRef(null);
 
   // Fetch invoice settings on component mount
   useEffect(() => {
@@ -112,6 +139,93 @@ const CreateInvoicePageMobile = () => {
 
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const previousSuggested = lastSuggestedSequenceRef.current;
+
+    const fetchSequence = async () => {
+      try {
+        const seq = await getNextSequence(invoiceDate);
+        if (cancelled) return;
+
+        setSequenceData(seq);
+        setManualSequence(prev => {
+          if (
+            !sequenceEditedRef.current ||
+            prev === '' ||
+            String(prev) === String(previousSuggested)
+          ) {
+            return String(seq.nextSequence);
+          }
+          return prev;
+        });
+        lastSuggestedSequenceRef.current = seq.nextSequence;
+      } catch (error) {
+        if (!cancelled) console.error('Failed to fetch next sequence:', error);
+      }
+    };
+
+    fetchSequence();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoiceDate]);
+
+  useEffect(() => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+
+    if (
+      !sequenceData ||
+      !Number.isFinite(parsedManualSequence) ||
+      parsedManualSequence < 1
+    ) {
+      setSequenceAvailability(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAvailability = async () => {
+      try {
+        const availability = await getSequenceAvailability(parsedManualSequence, invoiceDate);
+        if (!cancelled) setSequenceAvailability(availability);
+      } catch (error) {
+        if (!cancelled) setSequenceAvailability(null);
+      }
+    };
+
+    fetchAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoiceDate, manualSequence, sequenceData]);
+
+  const duplicateSequenceMessage =
+    sequenceAvailability && sequenceAvailability.available === false
+      ? `Invoice number ${sequenceAvailability.invoiceNumber} already exists`
+      : '';
+
+  const loadMissingSequences = async () => {
+    setMissingPanelOpen(true);
+    setMissingSequencesLoading(true);
+    setMissingSequencesError('');
+
+    try {
+      const data = await getMissingSequences(invoiceDate);
+      setMissingSequencesData(data);
+    } catch (error) {
+      setMissingSequencesError(error.message || 'Failed to load missing invoice numbers');
+    } finally {
+      setMissingSequencesLoading(false);
+    }
+  };
+
+  const selectMissingSequence = (sequence) => {
+    sequenceEditedRef.current = true;
+    setManualSequence(String(sequence));
+    setMissingPanelOpen(false);
+  };
 
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
@@ -244,29 +358,33 @@ const CreateInvoicePageMobile = () => {
 
   const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
 
-  const buildPayload = () => ({
-    customerId: selectedCustomerId,
-    placeOfSupply: invoiceData.buyer.stateCode || '07',
-    invoiceDate: new Date().toISOString().slice(0, 10),
-    templateType: theme,
-    modeOfPayment: invoiceData.metadata.modeOfPayment,
-    metalRateSource: 'manual',
-    metalRateDate: new Date().toISOString(),
-    taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
-    cgstRate: invoiceData.taxes.cgstRate,
-    sgstRate: invoiceData.taxes.sgstRate,
-    igstRate: 0,
-    buyerAddress: invoiceData.buyer.address || '',
-    buyerState: invoiceData.buyer.state || '',
-    buyerStateCode: invoiceData.buyer.stateCode || '',
-    autoCreateUdhar: isCredit ? true : autoCreateUdhar,
-    paidAmount: parseFloat(paidAmount) || 0,
-    notes: invoiceData.declaration,
-    deliveryNote: '',
-    dispatchDocNo: '',
-    destination: '',
-    termsOfDelivery: '',
-    items: invoiceData.items.map(item => {
+  const buildPayload = () => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+
+    return {
+      customerId: selectedCustomerId,
+      placeOfSupply: invoiceData.buyer.stateCode || '07',
+      invoiceDate,
+      manualSequence: Number.isFinite(parsedManualSequence) ? parsedManualSequence : undefined,
+      templateType: theme,
+      modeOfPayment: invoiceData.metadata.modeOfPayment,
+      metalRateSource: 'manual',
+      metalRateDate: new Date().toISOString(),
+      taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
+      cgstRate: invoiceData.taxes.cgstRate,
+      sgstRate: invoiceData.taxes.sgstRate,
+      igstRate: 0,
+      buyerAddress: invoiceData.buyer.address || '',
+      buyerState: invoiceData.buyer.state || '',
+      buyerStateCode: invoiceData.buyer.stateCode || '',
+      autoCreateUdhar: isCredit ? true : autoCreateUdhar,
+      paidAmount: parseFloat(paidAmount) || 0,
+      notes: invoiceData.declaration,
+      deliveryNote: '',
+      dispatchDocNo: '',
+      destination: '',
+      termsOfDelivery: '',
+      items: invoiceData.items.map(item => {
       const purityLabel = item.purity || '22K';
       const purityNum = parseFloat(purityLabel.replace(/[Kk]/, ''));
       const isKarat = purityLabel.toUpperCase().includes('K');
@@ -303,38 +421,94 @@ const CreateInvoicePageMobile = () => {
         taxableAmount: item.amount.toString(),
         totalAmount: item.amount.toString(),
         unitPrice: item.rate.toString()
-      };
-    }),
-  });
+        };
+      }),
+    };
+  };
+
+  const buildFutureSequenceWarning = (onConfirm) => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+    const nextSequence = Number(sequenceData?.nextSequence);
+
+    if (
+      !Number.isFinite(parsedManualSequence) ||
+      !Number.isFinite(nextSequence) ||
+      parsedManualSequence <= nextSequence
+    ) {
+      return false;
+    }
+
+    setConfirmation({
+      isOpen: true,
+      title: 'Skip invoice numbers?',
+      type: 'warning',
+      message: (
+        <>
+          The next invoice number is{' '}
+          <span className="confirmation-modal-highlight">{nextSequence}</span>,
+          but you entered{' '}
+          <span className="confirmation-modal-highlight">{parsedManualSequence}</span>.
+          <br />
+          <br />
+          This invoice will use{' '}
+          <strong>
+            {sequenceData.prefix}/{parsedManualSequence}/{sequenceData.financialYear}
+          </strong>
+          . Skipped numbers{' '}
+          <strong>
+            {nextSequence}
+            {parsedManualSequence - nextSequence > 1 ? `-${parsedManualSequence - 1}` : ''}
+          </strong>{' '}
+          will stay available for manual entry later.
+        </>
+      ),
+      confirmText: 'Use this number',
+      cancelText: 'Go back',
+      onConfirm,
+    });
+    return true;
+  };
 
   const handleConfirm = async () => {
-    try {
-      setLoading('confirm');
-      const payload = buildPayload();
-      const response = await createInvoice(payload);
-      console.log('Invoice created:', response);
-      navigate(`/invoices/${response.id}`);
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-      alert('Failed to create invoice. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    const proceedWithCreate = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('confirm');
+        const payload = buildPayload();
+        const response = await createInvoice(payload);
+        console.log('Invoice created:', response);
+        navigate(`/invoices/${response.id}`);
+      } catch (error) {
+        console.error('Error creating invoice:', error);
+        alert(error.message || 'Failed to create invoice. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (buildFutureSequenceWarning(proceedWithCreate)) return;
+    await proceedWithCreate();
   };
 
   const handleSaveDraft = async () => {
-    try {
-      setLoading('draft');
-      const payload = buildPayload();
-      const response = await createDraft(payload);
-      console.log('Draft saved:', response);
-      navigate(`/invoices/${response.id}`);
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      alert('Failed to save draft. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    const proceedWithDraftSave = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('draft');
+        const payload = buildPayload();
+        const response = await createDraft(payload);
+        console.log('Draft saved:', response);
+        navigate(`/invoices/${response.id}`);
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert(error.message || 'Failed to save draft. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (buildFutureSequenceWarning(proceedWithDraftSave)) return;
+    await proceedWithDraftSave();
   };
 
   const canSubmit = selectedCustomerId &&
@@ -366,6 +540,7 @@ const CreateInvoicePageMobile = () => {
   }
 
   return (
+    <>
     <DashboardTemplate>
       <div className={styles.mobileContainer}>
         {/* Header */}
@@ -414,12 +589,48 @@ const CreateInvoicePageMobile = () => {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Invoice Details</h2>
           <div className={styles.formGrid}>
+            <div className={`${styles.formField} ${styles.sequenceField}`}>
+              <div className={styles.seqHeader}>
+                <label>Invoice No.</label>
+                <button
+                  type="button"
+                  className={styles.missingSeqBtn}
+                  onClick={loadMissingSequences}
+                >
+                  Missing numbers
+                </button>
+              </div>
+              {sequenceData ? (
+                <div className={styles.seqInputWrapper}>
+                  <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
+                  <input
+                    type="number"
+                    value={manualSequence}
+                    min="1"
+                    onChange={(e) => {
+                      sequenceEditedRef.current = true;
+                      setManualSequence(e.target.value);
+                    }}
+                  />
+                  <span className={styles.seqSuffix}> / {sequenceData.financialYear}</span>
+                </div>
+              ) : (
+                <div className={styles.seqInputWrapper}>
+                  <span className={styles.seqPrefix}>Auto-generated</span>
+                </div>
+              )}
+              {duplicateSequenceMessage ? (
+                <div className={styles.sequenceWarning}>
+                  {duplicateSequenceMessage}
+                </div>
+              ) : null}
+            </div>
             <div className={styles.formField}>
               <label>Date</label>
               <Input 
                 type="date" 
-                value={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setInvoiceData({...invoiceData, metadata: {...invoiceData.metadata, invoiceDate: e.target.value}})}
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
               />
             </div>
             <div className={styles.formField}>
@@ -635,6 +846,60 @@ const CreateInvoicePageMobile = () => {
         </div>
       </div>
     </DashboardTemplate>
+    <SlideOver
+      isOpen={missingPanelOpen}
+      onClose={() => setMissingPanelOpen(false)}
+      title="Missing Invoice Numbers"
+      width={420}
+    >
+      <div className={styles.missingSeqPanel}>
+        {missingSequencesLoading ? (
+          <div className={styles.missingSeqState}>Checking missing numbers...</div>
+        ) : missingSequencesError ? (
+          <div className={styles.missingSeqError}>{missingSequencesError}</div>
+        ) : (
+          <>
+            <div className={styles.missingSeqMeta}>
+              <span>{missingSequencesData?.prefix || sequenceData?.prefix || 'INV'}</span>
+              <span>{missingSequencesData?.financialYear || sequenceData?.financialYear}</span>
+            </div>
+            {missingSequencesData?.missingSequences?.length ? (
+              <div className={styles.missingSeqList}>
+                {missingSequencesData.missingSequences.map((sequence) => (
+                  <button
+                    type="button"
+                    key={sequence}
+                    className={styles.missingSeqItem}
+                    onClick={() => selectMissingSequence(sequence)}
+                  >
+                    <span>
+                      {missingSequencesData.prefix}/{sequence}/{missingSequencesData.financialYear}
+                    </span>
+                    <Icon name="arrowRight" size={16} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.missingSeqState}>
+                No missing invoice numbers for this financial year.
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </SlideOver>
+    <ConfirmationModal
+      isOpen={confirmation.isOpen}
+      onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+      onConfirm={confirmation.onConfirm}
+      title={confirmation.title}
+      message={confirmation.message}
+      type={confirmation.type}
+      confirmText={confirmation.confirmText}
+      cancelText={confirmation.cancelText}
+      isLoading={Boolean(loading)}
+    />
+    </>
   );
 };
 
