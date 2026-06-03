@@ -189,6 +189,51 @@
   box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);
 }
 
+.sequenceField {
+  grid-column: 1 / -1;
+}
+
+.seqInputWrapper {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.seqInputWrapper:focus-within {
+  border-color: #C5A059;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);
+}
+
+.seqPrefix,
+.seqSuffix {
+  padding: 0 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.seqInputWrapper input {
+  min-width: 72px;
+  flex: 1;
+  border: none;
+  border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
+  border-radius: 0;
+  text-align: center;
+  font-weight: 700;
+  color: #001B3D;
+  box-shadow: none;
+}
+
+.seqInputWrapper input:focus {
+  box-shadow: none;
+}
+
 /* Payment Modes */
 .paymentModes {
   display: flex;

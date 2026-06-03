@@ -6,7 +6,7 @@ import Input from '../../components/atoms/Input/Input';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice, createDraft, getInvoiceSettings } from '../../services/invoicesService';
+import { createInvoice, createDraft, getInvoiceSettings, getNextSequence } from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePageMobile.module.css';
 
@@ -58,6 +58,9 @@ const CreateInvoicePageMobile = () => {
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [invoiceData, setInvoiceData] = useState(defaultInvoiceState);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
+  const [sequenceData, setSequenceData] = useState(null);
+  const [manualSequence, setManualSequence] = useState('');
   
   // Customer Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +69,8 @@ const CreateInvoicePageMobile = () => {
   const searchDebounceTimerRef = useRef(null);
   const firstItemDescriptionRef = useRef(null);
   const pendingItemDescriptionFocusRef = useRef(false);
+  const sequenceEditedRef = useRef(false);
+  const lastSuggestedSequenceRef = useRef(null);
 
   // Fetch invoice settings on component mount
   useEffect(() => {
@@ -112,6 +117,38 @@ const CreateInvoicePageMobile = () => {
 
     fetchSettings();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const previousSuggested = lastSuggestedSequenceRef.current;
+
+    const fetchSequence = async () => {
+      try {
+        const seq = await getNextSequence(invoiceDate);
+        if (cancelled) return;
+
+        setSequenceData(seq);
+        setManualSequence(prev => {
+          if (
+            !sequenceEditedRef.current ||
+            prev === '' ||
+            String(prev) === String(previousSuggested)
+          ) {
+            return String(seq.nextSequence);
+          }
+          return prev;
+        });
+        lastSuggestedSequenceRef.current = seq.nextSequence;
+      } catch (error) {
+        if (!cancelled) console.error('Failed to fetch next sequence:', error);
+      }
+    };
+
+    fetchSequence();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoiceDate]);
 
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
@@ -244,29 +281,33 @@ const CreateInvoicePageMobile = () => {
 
   const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
 
-  const buildPayload = () => ({
-    customerId: selectedCustomerId,
-    placeOfSupply: invoiceData.buyer.stateCode || '07',
-    invoiceDate: new Date().toISOString().slice(0, 10),
-    templateType: theme,
-    modeOfPayment: invoiceData.metadata.modeOfPayment,
-    metalRateSource: 'manual',
-    metalRateDate: new Date().toISOString(),
-    taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
-    cgstRate: invoiceData.taxes.cgstRate,
-    sgstRate: invoiceData.taxes.sgstRate,
-    igstRate: 0,
-    buyerAddress: invoiceData.buyer.address || '',
-    buyerState: invoiceData.buyer.state || '',
-    buyerStateCode: invoiceData.buyer.stateCode || '',
-    autoCreateUdhar: isCredit ? true : autoCreateUdhar,
-    paidAmount: parseFloat(paidAmount) || 0,
-    notes: invoiceData.declaration,
-    deliveryNote: '',
-    dispatchDocNo: '',
-    destination: '',
-    termsOfDelivery: '',
-    items: invoiceData.items.map(item => {
+  const buildPayload = () => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+
+    return {
+      customerId: selectedCustomerId,
+      placeOfSupply: invoiceData.buyer.stateCode || '07',
+      invoiceDate,
+      manualSequence: Number.isFinite(parsedManualSequence) ? parsedManualSequence : undefined,
+      templateType: theme,
+      modeOfPayment: invoiceData.metadata.modeOfPayment,
+      metalRateSource: 'manual',
+      metalRateDate: new Date().toISOString(),
+      taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
+      cgstRate: invoiceData.taxes.cgstRate,
+      sgstRate: invoiceData.taxes.sgstRate,
+      igstRate: 0,
+      buyerAddress: invoiceData.buyer.address || '',
+      buyerState: invoiceData.buyer.state || '',
+      buyerStateCode: invoiceData.buyer.stateCode || '',
+      autoCreateUdhar: isCredit ? true : autoCreateUdhar,
+      paidAmount: parseFloat(paidAmount) || 0,
+      notes: invoiceData.declaration,
+      deliveryNote: '',
+      dispatchDocNo: '',
+      destination: '',
+      termsOfDelivery: '',
+      items: invoiceData.items.map(item => {
       const purityLabel = item.purity || '22K';
       const purityNum = parseFloat(purityLabel.replace(/[Kk]/, ''));
       const isKarat = purityLabel.toUpperCase().includes('K');
@@ -303,9 +344,10 @@ const CreateInvoicePageMobile = () => {
         taxableAmount: item.amount.toString(),
         totalAmount: item.amount.toString(),
         unitPrice: item.rate.toString()
-      };
-    }),
-  });
+        };
+      }),
+    };
+  };
 
   const handleConfirm = async () => {
     try {
@@ -316,7 +358,7 @@ const CreateInvoicePageMobile = () => {
       navigate(`/invoices/${response.id}`);
     } catch (error) {
       console.error('Error creating invoice:', error);
-      alert('Failed to create invoice. Please try again.');
+      alert(error.message || 'Failed to create invoice. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -331,7 +373,7 @@ const CreateInvoicePageMobile = () => {
       navigate(`/invoices/${response.id}`);
     } catch (error) {
       console.error('Error saving draft:', error);
-      alert('Failed to save draft. Please try again.');
+      alert(error.message || 'Failed to save draft. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -414,12 +456,34 @@ const CreateInvoicePageMobile = () => {
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Invoice Details</h2>
           <div className={styles.formGrid}>
+            <div className={`${styles.formField} ${styles.sequenceField}`}>
+              <label>Invoice No.</label>
+              {sequenceData ? (
+                <div className={styles.seqInputWrapper}>
+                  <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
+                  <input
+                    type="number"
+                    value={manualSequence}
+                    min="1"
+                    onChange={(e) => {
+                      sequenceEditedRef.current = true;
+                      setManualSequence(e.target.value);
+                    }}
+                  />
+                  <span className={styles.seqSuffix}> / {sequenceData.financialYear}</span>
+                </div>
+              ) : (
+                <div className={styles.seqInputWrapper}>
+                  <span className={styles.seqPrefix}>Auto-generated</span>
+                </div>
+              )}
+            </div>
             <div className={styles.formField}>
               <label>Date</label>
               <Input 
                 type="date" 
-                value={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setInvoiceData({...invoiceData, metadata: {...invoiceData.metadata, invoiceDate: e.target.value}})}
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
               />
             </div>
             <div className={styles.formField}>

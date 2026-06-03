@@ -17,6 +17,7 @@ import {
   createInvoice,
   createDraft,
   updateInvoice,
+  getNextSequence,
 } from "../../services/invoicesService";
 import {
   generateInvoiceHtml,
@@ -86,6 +87,8 @@ const CreateInvoicePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [theme, setTheme] = useState("classic");
+  const [sequenceData, setSequenceData] = useState(null);
+  const [manualSequence, setManualSequence] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,10 +107,14 @@ const CreateInvoicePage = () => {
     title: "",
     message: "",
     onConfirm: null,
+    confirmText: undefined,
+    cancelText: undefined,
   });
   const searchDebounceRef = useRef(null);
   const firstItemDescriptionRef = useRef(null);
   const pendingItemDescriptionFocusRef = useRef(false);
+  const sequenceEditedRef = useRef(false);
+  const lastSuggestedSequenceRef = useRef(null);
 
   const paidAmount = useMemo(
     () => payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
@@ -126,6 +133,8 @@ const CreateInvoicePage = () => {
   });
 
   const [previewHtml, setPreviewHtml] = useState("");
+  const canEditSequence =
+    !id || (invoiceData.status === "DRAFT" && Boolean(selectedCustomerId));
 
   // Fetch settings or existing invoice
   useEffect(() => {
@@ -154,6 +163,10 @@ const CreateInvoicePage = () => {
         if (id) {
           const inv = await getInvoiceById(id);
           setSelectedCustomerId(inv.customerId);
+          if (inv.status === "DRAFT" && inv.sequence) {
+            sequenceEditedRef.current = true;
+            setManualSequence(String(inv.sequence));
+          }
           if (inv.payments?.length) {
             setPayments(
               inv.payments.map((p) => ({
@@ -179,6 +192,7 @@ const CreateInvoicePage = () => {
             })),
             metadata: {
               ...prev.metadata,
+              invoiceNo: inv.invoiceNumber || "",
               modeOfPayment: inv.modeOfPayment || "UPI",
               deliveryNote: inv.deliveryNote || "",
               destination: inv.destination || "",
@@ -208,6 +222,40 @@ const CreateInvoicePage = () => {
     };
     loadData();
   }, [id]);
+
+  useEffect(() => {
+    if (!canEditSequence || !invoiceDate) return;
+
+    let cancelled = false;
+    const previousSuggested = lastSuggestedSequenceRef.current;
+
+    const loadSequence = async () => {
+      try {
+        const seq = await getNextSequence(invoiceDate);
+        if (cancelled) return;
+
+        setSequenceData(seq);
+        setManualSequence((prev) => {
+          if (
+            !sequenceEditedRef.current ||
+            prev === "" ||
+            String(prev) === String(previousSuggested)
+          ) {
+            return String(seq.nextSequence);
+          }
+          return prev;
+        });
+        lastSuggestedSequenceRef.current = seq.nextSequence;
+      } catch (e) {
+        if (!cancelled) console.error("Failed to fetch next sequence", e);
+      }
+    };
+
+    loadSequence();
+    return () => {
+      cancelled = true;
+    };
+  }, [canEditSequence, invoiceDate]);
 
   const calc = useMemo(
     () =>
@@ -285,7 +333,12 @@ const CreateInvoicePage = () => {
       })),
       metadata: {
         ...invoiceData.metadata,
-        invoiceNo: "PREVIEW",
+        invoiceNo:
+          id && invoiceData.status !== "DRAFT" && invoiceData.metadata?.invoiceNo
+            ? invoiceData.metadata.invoiceNo
+            : sequenceData && manualSequence
+              ? `${sequenceData.prefix}/${manualSequence}/${sequenceData.financialYear}`
+              : "PREVIEW",
         date: invoiceDate,
       },
     };
@@ -299,7 +352,7 @@ const CreateInvoicePage = () => {
     } catch (e) {
       /* silent */
     }
-  }, [invoiceData, theme, paidAmount, invoiceDate, payments]);
+  }, [invoiceData, theme, paidAmount, invoiceDate, payments, sequenceData, manualSequence, id]);
 
   const performSearch = useCallback(async (q) => {
     if (q.length < 2) {
@@ -440,9 +493,14 @@ const CreateInvoicePage = () => {
   };
 
   const buildPayload = () => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
     const payload = {
       customerId: selectedCustomerId,
       invoiceDate: invoiceDate,
+      manualSequence:
+        canEditSequence && Number.isFinite(parsedManualSequence)
+          ? parsedManualSequence
+          : undefined,
       payments: payments.map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
@@ -477,6 +535,50 @@ const CreateInvoicePage = () => {
       }),
     };
     return payload;
+  };
+
+  const buildFutureSequenceWarning = (onConfirm) => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+    const nextSequence = Number(sequenceData?.nextSequence);
+
+    if (
+      !canEditSequence ||
+      !Number.isFinite(parsedManualSequence) ||
+      !Number.isFinite(nextSequence) ||
+      parsedManualSequence <= nextSequence
+    ) {
+      return false;
+    }
+
+    setConfirmation({
+      isOpen: true,
+      title: "Skip invoice numbers?",
+      type: "warning",
+      message: (
+        <>
+          The next invoice number is{" "}
+          <span className="confirmation-modal-highlight">{nextSequence}</span>,
+          but you entered{" "}
+          <span className="confirmation-modal-highlight">{parsedManualSequence}</span>.
+          <br />
+          <br />
+          This invoice will use{" "}
+          <strong>
+            {sequenceData.prefix}/{parsedManualSequence}/{sequenceData.financialYear}
+          </strong>
+          . Skipped numbers{" "}
+          <strong>
+            {nextSequence}
+            {parsedManualSequence - nextSequence > 1 ? `-${parsedManualSequence - 1}` : ""}
+          </strong>{" "}
+          will stay available for manual entry later.
+        </>
+      ),
+      confirmText: "Use this number",
+      cancelText: "Go back",
+      onConfirm,
+    });
+    return true;
   };
 
   const canSubmit =
@@ -518,11 +620,13 @@ const CreateInvoicePage = () => {
         else alert("Failed to finalize invoice");
       } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Error saving invoice");
+        alert(err.message || "Error saving invoice");
       } finally {
         setLoading(false);
       }
     };
+
+    if (buildFutureSequenceWarning(proceedWithSave)) return;
 
     // Check for overpayment
     if (paidAmount > total) {
@@ -570,6 +674,8 @@ const CreateInvoicePage = () => {
         type: "warning",
         message:
           "This invoice is already finalized. Saving changes will automatically update the customer's ledger and udhar records. Proceed?",
+        confirmText: undefined,
+        cancelText: undefined,
         onConfirm: proceedWithSave,
       });
       return;
@@ -599,11 +705,13 @@ const CreateInvoicePage = () => {
         else alert("Failed to save draft");
       } catch (e) {
         console.error(e);
-        alert("Network error");
+        alert(e.message || "Network error");
       } finally {
         setLoading(false);
       }
     };
+
+    if (buildFutureSequenceWarning(proceedWithSaveDraft)) return;
 
     // Warning for finalized invoices
     if (
@@ -617,6 +725,8 @@ const CreateInvoicePage = () => {
         type: "warning",
         message:
           "This invoice is already finalized. Saving changes will automatically update the customer's ledger and udhar records. Proceed?",
+        confirmText: undefined,
+        cancelText: undefined,
         onConfirm: proceedWithSaveDraft,
       });
       return;
@@ -723,14 +833,43 @@ const CreateInvoicePage = () => {
                   </div>
                 )}
               </div>
-              <div className={styles.dateField}>
-                <label className={styles.dateLabel}>Invoice Date</label>
-                <input
-                  type="date"
-                  className={styles.dateInput}
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                />
+              <div className={styles.dateAndSeqGroup}>
+                <div className={styles.seqField}>
+                  <label className={styles.dateLabel}>Invoice No.</label>
+                  {canEditSequence && sequenceData ? (
+                    <div className={styles.seqInputWrapper}>
+                      <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
+                      <input 
+                        type="number" 
+                        className={styles.seqInput} 
+                        value={manualSequence}
+                        onChange={(e) => {
+                          sequenceEditedRef.current = true;
+                          setManualSequence(e.target.value);
+                        }}
+                        min="1"
+                      />
+                      <span className={styles.seqSuffix}> / {sequenceData.financialYear}</span>
+                    </div>
+                  ) : (
+                    <div className={styles.staticSeqWrapper}>
+                      <span className={styles.staticSeq}>
+                        {id && invoiceData.metadata.invoiceNo && invoiceData.metadata.invoiceNo !== 'PREVIEW' 
+                          ? invoiceData.metadata.invoiceNo 
+                          : 'Auto-generated'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className={styles.dateField}>
+                  <label className={styles.dateLabel}>Invoice Date</label>
+                  <input
+                    type="date"
+                    className={styles.dateInput}
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1168,6 +1307,8 @@ const CreateInvoicePage = () => {
         title={confirmation.title}
         message={confirmation.message}
         type={confirmation.type}
+        confirmText={confirmation.confirmText}
+        cancelText={confirmation.cancelText}
         isLoading={Boolean(loading)}
       />
     </>

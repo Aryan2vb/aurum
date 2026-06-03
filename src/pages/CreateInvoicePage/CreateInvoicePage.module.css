@@ -35,6 +35,90 @@
     min-width: 160px;
 }
 
+/* ── Invoice No. + Date grouped container ── */
+.dateAndSeqGroup {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+/* ── Sequence (Invoice No.) field ── */
+.seqField {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.seqInputWrapper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    height: 36px;
+}
+
+.seqInputWrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.seqPrefix,
+.seqSuffix {
+    padding: 0 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.seqInput {
+    width: 64px;
+    border: none;
+    border-left: 1.5px solid var(--border-color);
+    border-right: 1.5px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0 0.4rem;
+    height: 100%;
+    outline: none;
+    /* hide spin arrows */
+    -moz-appearance: textfield;
+}
+
+.seqInput::-webkit-outer-spin-button,
+.seqInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.staticSeqWrapper {
+    display: flex;
+    align-items: center;
+    padding: 0.55rem 0.75rem;
+    background: var(--bg-secondary);
+    border: 1.5px solid var(--border-color);
+    border-radius: 0.5rem;
+    height: 36px;
+}
+
+.staticSeq {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    font-style: italic;
+}
+
+
+
 .dateLabel {
     font-size: 0.65rem;
     font-weight: 700;
