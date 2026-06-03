@@ -52,10 +52,11 @@ export const getMissingSequences = async (date) => {
   return parseResponse(response);
 };
 
-export const getSequenceAvailability = async (sequence, date) => {
+export const getSequenceAvailability = async (sequence, date, excludeInvoiceId) => {
   const token = localStorage.getItem('authToken');
   const queryParams = new URLSearchParams({ sequence: String(sequence) });
   if (date) queryParams.append('date', date);
+  if (excludeInvoiceId) queryParams.append('excludeInvoiceId', excludeInvoiceId);
 
   const response = await fetch(buildApiUrl(`/invoices/sequence-availability?${queryParams.toString()}`), {
     headers: {

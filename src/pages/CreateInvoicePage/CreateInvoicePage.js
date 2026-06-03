@@ -282,7 +282,7 @@ const CreateInvoicePage = () => {
 
     const loadAvailability = async () => {
       try {
-        const availability = await getSequenceAvailability(parsedManualSequence, invoiceDate);
+        const availability = await getSequenceAvailability(parsedManualSequence, invoiceDate, id);
         if (!cancelled) setSequenceAvailability(availability);
       } catch (e) {
         if (!cancelled) setSequenceAvailability(null);
@@ -293,7 +293,7 @@ const CreateInvoicePage = () => {
     return () => {
       cancelled = true;
     };
-  }, [canEditSequence, invoiceDate, manualSequence, sequenceData]);
+  }, [canEditSequence, id, invoiceDate, manualSequence, sequenceData]);
 
   const duplicateSequenceMessage =
     sequenceAvailability && sequenceAvailability.available === false
