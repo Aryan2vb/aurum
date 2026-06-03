@@ -38,6 +38,33 @@ export const getNextSequence = async (date) => {
   return parseResponse(response);
 };
 
+export const getMissingSequences = async (date) => {
+  const token = localStorage.getItem('authToken');
+  const url = date
+    ? buildApiUrl(`/invoices/missing-sequences?date=${date}`)
+    : buildApiUrl('/invoices/missing-sequences');
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
+export const getSequenceAvailability = async (sequence, date) => {
+  const token = localStorage.getItem('authToken');
+  const queryParams = new URLSearchParams({ sequence: String(sequence) });
+  if (date) queryParams.append('date', date);
+
+  const response = await fetch(buildApiUrl(`/invoices/sequence-availability?${queryParams.toString()}`), {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
 export const getInvoiceById = async (invoiceId) => {
   const token = localStorage.getItem('authToken');
   const response = await fetch(buildApiUrl(`/invoices/${invoiceId}`), {

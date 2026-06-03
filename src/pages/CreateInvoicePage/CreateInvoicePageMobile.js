@@ -6,8 +6,16 @@ import Input from '../../components/atoms/Input/Input';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
+import SlideOver from '../../components/atoms/SlideOver/SlideOver';
 import { searchCustomers } from '../../services/customersService';
-import { createInvoice, createDraft, getInvoiceSettings, getNextSequence } from '../../services/invoicesService';
+import {
+  createInvoice,
+  createDraft,
+  getInvoiceSettings,
+  getNextSequence,
+  getMissingSequences,
+  getSequenceAvailability,
+} from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
 import styles from './CreateInvoicePageMobile.module.css';
 
@@ -62,6 +70,11 @@ const CreateInvoicePageMobile = () => {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [sequenceData, setSequenceData] = useState(null);
   const [manualSequence, setManualSequence] = useState('');
+  const [sequenceAvailability, setSequenceAvailability] = useState(null);
+  const [missingPanelOpen, setMissingPanelOpen] = useState(false);
+  const [missingSequencesData, setMissingSequencesData] = useState(null);
+  const [missingSequencesLoading, setMissingSequencesLoading] = useState(false);
+  const [missingSequencesError, setMissingSequencesError] = useState('');
   const [confirmation, setConfirmation] = useState({
     isOpen: false,
     title: '',
@@ -158,6 +171,61 @@ const CreateInvoicePageMobile = () => {
       cancelled = true;
     };
   }, [invoiceDate]);
+
+  useEffect(() => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+
+    if (
+      !sequenceData ||
+      !Number.isFinite(parsedManualSequence) ||
+      parsedManualSequence < 1
+    ) {
+      setSequenceAvailability(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchAvailability = async () => {
+      try {
+        const availability = await getSequenceAvailability(parsedManualSequence, invoiceDate);
+        if (!cancelled) setSequenceAvailability(availability);
+      } catch (error) {
+        if (!cancelled) setSequenceAvailability(null);
+      }
+    };
+
+    fetchAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [invoiceDate, manualSequence, sequenceData]);
+
+  const duplicateSequenceMessage =
+    sequenceAvailability && sequenceAvailability.available === false
+      ? `Invoice number ${sequenceAvailability.invoiceNumber} already exists`
+      : '';
+
+  const loadMissingSequences = async () => {
+    setMissingPanelOpen(true);
+    setMissingSequencesLoading(true);
+    setMissingSequencesError('');
+
+    try {
+      const data = await getMissingSequences(invoiceDate);
+      setMissingSequencesData(data);
+    } catch (error) {
+      setMissingSequencesError(error.message || 'Failed to load missing invoice numbers');
+    } finally {
+      setMissingSequencesLoading(false);
+    }
+  };
+
+  const selectMissingSequence = (sequence) => {
+    sequenceEditedRef.current = true;
+    setManualSequence(String(sequence));
+    setMissingPanelOpen(false);
+  };
 
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
@@ -522,7 +590,16 @@ const CreateInvoicePageMobile = () => {
           <h2 className={styles.sectionTitle}>Invoice Details</h2>
           <div className={styles.formGrid}>
             <div className={`${styles.formField} ${styles.sequenceField}`}>
-              <label>Invoice No.</label>
+              <div className={styles.seqHeader}>
+                <label>Invoice No.</label>
+                <button
+                  type="button"
+                  className={styles.missingSeqBtn}
+                  onClick={loadMissingSequences}
+                >
+                  Missing numbers
+                </button>
+              </div>
               {sequenceData ? (
                 <div className={styles.seqInputWrapper}>
                   <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
@@ -542,6 +619,11 @@ const CreateInvoicePageMobile = () => {
                   <span className={styles.seqPrefix}>Auto-generated</span>
                 </div>
               )}
+              {duplicateSequenceMessage ? (
+                <div className={styles.sequenceWarning}>
+                  {duplicateSequenceMessage}
+                </div>
+              ) : null}
             </div>
             <div className={styles.formField}>
               <label>Date</label>
@@ -764,6 +846,48 @@ const CreateInvoicePageMobile = () => {
         </div>
       </div>
     </DashboardTemplate>
+    <SlideOver
+      isOpen={missingPanelOpen}
+      onClose={() => setMissingPanelOpen(false)}
+      title="Missing Invoice Numbers"
+      width={420}
+    >
+      <div className={styles.missingSeqPanel}>
+        {missingSequencesLoading ? (
+          <div className={styles.missingSeqState}>Checking missing numbers...</div>
+        ) : missingSequencesError ? (
+          <div className={styles.missingSeqError}>{missingSequencesError}</div>
+        ) : (
+          <>
+            <div className={styles.missingSeqMeta}>
+              <span>{missingSequencesData?.prefix || sequenceData?.prefix || 'INV'}</span>
+              <span>{missingSequencesData?.financialYear || sequenceData?.financialYear}</span>
+            </div>
+            {missingSequencesData?.missingSequences?.length ? (
+              <div className={styles.missingSeqList}>
+                {missingSequencesData.missingSequences.map((sequence) => (
+                  <button
+                    type="button"
+                    key={sequence}
+                    className={styles.missingSeqItem}
+                    onClick={() => selectMissingSequence(sequence)}
+                  >
+                    <span>
+                      {missingSequencesData.prefix}/{sequence}/{missingSequencesData.financialYear}
+                    </span>
+                    <Icon name="arrowRight" size={16} />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className={styles.missingSeqState}>
+                No missing invoice numbers for this financial year.
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </SlideOver>
     <ConfirmationModal
       isOpen={confirmation.isOpen}
       onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}

@@ -9,6 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import DashboardTemplate from "../../components/templates/DashboardTemplate/DashboardTemplate";
 import Icon from "../../components/atoms/Icon/Icon";
 import Avatar from "../../components/atoms/Avatar/Avatar";
+import SlideOver from "../../components/atoms/SlideOver/SlideOver";
 import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
 import { searchCustomers } from "../../services/customersService";
 import {
@@ -18,6 +19,8 @@ import {
   createDraft,
   updateInvoice,
   getNextSequence,
+  getMissingSequences,
+  getSequenceAvailability,
 } from "../../services/invoicesService";
 import {
   generateInvoiceHtml,
@@ -89,6 +92,11 @@ const CreateInvoicePage = () => {
   const [theme, setTheme] = useState("classic");
   const [sequenceData, setSequenceData] = useState(null);
   const [manualSequence, setManualSequence] = useState("");
+  const [sequenceAvailability, setSequenceAvailability] = useState(null);
+  const [missingPanelOpen, setMissingPanelOpen] = useState(false);
+  const [missingSequencesData, setMissingSequencesData] = useState(null);
+  const [missingSequencesLoading, setMissingSequencesLoading] = useState(false);
+  const [missingSequencesError, setMissingSequencesError] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -256,6 +264,62 @@ const CreateInvoicePage = () => {
       cancelled = true;
     };
   }, [canEditSequence, invoiceDate]);
+
+  useEffect(() => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+
+    if (
+      !canEditSequence ||
+      !sequenceData ||
+      !Number.isFinite(parsedManualSequence) ||
+      parsedManualSequence < 1
+    ) {
+      setSequenceAvailability(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadAvailability = async () => {
+      try {
+        const availability = await getSequenceAvailability(parsedManualSequence, invoiceDate);
+        if (!cancelled) setSequenceAvailability(availability);
+      } catch (e) {
+        if (!cancelled) setSequenceAvailability(null);
+      }
+    };
+
+    loadAvailability();
+    return () => {
+      cancelled = true;
+    };
+  }, [canEditSequence, invoiceDate, manualSequence, sequenceData]);
+
+  const duplicateSequenceMessage =
+    sequenceAvailability && sequenceAvailability.available === false
+      ? `Invoice number ${sequenceAvailability.invoiceNumber} already exists`
+      : "";
+
+  const loadMissingSequences = async () => {
+    setMissingPanelOpen(true);
+    setMissingSequencesLoading(true);
+    setMissingSequencesError("");
+
+    try {
+      const data = await getMissingSequences(invoiceDate);
+      setMissingSequencesData(data);
+    } catch (e) {
+      setMissingSequencesError(e.message || "Failed to load missing invoice numbers");
+    } finally {
+      setMissingSequencesLoading(false);
+    }
+  };
+
+  const selectMissingSequence = (sequence) => {
+    sequenceEditedRef.current = true;
+    setManualSequence(String(sequence));
+    setMissingPanelOpen(false);
+  };
 
   const calc = useMemo(
     () =>
@@ -835,7 +899,18 @@ const CreateInvoicePage = () => {
               </div>
               <div className={styles.dateAndSeqGroup}>
                 <div className={styles.seqField}>
-                  <label className={styles.dateLabel}>Invoice No.</label>
+                  <div className={styles.seqHeader}>
+                    <label className={styles.dateLabel}>Invoice No.</label>
+                    {canEditSequence ? (
+                      <button
+                        type="button"
+                        className={styles.missingSeqBtn}
+                        onClick={loadMissingSequences}
+                      >
+                        Missing numbers
+                      </button>
+                    ) : null}
+                  </div>
                   {canEditSequence && sequenceData ? (
                     <div className={styles.seqInputWrapper}>
                       <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
@@ -860,6 +935,11 @@ const CreateInvoicePage = () => {
                       </span>
                     </div>
                   )}
+                  {duplicateSequenceMessage ? (
+                    <div className={styles.sequenceWarning}>
+                      {duplicateSequenceMessage}
+                    </div>
+                  ) : null}
                 </div>
                 <div className={styles.dateField}>
                   <label className={styles.dateLabel}>Invoice Date</label>
@@ -1299,6 +1379,49 @@ const CreateInvoicePage = () => {
           />
         </div>
       </DashboardTemplate>
+
+      <SlideOver
+        isOpen={missingPanelOpen}
+        onClose={() => setMissingPanelOpen(false)}
+        title="Missing Invoice Numbers"
+        width={420}
+      >
+        <div className={styles.missingSeqPanel}>
+          {missingSequencesLoading ? (
+            <div className={styles.missingSeqState}>Checking missing numbers...</div>
+          ) : missingSequencesError ? (
+            <div className={styles.missingSeqError}>{missingSequencesError}</div>
+          ) : (
+            <>
+              <div className={styles.missingSeqMeta}>
+                <span>{missingSequencesData?.prefix || sequenceData?.prefix || "INV"}</span>
+                <span>{missingSequencesData?.financialYear || sequenceData?.financialYear}</span>
+              </div>
+              {missingSequencesData?.missingSequences?.length ? (
+                <div className={styles.missingSeqList}>
+                  {missingSequencesData.missingSequences.map((sequence) => (
+                    <button
+                      type="button"
+                      key={sequence}
+                      className={styles.missingSeqItem}
+                      onClick={() => selectMissingSequence(sequence)}
+                    >
+                      <span>
+                        {missingSequencesData.prefix}/{sequence}/{missingSequencesData.financialYear}
+                      </span>
+                      <Icon name="arrowRight" size={16} />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.missingSeqState}>
+                  No missing invoice numbers for this financial year.
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </SlideOver>
 
       <ConfirmationModal
         isOpen={confirmation.isOpen}

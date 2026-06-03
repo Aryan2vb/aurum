@@ -193,13 +193,31 @@
   grid-column: 1 / -1;
 }
 
+.seqHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.missingSeqBtn {
+  border: none;
+  background: transparent;
+  color: var(--accent, #C5A059);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .seqInputWrapper {
   display: flex;
   align-items: center;
   min-height: 42px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 0.5rem;
-  background: #ffffff;
+  background: var(--bg-secondary, #ffffff);
   overflow: hidden;
 }
 
@@ -213,7 +231,7 @@
   padding: 0 0.625rem;
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary, #6b7280);
   white-space: nowrap;
 }
 
@@ -221,17 +239,85 @@
   min-width: 72px;
   flex: 1;
   border: none;
-  border-left: 1px solid #e5e7eb;
-  border-right: 1px solid #e5e7eb;
+  border-left: 1px solid var(--border-color, #e5e7eb);
+  border-right: 1px solid var(--border-color, #e5e7eb);
   border-radius: 0;
   text-align: center;
   font-weight: 700;
-  color: #001B3D;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-primary, #001B3D);
   box-shadow: none;
 }
 
 .seqInputWrapper input:focus {
   box-shadow: none;
+}
+
+.sequenceWarning {
+  color: var(--error, #b8544a);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.missingSeqPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.missingSeqMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.missingSeqList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.missingSeqItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-primary, #001B3D);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.missingSeqItem:hover {
+  border-color: var(--accent, #C5A059);
+  background: var(--bg-hover, #f8f9fa);
+}
+
+.missingSeqState,
+.missingSeqError {
+  padding: 1rem;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-secondary, #6b7280);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.missingSeqError {
+  color: var(--error, #b8544a);
 }
 
 /* Payment Modes */
