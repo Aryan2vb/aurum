@@ -5,6 +5,7 @@ import SearchBar from '../../components/molecules/SearchBar/SearchBar';
 import Input from '../../components/atoms/Input/Input';
 import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
+import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
 import { searchCustomers } from '../../services/customersService';
 import { createInvoice, createDraft, getInvoiceSettings, getNextSequence } from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
@@ -61,6 +62,14 @@ const CreateInvoicePageMobile = () => {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().slice(0, 10));
   const [sequenceData, setSequenceData] = useState(null);
   const [manualSequence, setManualSequence] = useState('');
+  const [confirmation, setConfirmation] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null,
+    confirmText: undefined,
+    cancelText: undefined,
+  });
   
   // Customer Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -349,34 +358,89 @@ const CreateInvoicePageMobile = () => {
     };
   };
 
-  const handleConfirm = async () => {
-    try {
-      setLoading('confirm');
-      const payload = buildPayload();
-      const response = await createInvoice(payload);
-      console.log('Invoice created:', response);
-      navigate(`/invoices/${response.id}`);
-    } catch (error) {
-      console.error('Error creating invoice:', error);
-      alert(error.message || 'Failed to create invoice. Please try again.');
-    } finally {
-      setLoading(false);
+  const buildFutureSequenceWarning = (onConfirm) => {
+    const parsedManualSequence = parseInt(manualSequence, 10);
+    const nextSequence = Number(sequenceData?.nextSequence);
+
+    if (
+      !Number.isFinite(parsedManualSequence) ||
+      !Number.isFinite(nextSequence) ||
+      parsedManualSequence <= nextSequence
+    ) {
+      return false;
     }
+
+    setConfirmation({
+      isOpen: true,
+      title: 'Skip invoice numbers?',
+      type: 'warning',
+      message: (
+        <>
+          The next invoice number is{' '}
+          <span className="confirmation-modal-highlight">{nextSequence}</span>,
+          but you entered{' '}
+          <span className="confirmation-modal-highlight">{parsedManualSequence}</span>.
+          <br />
+          <br />
+          This invoice will use{' '}
+          <strong>
+            {sequenceData.prefix}/{parsedManualSequence}/{sequenceData.financialYear}
+          </strong>
+          . Skipped numbers{' '}
+          <strong>
+            {nextSequence}
+            {parsedManualSequence - nextSequence > 1 ? `-${parsedManualSequence - 1}` : ''}
+          </strong>{' '}
+          will stay available for manual entry later.
+        </>
+      ),
+      confirmText: 'Use this number',
+      cancelText: 'Go back',
+      onConfirm,
+    });
+    return true;
+  };
+
+  const handleConfirm = async () => {
+    const proceedWithCreate = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('confirm');
+        const payload = buildPayload();
+        const response = await createInvoice(payload);
+        console.log('Invoice created:', response);
+        navigate(`/invoices/${response.id}`);
+      } catch (error) {
+        console.error('Error creating invoice:', error);
+        alert(error.message || 'Failed to create invoice. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (buildFutureSequenceWarning(proceedWithCreate)) return;
+    await proceedWithCreate();
   };
 
   const handleSaveDraft = async () => {
-    try {
-      setLoading('draft');
-      const payload = buildPayload();
-      const response = await createDraft(payload);
-      console.log('Draft saved:', response);
-      navigate(`/invoices/${response.id}`);
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      alert(error.message || 'Failed to save draft. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    const proceedWithDraftSave = async () => {
+      setConfirmation(prev => ({ ...prev, isOpen: false }));
+      try {
+        setLoading('draft');
+        const payload = buildPayload();
+        const response = await createDraft(payload);
+        console.log('Draft saved:', response);
+        navigate(`/invoices/${response.id}`);
+      } catch (error) {
+        console.error('Error saving draft:', error);
+        alert(error.message || 'Failed to save draft. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (buildFutureSequenceWarning(proceedWithDraftSave)) return;
+    await proceedWithDraftSave();
   };
 
   const canSubmit = selectedCustomerId &&
@@ -408,6 +472,7 @@ const CreateInvoicePageMobile = () => {
   }
 
   return (
+    <>
     <DashboardTemplate>
       <div className={styles.mobileContainer}>
         {/* Header */}
@@ -699,6 +764,18 @@ const CreateInvoicePageMobile = () => {
         </div>
       </div>
     </DashboardTemplate>
+    <ConfirmationModal
+      isOpen={confirmation.isOpen}
+      onClose={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+      onConfirm={confirmation.onConfirm}
+      title={confirmation.title}
+      message={confirmation.message}
+      type={confirmation.type}
+      confirmText={confirmation.confirmText}
+      cancelText={confirmation.cancelText}
+      isLoading={Boolean(loading)}
+    />
+    </>
   );
 };
 

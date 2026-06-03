@@ -626,8 +626,6 @@ const CreateInvoicePage = () => {
       }
     };
 
-    if (buildFutureSequenceWarning(proceedWithSave)) return;
-
     // Check for overpayment
     if (paidAmount > total) {
       setConfirmation({
@@ -681,6 +679,8 @@ const CreateInvoicePage = () => {
       return;
     }
 
+    if (buildFutureSequenceWarning(proceedWithSave)) return;
+
     await proceedWithSave();
   };
 
@@ -711,8 +711,6 @@ const CreateInvoicePage = () => {
       }
     };
 
-    if (buildFutureSequenceWarning(proceedWithSaveDraft)) return;
-
     // Warning for finalized invoices
     if (
       id &&
@@ -731,6 +729,8 @@ const CreateInvoicePage = () => {
       });
       return;
     }
+
+    if (buildFutureSequenceWarning(proceedWithSaveDraft)) return;
 
     await proceedWithSaveDraft();
   };
