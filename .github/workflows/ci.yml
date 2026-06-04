@@ -41,6 +41,9 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Production build
+        run: npm run build -- --no-lint
+
   # ─────────────────────────────────────────────────────────
   # 2. Unit tests (Jest)
   # ─────────────────────────────────────────────────────────
