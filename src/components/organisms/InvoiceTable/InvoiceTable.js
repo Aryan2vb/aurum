@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -154,6 +154,10 @@ const InvoiceTable = ({
   onRecordPayment,
   showItems = false,
   onToggleShowItems,
+  infiniteScroll = false,
+  isLoadingMore = false,
+  hasMore = false,
+  onLoadMore,
   navigate,
 }) => {
   const { can } = usePermission('invoices');
@@ -161,6 +165,35 @@ const InvoiceTable = ({
   const [rowSelection, setRowSelection] = useState({});
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
+  const tableWrapperRef = useRef(null);
+
+  const handleTableScroll = useCallback((event) => {
+    if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
+
+    const target = event.currentTarget;
+    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+    if (remaining < 180) {
+      onLoadMore?.();
+    }
+  }, [hasMore, infiniteScroll, isLoading, isLoadingMore, onLoadMore]);
+
+  useEffect(() => {
+    if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
+
+    const wrapper = tableWrapperRef.current;
+    if (!wrapper) return;
+
+    if (wrapper.scrollHeight <= wrapper.clientHeight + 24) {
+      onLoadMore?.();
+    }
+  }, [data.length, hasMore, infiniteScroll, isLoading, isLoadingMore, onLoadMore]);
+
+  useEffect(() => {
+    if (!infiniteScroll || !isLoading) return;
+    if (tableWrapperRef.current) {
+      tableWrapperRef.current.scrollTop = 0;
+    }
+  }, [infiniteScroll, isLoading]);
 
   // Process data for the table based on showItems toggle
   const processedData = useMemo(() => {
@@ -740,7 +773,11 @@ const InvoiceTable = ({
       </div>
 
       {/* Table Content */}
-      <div className="attio-table-wrapper">
+      <div
+        className="attio-table-wrapper"
+        ref={tableWrapperRef}
+        onScroll={handleTableScroll}
+      >
         <table className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}>
           <thead>
             {table.getHeaderGroups().map(headerGroup => (
@@ -829,6 +866,10 @@ const InvoiceTable = ({
           pageSize={pageSize}
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
+          mode={infiniteScroll ? 'infinite' : 'pagination'}
+          loadedCount={data.length}
+          isLoadingMore={isLoadingMore}
+          hasMore={hasMore}
         />
       )}
     </div>

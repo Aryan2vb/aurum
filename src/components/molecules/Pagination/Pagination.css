@@ -9,6 +9,10 @@
   gap: 16px;
 }
 
+.pagination-container-infinite {
+  min-height: 48px;
+}
+
 [data-theme='dark'] .pagination-container {
   background: var(--ct-bg, #0f0f0f);
   border-top-color: var(--ct-border-light, #1f1f1f);
@@ -30,6 +34,30 @@
 .pagination-text strong {
   color: var(--ct-text, #1f2937);
   font-weight: 500;
+}
+
+.pagination-infinite-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ct-text-muted, #9ca3af);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.pagination-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ct-border, #d1d5db);
+  border-top-color: var(--ct-accent, var(--accent));
+  border-radius: 999px;
+  animation: pagination-spin 0.8s linear infinite;
+}
+
+@keyframes pagination-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 [data-theme='dark'] .pagination-text strong {
