@@ -58,6 +58,38 @@ export const flattenCustomerData = (customer) => {
 /**
  * Flatten nested invoice object into a single-level object (including line items)
  */
+const NAME_TITLES = new Set([
+  'MR',
+  'MRS',
+  'MS',
+  'MISS',
+  'DR',
+  'SHRI',
+  'SMT',
+  'SRI',
+]);
+
+export const splitCustomerExportName = (fullName = '') => {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) {
+    return { firstName: parts[0] || '', lastName: '' };
+  }
+
+  const firstToken = parts[0].replace(/\./g, '').toUpperCase();
+  const hasTitlePrefix = NAME_TITLES.has(firstToken);
+  if (hasTitlePrefix && parts.length >= 3) {
+    return {
+      firstName: parts.slice(0, -1).join(' '),
+      lastName: parts[parts.length - 1],
+    };
+  }
+
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1).join(' '),
+  };
+};
+
 export const flattenInvoiceData = (invoice) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
@@ -93,9 +125,7 @@ export const flattenInvoiceData = (invoice) => {
 
   const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
   const customerFullName = invoice.customer?.fullName || buyer.name || '';
-  const nameParts = customerFullName.split(' ');
-  const firstName = nameParts[0] || '';
-  const lastName = nameParts.slice(1).join(' ') || '';
+  const { firstName, lastName } = splitCustomerExportName(customerFullName);
 
   const items = invoice.items || [];
   
