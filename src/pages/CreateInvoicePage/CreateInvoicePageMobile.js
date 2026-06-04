@@ -58,6 +58,16 @@ const defaultInvoiceState = {
 
 const fmt = (n) => '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const formatCustomerAddress = (location) =>
+  [
+    location?.village,
+    location?.tehsil,
+    location?.district,
+    location?.state,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
 const CreateInvoicePageMobile = () => {
   const navigate = useNavigate();
   const [theme, setTheme] = useState('jewellery');
@@ -266,16 +276,18 @@ const CreateInvoicePageMobile = () => {
 
   const handleCustomerSelect = (customer) => {
     pendingItemDescriptionFocusRef.current = true;
+    const location = customer.locations?.[0];
     setSelectedCustomerId(customer.id);
     setSearchQuery('');
     setSearchResults([]);
     setInvoiceData(prev => ({
       ...prev,
       buyer: {
-        ...prev.buyer,
         name: customer.fullName || customer.name || '',
         phone: customer.contactDetails?.[0]?.primaryPhone || customer.phone || '',
-        address: customer.locations?.[0]?.village || customer.locations?.[0]?.district || 'Unknown Address'
+        address: formatCustomerAddress(location),
+        state: location?.state || customer.state || '',
+        stateCode: location?.stateCode || customer.stateCode || ''
       }
     }));
   };
