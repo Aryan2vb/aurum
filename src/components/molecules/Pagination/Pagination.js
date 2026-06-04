@@ -18,7 +18,37 @@ const Pagination = ({
   pageSize = 10,
   onPageChange,
   onPageSizeChange,
+  mode = 'pagination',
+  loadedCount = 0,
+  isLoadingMore = false,
+  hasMore = false,
 }) => {
+  if (mode === 'infinite') {
+    const shownCount = Math.min(loadedCount || 0, total);
+
+    return (
+      <div className="pagination-container pagination-container-infinite">
+        <div className="pagination-info">
+          <span className="pagination-text">
+            Showing <strong>{shownCount}</strong> of <strong>{total}</strong>
+          </span>
+        </div>
+        <div className="pagination-infinite-status">
+          {isLoadingMore ? (
+            <>
+              <span className="pagination-spinner" aria-hidden="true" />
+              <span>Loading more invoices...</span>
+            </>
+          ) : hasMore ? (
+            <span>Scroll to load more</span>
+          ) : total > 0 ? (
+            <span>All invoices loaded</span>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   const handlePrevious = () => {
     if (currentPage > 1) {
       onPageChange?.(currentPage - 1);
