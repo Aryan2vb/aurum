@@ -1,7 +1,12 @@
 import React from 'react';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
 import './ImportExportMenu.css';
+
+const MM_TO_PT = 72 / 25.4;
+export const FS_LANDSCAPE_FORMAT_PT = [345 * MM_TO_PT, 215 * MM_TO_PT];
 
 // Icons
 const DownloadIcon = () => (
@@ -272,6 +277,189 @@ const ImportExportMenu = ({
     close();
   };
 
+  const exportToPDF = async (close) => {
+    if (!onExportTrigger && !hasSelection && data.length === 0) {
+      alert(`Please select at least one ${resourceName} to export`);
+      close();
+      return;
+    }
+
+    const flattenedData = await getFlattenedData();
+    if (flattenedData.length === 0) {
+      close();
+      return;
+    }
+
+    // Separate totals row from data rows
+    const isInvoice = resourceName === 'invoices';
+    let dataRows = flattenedData;
+    let totalsRow = null;
+    if (isInvoice && flattenedData.length > 0) {
+      const lastRow = flattenedData[flattenedData.length - 1];
+      if (lastRow['Serial No.'] === 'TOTAL') {
+        totalsRow = lastRow;
+        dataRows = flattenedData.slice(0, -1);
+      }
+    }
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: FS_LANDSCAPE_FORMAT_PT });
+    const pageW = doc.internal.pageSize.getWidth();
+
+    // ── Title bar — black fill, white text (prints cleanly on green paper) ──
+    doc.setFillColor(0, 0, 0);
+    doc.rect(0, 0, pageW, 36, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    const title = isInvoice ? 'INVOICE REPORT' : `${(resourceName || 'REPORT').toUpperCase()}`;
+    doc.text(title, 28, 23);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const dateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    doc.text(`Generated: ${dateStr}`, pageW - 28, 23, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+
+    if (isInvoice) {
+      // ── Column keys (match exportUtils order) ────────────────────────────
+      const colKeys = [
+        'Serial No.', 'Invoice No.', 'Date',
+        'Customer Name', 'Last Name', 'Address', 'Contact No.',
+        'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver',
+        'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'Gst 3%', 'Round off',
+        'Total',
+        'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other',
+        'Gst No'
+      ];
+
+      const subLabels = [
+        'S.No', 'Invoice No.', 'Date',
+        'Cust. Name', 'Last Name', 'Address', 'Contact',
+        'Metal', 'HSN', 'Item', 'Purity', 'Wt. Gold', 'Wt. Silver',
+        'Rate/g', 'Labour/g', 'Labour', 'Hallmark', 'Amount', 'GST 3%', 'Round off',
+        'Total',
+        'UPI', 'Swipe', 'Cheque', 'Bank Tfr', 'Cash', 'Other',
+        'GST No'
+      ];
+
+      // Group definitions: [label, startColIdx, endColIdx (inclusive)]
+      const groups = [
+        ['S.No',             0,  0],
+        ['Invoice No.',      1,  1],
+        ['Date',             2,  2],
+        ['Customer Details', 3,  6],
+        ['Item Details',     7, 19],
+        ['Total',           20, 20],
+        ['Payment Details', 21, 26],
+        ['GST No',          27, 27],
+      ];
+
+      // Build group header row — show label only at the first col of each group
+      const headRow1 = subLabels.map((_, colIdx) => {
+        const group = groups.find(([, s, e]) => colIdx >= s && colIdx <= e);
+        if (!group) return '';
+        const [label, start] = group;
+        return colIdx === start ? label : '';
+      });
+
+      // Build body
+      const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
+      if (totalsRow) {
+        body.push(colKeys.map(k => totalsRow[k] ?? ''));
+      }
+
+      // Column widths (raw proportions) — scaled to fit exactly within page margins
+      const margin = { top: 44, left: 14, right: 14, bottom: 22 };
+      const availableWidth = pageW - margin.left - margin.right;
+      const rawWidths = [
+        28, 68, 50,              // S.No, Invoice, Date
+        58, 48, 68, 50,          // Customer
+        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 38, 42, // Items
+        48,                      // Total
+        42, 38, 42, 48, 38, 38,  // Payment
+        52                       // GST No
+      ];
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
+      const scale = availableWidth / rawTotal;
+      const scaledWidths = rawWidths.map(w => w * scale);
+
+      autoTable(doc, {
+        startY: 44,
+        margin,
+        head: [headRow1, subLabels],
+        body,
+        // B&W palette — safe on green paper with a monochrome printer
+        theme: 'grid',
+        styles: {
+          fontSize: 6.5,
+          cellPadding: 2.5,
+          halign: 'center',
+          valign: 'middle',
+          overflow: 'linebreak',
+          textColor: [0, 0, 0],
+          fillColor: false,          // transparent — green paper shows through
+          lineColor: [80, 80, 80],
+          lineWidth: 0.4,
+        },
+        headStyles: {
+          fillColor: [60, 60, 60],   // dark gray — group header row
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 7,
+        },
+        alternateRowStyles: {
+          fillColor: [220, 220, 220], // light gray stripe — subtle on green
+        },
+        columnStyles: scaledWidths.reduce((acc, w, i) => {
+          acc[i] = { cellWidth: w };
+          return acc;
+        }, {}),
+        didParseCell: (data) => {
+          // Sub-header row (row index 1) — medium gray
+          if (data.section === 'head' && data.row.index === 1) {
+            data.cell.styles.fillColor = [120, 120, 120];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          // Totals row (last body row) — white fill, bold, thick top border
+          if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fontSize = 7;
+            data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
+          }
+        },
+        didDrawPage: (data) => {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(80);
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}`,
+            pageW / 2,
+            doc.internal.pageSize.getHeight() - 12,
+            { align: 'center' }
+          );
+        },
+      });
+
+    } else {
+      // ── Generic single-level table ────────────────────────────────────────
+      const headers = Object.keys(flattenedData[0] || {});
+      autoTable(doc, {
+        startY: 44,
+        head: [headers],
+        body: dataRows.map(row => headers.map(h => row[h] ?? '')),
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 3, halign: 'center', valign: 'middle', fillColor: false, lineColor: [80, 80, 80], lineWidth: 0.4 },
+        headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [220, 220, 220] },
+      });
+    }
+
+    doc.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+    close();
+  };
+
   const handleImportClick = (close) => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -319,6 +507,12 @@ const ImportExportMenu = ({
             onClick={() => exportToExcel(close)}
           >
             {exportLabel} XLSX
+          </DropdownItem>
+          <DropdownItem 
+            icon={<DownloadIcon />} 
+            onClick={() => exportToPDF(close)}
+          >
+            {exportLabel} PDF
           </DropdownItem>
           {onImport && (
             <>
