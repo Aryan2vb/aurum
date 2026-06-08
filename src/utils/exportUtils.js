@@ -129,22 +129,53 @@ export const flattenInvoiceData = (invoice) => {
 
   const items = invoice.items || [];
   
-  // Calculate total payments per mode for the whole invoice
-  const bankSum = (invoice.payments || [])
-    .filter(p => p.mode !== 'CASH')
-    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-
   const cashSum = (invoice.payments || [])
     .filter(p => p.mode === 'CASH')
     .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
-  const totalBank = (invoice.payments && invoice.payments.length)
-    ? bankSum
-    : (invoice.modeOfPayment !== 'CASH' ? Number(invoice.paidAmount || 0) : 0);
+  const upiSum = (invoice.payments || [])
+    .filter(p => p.mode === 'UPI')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const swipeSum = (invoice.payments || [])
+    .filter(p => p.mode === 'CARD')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const chequeSum = (invoice.payments || [])
+    .filter(p => p.mode === 'CHEQUE')
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const bankTransferSum = (invoice.payments || [])
+    .filter(p => ['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode))
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const otherSum = (invoice.payments || [])
+    .filter(p => !['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode))
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   const totalCash = (invoice.payments && invoice.payments.length)
     ? cashSum
     : (invoice.modeOfPayment === 'CASH' ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalUpi = (invoice.payments && invoice.payments.length)
+    ? upiSum
+    : (invoice.modeOfPayment === 'UPI' ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalSwipe = (invoice.payments && invoice.payments.length)
+    ? swipeSum
+    : (invoice.modeOfPayment === 'CARD' ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalCheque = (invoice.payments && invoice.payments.length)
+    ? chequeSum
+    : (invoice.modeOfPayment === 'CHEQUE' ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalBankTransfer = (invoice.payments && invoice.payments.length)
+    ? bankTransferSum
+    : (['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) ? Number(invoice.paidAmount || 0) : 0);
+
+  const totalOther = (invoice.payments && invoice.payments.length)
+    ? otherSum
+    : (!['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) && invoice.modeOfPayment ? Number(invoice.paidAmount || 0) : 0);
 
   // If no items, return at least one row with basic info
   if (items.length === 0) {
@@ -170,8 +201,12 @@ export const flattenInvoiceData = (invoice) => {
       'Gst 3%': 0,
       'Round off': invoice.roundOff || 0,
       'Total': invoice.totalAmount || 0,
-      'Bank': totalBank,
+      'UPI': totalUpi,
+      'Swipe': totalSwipe,
+      'Cheque': totalCheque,
+      'Bank Transfer': totalBankTransfer,
       'Cash': totalCash,
+      'Other': totalOther,
       'Gst No': buyer.gstin || ''
     }];
   }
@@ -214,8 +249,12 @@ export const flattenInvoiceData = (invoice) => {
       'Gst 3%': itemGst.toFixed(2),
       'Round off': itemRoundOff.toFixed(2),
       'Total': (itemAmount + itemGst + itemRoundOff).toFixed(2),
-      'Bank': idx === 0 ? totalBank.toFixed(2) : '',
+      'UPI': idx === 0 ? totalUpi.toFixed(2) : '',
+      'Swipe': idx === 0 ? totalSwipe.toFixed(2) : '',
+      'Cheque': idx === 0 ? totalCheque.toFixed(2) : '',
+      'Bank Transfer': idx === 0 ? totalBankTransfer.toFixed(2) : '',
       'Cash': idx === 0 ? totalCash.toFixed(2) : '',
+      'Other': idx === 0 ? totalOther.toFixed(2) : '',
       'Gst No': buyer.gstin || ''
     };
   });

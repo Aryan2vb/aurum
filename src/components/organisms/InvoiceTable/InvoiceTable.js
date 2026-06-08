@@ -203,7 +203,11 @@ const InvoiceTable = ({
         const buyer = invoice.buyerSnapshot?.data || invoice.buyerSnapshot || {};
         const items = invoice.items || [];
           const cashPayments = (invoice.payments || []).filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0);
-          const bankPayments = (invoice.payments || []).filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0);
+          const upiPayments = (invoice.payments || []).filter(p => p.mode === 'UPI').reduce((sum, p) => sum + Number(p.amount), 0);
+          const swipePayments = (invoice.payments || []).filter(p => p.mode === 'CARD').reduce((sum, p) => sum + Number(p.amount), 0);
+          const chequePayments = (invoice.payments || []).filter(p => p.mode === 'CHEQUE').reduce((sum, p) => sum + Number(p.amount), 0);
+          const bankTransferPayments = (invoice.payments || []).filter(p => ['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0);
+          const otherPayments = (invoice.payments || []).filter(p => !['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0);
           const invoicePaid = Number(invoice.paidAmount || 0);
 
           items.forEach((item, itemIdx) => {
@@ -213,9 +217,13 @@ const InvoiceTable = ({
             const gstRatio = invoiceSubtotal > 0 ? itemAmount / invoiceSubtotal : 0;
             const itemGst = (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0)) * gstRatio;
 
-            // Proportional attribution of bank/cash to item (approximation)
+            // Proportional attribution of payments to item (approximation)
             const cashRatio = invoicePaid > 0 ? cashPayments / invoicePaid : (invoice.modeOfPayment === 'CASH' ? 1 : 0);
-            const bankRatio = invoicePaid > 0 ? bankPayments / invoicePaid : (invoice.modeOfPayment !== 'CASH' && invoice.modeOfPayment ? 1 : 0);
+            const upiRatio = invoicePaid > 0 ? upiPayments / invoicePaid : (invoice.modeOfPayment === 'UPI' ? 1 : 0);
+            const swipeRatio = invoicePaid > 0 ? swipePayments / invoicePaid : (invoice.modeOfPayment === 'CARD' ? 1 : 0);
+            const chequeRatio = invoicePaid > 0 ? chequePayments / invoicePaid : (invoice.modeOfPayment === 'CHEQUE' ? 1 : 0);
+            const bankTransferRatio = invoicePaid > 0 ? bankTransferPayments / invoicePaid : (['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) ? 1 : 0);
+            const otherRatio = invoicePaid > 0 ? otherPayments / invoicePaid : (!['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) && invoice.modeOfPayment ? 1 : 0);
 
             flatRows.push({
               ...invoice,
@@ -242,8 +250,12 @@ const InvoiceTable = ({
               ledgerLabourTotal: parseFloat(item.makingChargesAmount || 0),
               ledgerHuid: item.huid || '',
               ledgerGst: itemGst,
-              ledgerBank: (itemAmount + itemGst) * bankRatio,
               ledgerCash: (itemAmount + itemGst) * cashRatio,
+              ledgerUpi: (itemAmount + itemGst) * upiRatio,
+              ledgerSwipe: (itemAmount + itemGst) * swipeRatio,
+              ledgerCheque: (itemAmount + itemGst) * chequeRatio,
+              ledgerBankTransfer: (itemAmount + itemGst) * bankTransferRatio,
+              ledgerOther: (itemAmount + itemGst) * otherRatio,
             });
           });
       });
@@ -291,18 +303,31 @@ const InvoiceTable = ({
         ledgerLabourTotal: labourTotal,
         ledgerHuid: items.map(i => i.huid).filter(Boolean).join(', '),
         ledgerGst: Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0),
-        ledgerBank: invoice.payments?.length 
-          ? invoice.payments.filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
-          : (invoice.modeOfPayment !== 'CASH' && invoice.modeOfPayment ? parseFloat(invoice.paidAmount || 0) : 0),
         ledgerCash: invoice.payments?.length
           ? invoice.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
           : (invoice.modeOfPayment === 'CASH' ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerUpi: invoice.payments?.length
+          ? invoice.payments.filter(p => p.mode === 'UPI').reduce((sum, p) => sum + Number(p.amount), 0)
+          : (invoice.modeOfPayment === 'UPI' ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerSwipe: invoice.payments?.length
+          ? invoice.payments.filter(p => p.mode === 'CARD').reduce((sum, p) => sum + Number(p.amount), 0)
+          : (invoice.modeOfPayment === 'CARD' ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerCheque: invoice.payments?.length
+          ? invoice.payments.filter(p => p.mode === 'CHEQUE').reduce((sum, p) => sum + Number(p.amount), 0)
+          : (invoice.modeOfPayment === 'CHEQUE' ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerBankTransfer: invoice.payments?.length
+          ? invoice.payments.filter(p => ['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0)
+          : (['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) ? parseFloat(invoice.paidAmount || 0) : 0),
+        ledgerOther: invoice.payments?.length
+          ? invoice.payments.filter(p => !['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0)
+          : (!['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(invoice.modeOfPayment) && invoice.modeOfPayment ? parseFloat(invoice.paidAmount || 0) : 0),
       };
     });
   }, [data, showItems]);
 
   const aggregations = useMemo(() => {
-    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, totalBank = 0, totalCash = 0, labourTotal = 0, subtotal = 0;
+    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, labourTotal = 0, subtotal = 0;
+    let totalCash = 0, totalUpi = 0, totalSwipe = 0, totalCheque = 0, totalBankTransfer = 0, totalOther = 0;
 
     data.forEach(inv => {
       totalAmount += Number(inv.totalAmount || 0);
@@ -313,12 +338,32 @@ const InvoiceTable = ({
         ? inv.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
         : (inv.modeOfPayment === 'CASH' ? Number(inv.paidAmount || 0) : 0);
       
-      const bankPayments = inv.payments?.length
-        ? inv.payments.filter(p => p.mode !== 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
-        : (inv.modeOfPayment !== 'CASH' && inv.modeOfPayment ? Number(inv.paidAmount || 0) : 0);
+      const upiPayments = inv.payments?.length
+        ? inv.payments.filter(p => p.mode === 'UPI').reduce((sum, p) => sum + Number(p.amount), 0)
+        : (inv.modeOfPayment === 'UPI' ? Number(inv.paidAmount || 0) : 0);
+
+      const swipePayments = inv.payments?.length
+        ? inv.payments.filter(p => p.mode === 'CARD').reduce((sum, p) => sum + Number(p.amount), 0)
+        : (inv.modeOfPayment === 'CARD' ? Number(inv.paidAmount || 0) : 0);
+
+      const chequePayments = inv.payments?.length
+        ? inv.payments.filter(p => p.mode === 'CHEQUE').reduce((sum, p) => sum + Number(p.amount), 0)
+        : (inv.modeOfPayment === 'CHEQUE' ? Number(inv.paidAmount || 0) : 0);
+
+      const bankTransferPayments = inv.payments?.length
+        ? inv.payments.filter(p => ['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0)
+        : (['BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(inv.modeOfPayment) ? Number(inv.paidAmount || 0) : 0);
+
+      const otherPayments = inv.payments?.length
+        ? inv.payments.filter(p => !['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(p.mode)).reduce((sum, p) => sum + Number(p.amount), 0)
+        : (!['CASH', 'UPI', 'CARD', 'CHEQUE', 'BANK_TRANSFER', 'NEFT', 'RTGS', 'IMPS'].includes(inv.modeOfPayment) && inv.modeOfPayment ? Number(inv.paidAmount || 0) : 0);
 
       totalCash += cashPayments;
-      totalBank += bankPayments;
+      totalUpi += upiPayments;
+      totalSwipe += swipePayments;
+      totalCheque += chequePayments;
+      totalBankTransfer += bankTransferPayments;
+      totalOther += otherPayments;
     });
 
     processedData.forEach(row => {
@@ -335,8 +380,12 @@ const InvoiceTable = ({
       goldWt, 
       silverWt, 
       totalGst, 
-      totalBank, 
       totalCash, 
+      totalUpi,
+      totalSwipe,
+      totalCheque,
+      totalBankTransfer,
+      totalOther,
       labourTotal,
     };
   }, [data, processedData]);
@@ -654,17 +703,45 @@ const InvoiceTable = ({
       cell: info => <span className="fw-600">{formatCurrency(info.getValue())}</span>,
       size: 110,
     }),
-    // Bank
-    columnHelper.accessor('ledgerBank', {
-      id: 'ledgerBank',
-      header: 'Bank',
+    // UPI
+    columnHelper.accessor('ledgerUpi', {
+      id: 'ledgerUpi',
+      header: 'UPI',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
+    }),
+    // Swipe
+    columnHelper.accessor('ledgerSwipe', {
+      id: 'ledgerSwipe',
+      header: 'Swipe',
+      cell: info => formatCurrency(info.getValue()),
+      size: 110,
+    }),
+    // Cheque
+    columnHelper.accessor('ledgerCheque', {
+      id: 'ledgerCheque',
+      header: 'Cheque',
+      cell: info => formatCurrency(info.getValue()),
+      size: 110,
+    }),
+    // Bank Transfer
+    columnHelper.accessor('ledgerBankTransfer', {
+      id: 'ledgerBankTransfer',
+      header: 'Bank Transfer',
+      cell: info => formatCurrency(info.getValue()),
+      size: 115,
     }),
     // Cash
     columnHelper.accessor('ledgerCash', {
       id: 'ledgerCash',
       header: 'Cash',
+      cell: info => formatCurrency(info.getValue()),
+      size: 110,
+    }),
+    // Other
+    columnHelper.accessor('ledgerOther', {
+      id: 'ledgerOther',
+      header: 'Other',
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
@@ -842,8 +919,12 @@ const InvoiceTable = ({
                     ledgerLabourTotal: formatCurrency(aggregations.labourTotal),
                     ledgerGst: formatCurrency(aggregations.totalGst),
                     totalAmount: formatCurrency(aggregations.total),
-                    ledgerBank: formatCurrency(aggregations.totalBank),
                     ledgerCash: formatCurrency(aggregations.totalCash),
+                    ledgerUpi: formatCurrency(aggregations.totalUpi),
+                    ledgerSwipe: formatCurrency(aggregations.totalSwipe),
+                    ledgerCheque: formatCurrency(aggregations.totalCheque),
+                    ledgerBankTransfer: formatCurrency(aggregations.totalBankTransfer),
+                    ledgerOther: formatCurrency(aggregations.totalOther),
                   };
                   const val = totals[col.id];
                   return (
