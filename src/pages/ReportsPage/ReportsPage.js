@@ -21,6 +21,20 @@ const TABS = [
 
 const fmtLabel = (key) => key.replace(/([A-Z])/g, ' $1').trim();
 
+const METHOD_LABELS = {
+  CASH: 'Cash',
+  UPI: 'UPI',
+  BANK_TRANSFER: 'Bank Transfer',
+  CHEQUE: 'Cheque',
+  CARD: 'Swipe / Card',
+  OTHER: 'Other',
+  NEFT: 'NEFT',
+  RTGS: 'RTGS',
+  IMPS: 'IMPS',
+  OLD_GOLD: 'Old Gold',
+  CREDIT: 'Credit'
+};
+
 const fmtAmt = (v) => '₹' + (parseFloat(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /* ── Summary cards ── */
@@ -95,7 +109,7 @@ const CollectionsReport = ({ data }) => {
         </div>
         {data.groupedByMode && Object.entries(data.groupedByMode).map(([mode, amt]) => (
           <div key={mode} className="report-summary-card">
-            <span className="report-summary-label">{mode}</span>
+            <span className="report-summary-label">{METHOD_LABELS[mode] || fmtLabel(mode)}</span>
             <span className="report-summary-amount">{fmtAmt(amt)}</span>
           </div>
         ))}

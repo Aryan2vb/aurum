@@ -161,7 +161,7 @@
 
 .attio-th {
   padding: 9px 16px;
-  text-align: left;
+  text-align: center;
   font-size: 11px;
   font-weight: 600;
   color: var(--ct-text-muted);
@@ -178,6 +178,7 @@
 .attio-th-content {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
@@ -189,6 +190,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   border-right: 1px solid var(--ct-border-light);
+  text-align: center;
 }
 
 .attio-td-pinned-sn, .attio-th-pinned-sn, .attio-tf-pinned-sn {
@@ -241,6 +243,7 @@
   font-weight: 600;
   color: var(--ct-text-secondary);
   border-top: 1px solid var(--ct-border);
+  text-align: center;
 }
 
 .attio-tf-pinned-sn, .attio-tf-pinned-actions, .attio-tf-pinned-invoiceNumber, .attio-tf-checkbox {
@@ -258,6 +261,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  justify-content: center;
 }
 
 .attio-user-avatar {

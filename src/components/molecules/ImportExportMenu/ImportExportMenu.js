@@ -85,7 +85,7 @@ const ImportExportMenu = ({
       // 2. Calculation for Totals Row
       const numericColumns = [
         'Net Wt. Gold', 'Net Wt. Silver', 'Amount', 'Labour Total', 
-        'Hallmark Chrgs', 'Gst 3%', 'Round off', 'Total', 'Bank', 'Cash'
+        'Hallmark Chrgs', 'Gst 3%', 'Round off', 'Total', 'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'
       ];
 
       const totals = {
@@ -164,23 +164,108 @@ const ImportExportMenu = ({
     }
 
     // Create workbook and worksheet
-    const worksheet = XLSX.utils.json_to_sheet(flattenedData);
+    let worksheet;
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-    // Auto-size columns
-    const colWidths = [];
-    if (flattenedData.length > 0) {
-      Object.keys(flattenedData[0]).forEach((key, idx) => {
+    if (resourceName === 'invoices') {
+      const headers = [
+        ["Serial No.", "Invoice No.", "Date", "Customer Details", "", "", "", "Item Details", "", "", "", "", "", "", "", "", "", "", "", "", "Total", "Payment Details", "", "", "", "", "", "Gst No"],
+        ["", "", "", "Customer Name", "Last Name", "Address", "Contact No.", "Metal", "Hsn", "Item Name", "Purity", "Net Wt. Gold", "Net Wt. Silver", "Metal Rate PG", "Labour PG", "Labour Total", "Hallmark Chrgs", "Amount", "Gst 3%", "Round off", "", "UPI", "Swipe", "Cheque", "Bank Transfer", "Cash", "Other", ""]
+      ];
+
+      const dataRows = flattenedData.map(row => [
+        row['Serial No.'],
+        row['Invoice No.'],
+        row['Date'],
+        row['Customer Name'],
+        row['Last Name'],
+        row['Address'],
+        row['Contact No.'],
+        row['Metal'],
+        row['Hsn'],
+        row['Item Name'],
+        row['Purity'],
+        row['Net Wt. Gold'],
+        row['Net Wt. Silver'],
+        row['Metel Rate PG'] || row['Metal Rate PG'],
+        row['Labour PG'],
+        row['Labour Total'],
+        row['Hallmark Chrgs'],
+        row['Amount'],
+        row['Gst 3%'],
+        row['Round off'],
+        row['Total'],
+        row['UPI'],
+        row['Swipe'],
+        row['Cheque'],
+        row['Bank Transfer'],
+        row['Cash'],
+        row['Other'],
+        row['Gst No']
+      ]);
+
+      worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
+
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // Serial No.
+        { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // Invoice No.
+        { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // Date
+        { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } }, // Customer Details
+        { s: { r: 0, c: 7 }, e: { r: 0, c: 19 } }, // Item Details
+        { s: { r: 0, c: 20 }, e: { r: 1, c: 20 } }, // Total
+        { s: { r: 0, c: 21 }, e: { r: 0, c: 26 } }, // Payment Details
+        { s: { r: 0, c: 27 }, e: { r: 1, c: 27 } }  // Gst No
+      ];
+
+      // Auto-size columns for double header worksheet
+      const colWidths = [];
+      const columnKeys = [
+        'Serial No.', 'Invoice No.', 'Date', 'Customer Name', 'Last Name', 'Address', 'Contact No.',
+        'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver', 'Metal Rate PG',
+        'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'Gst 3%', 'Round off', 'Total',
+        'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other', 'Gst No'
+      ];
+      columnKeys.forEach((key, idx) => {
         let maxWidth = key.length;
+        const checkKey = key === 'Metal Rate PG' ? 'Metel Rate PG' : key;
         flattenedData.forEach(row => {
-          const val = String(row[key] || '');
+          const val = String(row[checkKey] || row[key] || '');
           if (val.length > maxWidth) maxWidth = val.length;
         });
         colWidths[idx] = { wch: Math.min(maxWidth + 2, 50) };
       });
       worksheet['!cols'] = colWidths;
+    } else {
+      worksheet = XLSX.utils.json_to_sheet(flattenedData);
+
+      // Auto-size columns for standard worksheet
+      const colWidths = [];
+      if (flattenedData.length > 0) {
+        Object.keys(flattenedData[0]).forEach((key, idx) => {
+          let maxWidth = key.length;
+          flattenedData.forEach(row => {
+            const val = String(row[key] || '');
+            if (val.length > maxWidth) maxWidth = val.length;
+          });
+          colWidths[idx] = { wch: Math.min(maxWidth + 2, 50) };
+        });
+        worksheet['!cols'] = colWidths;
+      }
     }
+
+    // Center all cells in the worksheet
+    for (const key in worksheet) {
+      if (key.startsWith('!')) continue;
+      worksheet[key].s = {
+        alignment: {
+          horizontal: 'center',
+          vertical: 'center',
+          wrapText: true
+        }
+      };
+    }
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Generate XLSX file and trigger download
     XLSX.writeFile(workbook, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
