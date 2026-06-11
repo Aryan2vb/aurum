@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
+import { buildExportFilename } from '../../../utils/exportFilename';
 import './ImportExportMenu.css';
 
 const MM_TO_PT = 72 / 25.4;
@@ -36,6 +37,7 @@ const ChevronIcon = () => (
  * @param {Object} props
  * @param {Array} props.data - Data to export
  * @param {string} props.filename - Base filename for exports
+ * @param {string} props.filenameQualifier - Optional human-readable detail appended to the filename
  * @param {string} props.sheetName - Name of the worksheet in Excel
  * @param {function} props.onImport - Import handler (receives file). If null, import is hidden.
  * @param {function} props.flattenRow - Function to flatten a single row. Can return an object or array of objects.
@@ -47,6 +49,7 @@ const ChevronIcon = () => (
 const ImportExportMenu = ({ 
   data = [], 
   filename = 'export',
+  filenameQualifier,
   sheetName = 'Sheet1',
   onImport,
   flattenRow,
@@ -147,7 +150,7 @@ const ImportExportMenu = ({
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = buildExportFilename(filename, 'csv', filenameQualifier);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -273,7 +276,7 @@ const ImportExportMenu = ({
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
     // Generate XLSX file and trigger download
-    XLSX.writeFile(workbook, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(workbook, buildExportFilename(filename, 'xlsx', filenameQualifier));
     close();
   };
 
@@ -456,7 +459,7 @@ const ImportExportMenu = ({
       });
     }
 
-    doc.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(buildExportFilename(filename, 'pdf', filenameQualifier));
     close();
   };
 

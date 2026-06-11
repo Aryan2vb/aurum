@@ -18,6 +18,7 @@ import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu'
 import Pagination from '../../molecules/Pagination/Pagination';
 import { usePermission } from '../../../hooks/usePermission';
 import { flattenInvoiceData } from '../../../utils/exportUtils';
+import { getDateRangeFilenameQualifier } from '../../../utils/exportFilename';
 import { getInvoices } from '../../../services/invoicesService';
 
 import './InvoiceTable.css';
@@ -777,7 +778,8 @@ const InvoiceTable = ({
             <ImportExportMenu 
               data={[]} // Will be fetched on click for deep export
               selectedCount={Object.keys(rowSelection).length}
-              filename="invoices"
+              filename="Invoice Report"
+              filenameQualifier={getDateRangeFilenameQualifier(filters)}
               sheetName="Invoices"
               resourceName="invoices"
               flattenRow={flattenInvoiceData}
