@@ -1,5 +1,14 @@
 import { calcItemAmount } from './invoiceCalc';
 
+export function getInvoiceDocumentTitle({ buyer = {}, metadata = {} }) {
+    const titleParts = ['Tax Invoice'];
+
+    if (buyer.name) titleParts.push(buyer.name);
+    if (metadata.invoiceNo) titleParts.push(metadata.invoiceNo);
+
+    return titleParts.join(' - ');
+}
+
 export function generateInvoiceHtml(data) {
     const {
         company,
@@ -62,7 +71,7 @@ export function generateInvoiceHtml(data) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tax Invoice - ${metadata.invoiceNo}</title>
+  <title>${getInvoiceDocumentTitle({ buyer, metadata })}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; font-size: 12px; line-height: 1.4; color: #000; background: #fff; }
@@ -251,7 +260,7 @@ export function generateModernInvoiceHtml(data) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice ${metadata.invoiceNo}</title>
+    <title>${getInvoiceDocumentTitle({ buyer, metadata })}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; font-size: 13px; color: #1a1a2e; background: #fff; }
@@ -523,7 +532,7 @@ export function generateJewelleryInvoiceHtml(data) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tax Invoice - ${metadata.invoiceNo}</title>
+    <title>${getInvoiceDocumentTitle({ buyer, metadata })}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, sans-serif; font-size: 11px; color: #000; background: #fff; }
