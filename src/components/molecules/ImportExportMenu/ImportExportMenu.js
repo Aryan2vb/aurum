@@ -42,6 +42,7 @@ const ChevronIcon = () => (
  * @param {function} props.onImport - Import handler (receives file). If null, import is hidden.
  * @param {function} props.flattenRow - Function to flatten a single row. Can return an object or array of objects.
  * @param {function} props.onExportTrigger - Optional async function to fetch data for export.
+ * @param {function} props.onBillBookExport - Optional handler for exporting complete invoice bills.
  * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
@@ -54,6 +55,7 @@ const ImportExportMenu = ({
   onImport,
   flattenRow,
   onExportTrigger,
+  onBillBookExport,
   isLoading = false,
   selectedCount = 0,
   resourceName = 'items'
@@ -517,6 +519,20 @@ const ImportExportMenu = ({
           >
             {exportLabel} PDF
           </DropdownItem>
+          {onBillBookExport && (
+            <>
+              <DropdownDivider />
+              <DropdownItem
+                icon={<DownloadIcon />}
+                onClick={() => {
+                  close();
+                  onBillBookExport();
+                }}
+              >
+                Bill Book PDF
+              </DropdownItem>
+            </>
+          )}
           {onImport && (
             <>
               <DropdownDivider />

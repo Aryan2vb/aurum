@@ -9,4 +9,11 @@ describe('ImportExportMenu PDF export settings', () => {
     expect(source).toContain('format: FS_LANDSCAPE_FORMAT_PT');
     expect(source).not.toContain("format: 'a3'");
   });
+
+  it('provides a separate Bill Book PDF action', () => {
+    const source = fs.readFileSync(path.join(__dirname, 'ImportExportMenu.js'), 'utf8');
+
+    expect(source).toContain('Bill Book PDF');
+    expect(source).toContain('onBillBookExport');
+  });
 });

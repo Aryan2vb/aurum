@@ -243,3 +243,28 @@ export const getInvoiceViewToken = async (invoiceId) => {
   });
   return parseResponse(response);
 };
+
+export const getInvoiceBillBookHtml = async (request) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl('/invoices/bill-book'), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    let message = `Failed to prepare Bill Book (${response.status})`;
+    try {
+      const payload = await response.json();
+      message = payload?.message || payload?.error || message;
+    } catch (error) {
+      // Keep the status-based fallback when the server does not return JSON.
+    }
+    throw new Error(message);
+  }
+
+  return response.text();
+};
