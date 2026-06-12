@@ -359,7 +359,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                     <tbody>
                       {invoice.payments.map((p, i) => (
                         <tr key={p.id || i}>
-                          <td>{formatDate(p.createdAt)}</td>
+                          <td>{formatDate(p.paidAt || p.createdAt)}</td>
                           <td><span className="payment-mode-tag">{p.mode}</span></td>
                           <td>{p.reference || '—'}</td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>

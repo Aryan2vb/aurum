@@ -38,6 +38,38 @@ const fmt = (n) =>
     maximumFractionDigits: 2,
   });
 
+const toDateInputValue = (value = new Date()) => {
+  if (typeof value === "string") return value.slice(0, 10);
+
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getPaymentDateError = (payments, invoiceDate) => {
+  const today = toDateInputValue();
+  if (payments.some((payment) => !payment.paidAt)) {
+    return "Select a date for every payment";
+  }
+  if (
+    payments.some((payment) => payment.paidAt > today)
+  ) {
+    return "Payment date cannot be in the future";
+  }
+  if (
+    payments.some(
+      (payment) =>
+        payment.paidAt > invoiceDate &&
+        payment.paidAt !== payment.originalPaidAt,
+    )
+  ) {
+    return "Payment date cannot be after the invoice date";
+  }
+  return "";
+};
+
 const defaultItem = () => ({
   slNo: 1,
   description: "",
@@ -106,9 +138,7 @@ const CreateInvoicePage = () => {
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [payments, setPayments] = useState([]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
-  const [invoiceDate, setInvoiceDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
+  const [invoiceDate, setInvoiceDate] = useState(toDateInputValue());
   const [showAdvanced, setShowAdvanced] = useState(true);
   const [confirmation, setConfirmation] = useState({
     isOpen: false,
@@ -181,11 +211,17 @@ const CreateInvoicePage = () => {
                 mode: p.mode,
                 amount: p.amount,
                 reference: p.reference || "",
+                paidAt: toDateInputValue(p.paidAt || p.createdAt),
+                originalPaidAt: toDateInputValue(p.paidAt || p.createdAt),
               })),
             );
           } else {
             setPayments([
-              { mode: inv.modeOfPayment || "UPI", amount: inv.paidAmount || 0 },
+              {
+                mode: inv.modeOfPayment || "UPI",
+                amount: inv.paidAmount || 0,
+                paidAt: toDateInputValue(inv.invoiceDate),
+              },
             ]);
           }
           setInvoiceDate(inv.invoiceDate?.slice(0, 10));
@@ -394,6 +430,7 @@ const CreateInvoicePage = () => {
       payments: payments.map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
+        paidAt: p.paidAt,
       })),
       metadata: {
         ...invoiceData.metadata,
@@ -541,7 +578,10 @@ const CreateInvoicePage = () => {
   };
 
   const handleAddPayment = () => {
-    setPayments([...payments, { mode: "CASH", amount: 0 }]);
+    setPayments([
+      ...payments,
+      { mode: "CASH", amount: 0, paidAt: invoiceDate },
+    ]);
   };
 
   const handleRemovePayment = (index) => {
@@ -569,6 +609,7 @@ const CreateInvoicePage = () => {
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
         reference: p.reference || undefined,
+        paidAt: p.paidAt,
       })),
       paidAmount, // keep for backward compatibility
       autoCreateUdhar: autoCreateUdhar,
@@ -661,6 +702,11 @@ const CreateInvoicePage = () => {
       alert("Select a customer first");
       return;
     }
+    const paymentDateError = getPaymentDateError(payments, invoiceDate);
+    if (paymentDateError) {
+      alert(paymentDateError);
+      return;
+    }
 
     const total = calcInvoiceTotals(
       invoiceData.items,
@@ -751,6 +797,11 @@ const CreateInvoicePage = () => {
   const handleSaveDraft = async () => {
     if (!selectedCustomerId) {
       alert("Select a customer first");
+      return;
+    }
+    const paymentDateError = getPaymentDateError(payments, invoiceDate);
+    if (paymentDateError) {
+      alert(paymentDateError);
       return;
     }
 
@@ -1239,6 +1290,17 @@ const CreateInvoicePage = () => {
                           placeholder="0"
                         />
                       </div>
+                      <input
+                        type="date"
+                        value={p.paidAt || invoiceDate}
+                        max={[invoiceDate, toDateInputValue()].sort()[0]}
+                        required
+                        onChange={(e) =>
+                          handleUpdatePayment(idx, "paidAt", e.target.value)
+                        }
+                        className={styles.paymentDateInput}
+                        aria-label={`Payment date ${idx + 1}`}
+                      />
                       {payments.length > 1 && (
                         <button
                           type="button"

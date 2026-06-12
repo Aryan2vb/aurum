@@ -115,7 +115,7 @@ const CollectionsReport = ({ data }) => {
         ))}
       </div>
       <DetailTable rows={data.recentPayments?.map(p => ({
-        date: p.createdAt,
+        date: p.paidAt,
         invoice: p.invoice?.invoiceNumber || '—',
         mode: p.mode,
         reference: p.reference || '—',

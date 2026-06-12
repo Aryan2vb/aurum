@@ -843,6 +843,17 @@
     width: 100%;
 }
 
+.paymentDateInput {
+    flex: 0.9;
+    min-width: 8.5rem;
+    padding: 0.4rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.3rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
 .removePaymentBtn {
     background: transparent;
     border: none;
