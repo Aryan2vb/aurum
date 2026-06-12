@@ -19,7 +19,8 @@ import Pagination from '../../molecules/Pagination/Pagination';
 import { usePermission } from '../../../hooks/usePermission';
 import { flattenInvoiceData } from '../../../utils/exportUtils';
 import { getDateRangeFilenameQualifier } from '../../../utils/exportFilename';
-import { getInvoices } from '../../../services/invoicesService';
+import { buildBillBookRequest } from '../../../utils/billBookExport';
+import { getInvoiceBillBookHtml, getInvoices } from '../../../services/invoicesService';
 
 import './InvoiceTable.css';
 
@@ -445,6 +446,48 @@ const InvoiceTable = ({
     }
   };
 
+  const handleBillBookExport = async () => {
+    const billBookWindow = window.open('', '_blank');
+    if (!billBookWindow) {
+      alert('Please allow pop-ups to prepare the Bill Book PDF.');
+      return;
+    }
+
+    billBookWindow.document.write(`<!DOCTYPE html><html><head><title>Preparing Bill Book...</title>
+      <style>body{font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#374151}
+      .status{text-align:center}.spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#111827;border-radius:50%;
+      margin:0 auto 16px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head>
+      <body><div class="status"><div class="spinner"></div><strong>Preparing Bill Book...</strong>
+      <p>Large exports may take a moment.</p></div></body></html>`);
+    billBookWindow.document.close();
+
+    try {
+      setExporting(true);
+      const request = buildBillBookRequest({
+        selectedRows: tableRef.current?.getSelectedRowModel().rows ?? [],
+        filters,
+        search: searchQuery,
+      });
+      const html = await getInvoiceBillBookHtml(request);
+      if (billBookWindow.closed) return;
+      billBookWindow.document.open();
+      billBookWindow.document.write(html);
+      billBookWindow.document.close();
+    } catch (error) {
+      console.error('Bill Book export failed', error);
+      if (billBookWindow.closed) return;
+      billBookWindow.document.open();
+      billBookWindow.document.write(`<!DOCTYPE html><html><head><title>Bill Book Error</title></head>
+        <body style="font-family:Arial,sans-serif;padding:32px"><h2>Could not prepare Bill Book</h2>
+        <p id="bill-book-error"></p></body></html>`);
+      billBookWindow.document.close();
+      billBookWindow.document.getElementById('bill-book-error').textContent =
+        error.message || 'Please try again.';
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [columnVisibility, setColumnVisibility] = useState({});
 
   // Sync column visibility with showItems toggle
@@ -784,6 +827,7 @@ const InvoiceTable = ({
               resourceName="invoices"
               flattenRow={flattenInvoiceData}
               onExportTrigger={handleDeepExport} // New prop for async deep fetch
+              onBillBookExport={handleBillBookExport}
               isLoading={exporting}
             />
           )}
