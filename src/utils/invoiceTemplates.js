@@ -1,5 +1,20 @@
 import { calcItemAmount } from './invoiceCalc';
 
+const formatPaymentDate = (value) => {
+    if (!value) return '';
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const year = String(date.getUTCFullYear()).slice(-2);
+    return `${day}/${month}/${year}`;
+};
+
+const formatPaymentLine = (payment, formatAmount) =>
+    `${payment.mode}: ₹${formatAmount(payment.amount || 0)}${payment.paidAt ? ` · ${formatPaymentDate(payment.paidAt)}` : ''}`;
+
 export function getInvoiceDocumentTitle({ buyer = {}, metadata = {} }) {
     const titleParts = ['Tax Invoice'];
 
@@ -170,8 +185,7 @@ export function generateInvoiceHtml(data) {
           data.payments && data.payments.length > 0
             ? data.payments.map(p => `
         <tr class="tax-row">
-          <td colspan="6" class="text-right">${p.mode} Received</td>
-          <td class="text-right">${formatCurrency(p.amount || 0)}</td>
+          <td colspan="7" class="text-right">${formatPaymentLine(p, formatCurrency)}</td>
         </tr>`).join('')
             : (data.cashReceived || 0) > 0
             ? `
@@ -380,8 +394,7 @@ export function generateModernInvoiceHtml(data) {
                         .map(
                           (p) => `
                 <div class="subtotal-row" style="margin-top:4px;">
-                  <span style="font-size:11px;color:#64748b;">${p.mode} Received</span>
-                  <span style="font-size:11px;color:#64748b;font-weight:600;">₹${fmt(p.amount || 0)}</span>
+                  <span style="font-size:11px;color:#64748b;font-weight:600;">${formatPaymentLine(p, fmt)}</span>
                 </div>`,
                         )
                         .join('')
@@ -479,7 +492,7 @@ export function generateJewelleryInvoiceHtml(data) {
 
     let paymentsHtml = '';
     if (data.payments && data.payments.length > 0) {
-        paymentsHtml = data.payments.map(p => `<div>${p.mode}: &nbsp; ${fmt(p.amount)}</div>`).join('');
+        paymentsHtml = data.payments.map(p => `<div>${formatPaymentLine(p, fmt)}</div>`).join('');
     } else {
         paymentsHtml = `<div>CASH RECEIVED : &nbsp; ${fmt(cashReceived)}</div>`;
     }
