@@ -12,6 +12,7 @@ import {
   upsertInvoiceSettings,
   getInvoiceSettingsPreviewUrl,
 } from '../../services/invoicesService';
+import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
@@ -116,10 +117,8 @@ const SettingsPage = () => {
 
   const logout = async () => {
     if (!window.confirm('Sign out of Aurum?')) return;
-    try { const { logout: lo } = require('../../services/authService'); await lo(localStorage.getItem('authToken')); } catch (_) {}
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('userEmail');
+    try { await logoutRequest(localStorage.getItem('authToken')); } catch (_) {}
+    clearSession();
     window.location.href = '/login';
   };
 

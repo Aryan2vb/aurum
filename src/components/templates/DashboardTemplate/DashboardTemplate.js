@@ -9,9 +9,22 @@ import BottomNav from '../../organisms/BottomNav/BottomNav';
 // import VisitDonutChart from '../../organisms/VisitDonutChart/VisitDonutChart';
 // import EmptyWidget from '../../organisms/EmptyWidget/EmptyWidget';
 import Icon from '../../atoms/Icon/Icon';
+import { getInvoiceSettings } from '../../../services/invoicesService';
+import {
+  FIRM_IDENTITY_CACHE_EVENT,
+  buildFirmIdentity,
+  readFirmIdentitySettingsCache,
+  writeFirmIdentitySettingsCache,
+} from '../../../utils/firmIdentity';
 import './DashboardTemplate.css';
 
+const getFallbackOrganizationName = () => localStorage.getItem('organizationName') || 'Aurum';
+
 const DashboardTemplate = ({ children, headerTitle = 'Dashboard', headerTabs }) => {
+  const [firmIdentity, setFirmIdentity] = React.useState(() =>
+    buildFirmIdentity(readFirmIdentitySettingsCache() || {}, getFallbackOrganizationName())
+  );
+
   // Persist sidebar collapsed state in localStorage
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(() => {
     const saved = localStorage.getItem('sidebarCollapsed');
@@ -30,6 +43,51 @@ const DashboardTemplate = ({ children, headerTitle = 'Dashboard', headerTabs }) 
     });
   };
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const applyCachedIdentity = () => {
+      const cachedSettings = readFirmIdentitySettingsCache();
+      if (!cachedSettings) return false;
+      setFirmIdentity(buildFirmIdentity(cachedSettings, getFallbackOrganizationName()));
+      return true;
+    };
+
+    const loadFirmIdentity = async () => {
+      if (applyCachedIdentity()) return;
+
+      try {
+        const settings = await getInvoiceSettings();
+        if (!cancelled) {
+          writeFirmIdentitySettingsCache(settings);
+          setFirmIdentity(buildFirmIdentity(settings, getFallbackOrganizationName()));
+        }
+      } catch (error) {
+        if (!cancelled) setFirmIdentity(buildFirmIdentity({}, getFallbackOrganizationName()));
+      }
+    };
+
+    const handleFirmIdentityCacheChange = () => {
+      if (!applyCachedIdentity()) {
+        setFirmIdentity(buildFirmIdentity({}, getFallbackOrganizationName()));
+      }
+    };
+
+    window.addEventListener(FIRM_IDENTITY_CACHE_EVENT, handleFirmIdentityCacheChange);
+    loadFirmIdentity();
+    return () => {
+      cancelled = true;
+      window.removeEventListener(FIRM_IDENTITY_CACHE_EVENT, handleFirmIdentityCacheChange);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    document.title = firmIdentity.documentTitle || 'Aurum';
+    return () => {
+      document.title = 'Aurum';
+    };
+  }, [firmIdentity.documentTitle]);
+
   return (
     <div className="dashboard-template" style={{ '--sidebar-width': sidebarCollapsed ? '60px' : '180px' }}>
       <Sidebar 
@@ -37,6 +95,7 @@ const DashboardTemplate = ({ children, headerTitle = 'Dashboard', headerTabs }) 
         onToggleCollapse={handleSidebarToggle}
         mobileOpen={mobileMenuOpen}
         onMobileClose={() => setMobileMenuOpen(false)}
+        firmIdentity={firmIdentity}
       />
       {mobileMenuOpen && (
         <div 
@@ -56,6 +115,7 @@ const DashboardTemplate = ({ children, headerTitle = 'Dashboard', headerTabs }) 
           tabs={defaultTabs}
           activeTab={activeTab} 
           onTabChange={setActiveTab} 
+          firmIdentity={firmIdentity}
         />
         <div className="dashboard-content">
           {children}

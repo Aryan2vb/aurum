@@ -5,6 +5,7 @@ import Button from '../../atoms/Button/Button';
 import Text from '../../atoms/Text/Text';
 import Icon from '../../atoms/Icon/Icon';
 import { buildApiUrl } from '../../../config/api';
+import { clearSession } from '../../../services/authService';
 import '../AuthForms/AuthForms.css';
 
 const SignupForm = () => {
@@ -64,9 +65,7 @@ const SignupForm = () => {
 
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          localStorage.removeItem('organizationName');
+          clearSession();
           navigate('/login', { replace: true });
           return;
         }
