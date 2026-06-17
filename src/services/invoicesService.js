@@ -1,5 +1,6 @@
 import { buildApiUrl } from '../config/api';
 import { parseResponse } from './authService';
+import { writeFirmIdentitySettingsCache } from '../utils/firmIdentity';
 
 // ============================================
 // INVOICE OPERATIONS
@@ -215,7 +216,9 @@ export const upsertInvoiceSettings = async (settingsData) => {
     },
     body: JSON.stringify(settingsData),
   });
-  return parseResponse(response);
+  const payload = await parseResponse(response);
+  writeFirmIdentitySettingsCache(settingsData, { notify: true });
+  return payload;
 };
 
 export const getInvoiceSettingsPreviewUrl = () => {

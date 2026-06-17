@@ -1,4 +1,5 @@
 import { buildApiUrl } from '../config/api';
+import { clearFirmIdentitySettingsCache } from '../utils/firmIdentity';
 
 const defaultHeaders = {
   'Content-Type': 'application/json',
@@ -11,6 +12,7 @@ export const clearSession = () => {
   localStorage.removeItem('userFullName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('organizationName');
+  clearFirmIdentitySettingsCache({ notify: true });
 };
 
 export const parseResponse = async (response) => {
@@ -41,6 +43,8 @@ export const parseResponse = async (response) => {
 };
 
 export const login = async ({ email, password }) => {
+  clearFirmIdentitySettingsCache({ notify: true });
+
   const response = await fetch(buildApiUrl('/auth/login'), {
     method: 'POST',
     headers: defaultHeaders,
@@ -98,4 +102,3 @@ export const whoami = async () => {
 
   return payload;
 };
-

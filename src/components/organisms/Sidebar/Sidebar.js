@@ -1,11 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
-import { logout as logoutRequest } from '../../../services/authService';
+import { clearSession, logout as logoutRequest } from '../../../services/authService';
 import Icon from '../../atoms/Icon/Icon';
 import './Sidebar.css';
 
-const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => {
+const SidebarFirmLogo = ({ identity, className = '' }) => {
+  const [logoFailed, setLogoFailed] = useState(false);
+  const logoUrl = identity?.logoUrl;
+  const initials = identity?.initials || 'AU';
+
+  useEffect(() => {
+    setLogoFailed(false);
+  }, [logoUrl]);
+
+  if (logoUrl && !logoFailed) {
+    return (
+      <img
+        className={`attio-firm-logo-img ${className}`}
+        src={logoUrl}
+        alt={`${identity?.displayName || 'Firm'} logo`}
+        onError={() => setLogoFailed(true)}
+      />
+    );
+  }
+
+  return <span className={`attio-firm-logo-fallback ${className}`}>{initials}</span>;
+};
+
+const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmIdentity }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toggleTheme, isDark } = useTheme();
@@ -37,14 +60,12 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
     try {
       await logoutRequest(localStorage.getItem('authToken'));
     } catch (e) {}
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('userEmail');
+      clearSession();
       setLoggingOut(false);
       navigate('/login');
   };
 
-  const workspaceName = localStorage.getItem('organizationName') || 'Aurum';
+  const workspaceName = firmIdentity?.displayName || localStorage.getItem('organizationName') || 'Aurum';
   const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
   const userRole = localStorage.getItem('userRole');
 
@@ -68,6 +89,9 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
         <button className="attio-collapse-btn" onClick={onToggleCollapse} title="Expand sidebar">
           <Icon name="sidebar" size={18} />
         </button>
+        <div className="attio-collapsed-workspace" title={workspaceName}>
+          <SidebarFirmLogo identity={firmIdentity} />
+        </div>
         <div className="attio-collapsed-nav">
           {records.map((item, idx) => (
             <button
@@ -102,7 +126,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
           onClick={() => setWorkspaceDropdownOpen(!workspaceDropdownOpen)}
         >
           <div className="attio-workspace-icon">
-            <Icon name="workspace" size={20} />
+            <SidebarFirmLogo identity={firmIdentity} />
           </div>
           <span className="attio-workspace-name">{workspaceName}</span>
           <Icon name="chevronDown" size={12} />
@@ -116,11 +140,14 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose }) => 
           <div className="attio-workspace-dropdown">
             <div className="attio-dropdown-user">
               <div className="attio-user-avatar">
-                <Icon name="user" size={16} />
+                <SidebarFirmLogo identity={firmIdentity} />
               </div>
               <div className="attio-user-info">
                 <span className="attio-user-email">{userEmail}</span>
                 <span className="attio-user-workspace">{workspaceName}</span>
+                {firmIdentity?.metaLabel && (
+                  <span className="attio-user-firm-meta">{firmIdentity.metaLabel}</span>
+                )}
               </div>
             </div>
             <div className="attio-dropdown-divider" />
