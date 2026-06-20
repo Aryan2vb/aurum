@@ -42,6 +42,13 @@ import {
   updateMetaTracking,
   deleteMetaTracking,
 } from '../../../services/customersService';
+import {
+  formatAadhaarNumber,
+  normalizeAadhaarNumber,
+  normalizePanNumber,
+  validateAadhaarNumber,
+  validatePanNumber,
+} from '../../../utils/customerKyc';
 import './CustomerInspectorPanel.css';
 
 /**
@@ -1016,13 +1023,21 @@ const CustomerInspectorPanel = ({
                   {documents.map((doc) => (
                     <div key={doc.id} className="sub-item">
                       <div className="sub-item-header">
-                        <span className="sub-item-title">Aadhaar •••• {doc.aadharLast4 || '----'}</span>
+                        <span className="sub-item-title">KYC Documents</span>
                         <div className="sub-item-actions">
                           <button className="sub-item-btn" onClick={() => { setEditingDocument(doc); setShowDocumentForm(true); }}>Edit</button>
                           <button className="sub-item-btn danger" onClick={() => handleDeleteDocument(doc.id)}>Remove</button>
                         </div>
                       </div>
                       <div className="sub-item-details">
+                        <div className="sub-item-row">
+                          <span className="sub-item-label">Aadhaar</span>
+                          <span className="sub-item-value">{formatAadhaarNumber(doc.aadharNumber)}</span>
+                        </div>
+                        <div className="sub-item-row">
+                          <span className="sub-item-label">PAN</span>
+                          <span className="sub-item-value">{doc.panNumber || 'Not added'}</span>
+                        </div>
                         <div className="sub-item-row">
                           <span className="sub-item-label">Verification</span>
                           <span className={`verification-badge ${doc.aadharVerified ? 'verified' : 'pending'}`}>
@@ -1397,32 +1412,66 @@ const SocialContextForm = ({ socialContext, onSave, onCancel, isSaving, incomeRa
 
 const DocumentForm = ({ document, onSave, onCancel, isSaving }) => {
   const [formData, setFormData] = useState({
-    aadharLast4: document?.aadharLast4 || '',
+    aadharNumber: document?.aadharNumber || '',
+    panNumber: document?.panNumber || '',
     aadharVerified: document?.aadharVerified || false,
   });
+  const [errors, setErrors] = useState({});
+
+  const updateField = (field, value) => {
+    let nextValue = value;
+    if (field === 'aadharNumber') nextValue = normalizeAadhaarNumber(value);
+    if (field === 'panNumber') nextValue = normalizePanNumber(value);
+
+    setFormData(p => ({ ...p, [field]: nextValue }));
+    if (errors[field]) setErrors(p => ({ ...p, [field]: '' }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.aadharLast4.trim()) return;
-    onSave(formData);
+    const nextErrors = {};
+    const aadhaarError = validateAadhaarNumber(formData.aadharNumber);
+    const panError = validatePanNumber(formData.panNumber);
+
+    if (aadhaarError) nextErrors.aadharNumber = aadhaarError;
+    if (panError) nextErrors.panNumber = panError;
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
+    const payload = {
+      aadharVerified: formData.aadharVerified,
+    };
+    if (formData.aadharNumber) {
+      payload.aadharNumber = formData.aadharNumber;
+    }
+    if (formData.panNumber) payload.panNumber = formData.panNumber;
+
+    onSave(payload);
   };
 
   return (
     <form className="inline-form" onSubmit={handleSubmit}>
       <div className="inline-form-field">
-        <label>Aadhaar Last 4 Digits *</label>
-        <input type="text" value={formData.aadharLast4} onChange={(e) => setFormData(p => ({ ...p, aadharLast4: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="1234" maxLength={4} disabled={isSaving} />
+        <label>Aadhaar Number</label>
+        <input type="text" value={formData.aadharNumber} onChange={(e) => updateField('aadharNumber', e.target.value)} placeholder="123456789012" maxLength={12} inputMode="numeric" disabled={isSaving} />
+        {errors.aadharNumber && <span className="inline-form-error">{errors.aadharNumber}</span>}
+      </div>
+      <div className="inline-form-field">
+        <label>PAN</label>
+        <input type="text" value={formData.panNumber} onChange={(e) => updateField('panNumber', e.target.value)} placeholder="ABCDE1234F" maxLength={10} disabled={isSaving} />
+        {errors.panNumber && <span className="inline-form-error">{errors.panNumber}</span>}
       </div>
       <div className="inline-form-field">
         <label>Verified</label>
-        <select value={formData.aadharVerified ? 'true' : 'false'} onChange={(e) => setFormData(p => ({ ...p, aadharVerified: e.target.value === 'true' }))} disabled={isSaving}>
+        <select value={formData.aadharVerified ? 'true' : 'false'} onChange={(e) => updateField('aadharVerified', e.target.value === 'true')} disabled={isSaving}>
           <option value="false">No</option>
           <option value="true">Yes</option>
         </select>
       </div>
       <div className="inline-form-actions">
         <button type="button" onClick={onCancel} disabled={isSaving} className="inline-form-btn cancel">Cancel</button>
-        <button type="submit" disabled={isSaving || !formData.aadharLast4.trim()} className="inline-form-btn save">{isSaving ? 'Saving...' : (document ? 'Update' : 'Add')}</button>
+        <button type="submit" disabled={isSaving} className="inline-form-btn save">{isSaving ? 'Saving...' : (document ? 'Update' : 'Add')}</button>
       </div>
     </form>
   );

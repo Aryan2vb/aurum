@@ -196,7 +196,24 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                     {customerState}{customerStateCode ? ` (${customerStateCode})` : ''}
                   </div>
                 )}
+                {invoice.customer?.documents?.map((doc, idx) => (
+                  <React.Fragment key={doc.id || idx}>
+                    {doc.aadharNumber && (
+                      <div className="invoice-customer-meta" style={{ marginTop: '4px' }}>
+                        <strong>Aadhaar:</strong> {formatAadhaarNumber(doc.aadharNumber)}
+                        {doc.aadharVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                      </div>
+                    )}
+                    {doc.panNumber && (
+                      <div className="invoice-customer-meta">
+                        <strong>PAN:</strong> {doc.panNumber}
+                        {doc.panVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
+              
               <div className="invoice-top-meta">
                 <StatusPill status={invoice.status} />
                 <div className="invoice-meta-row"><span>Invoice</span><span>{invoice.invoiceNumber || '—'}</span></div>
@@ -205,37 +222,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
               </div>
             </div>
 
-            {/* Customer Documents */}
-            {invoice.customer?.documents?.length > 0 && (
-              <div className="invoice-section">
-                <h3 className="section-title">
-                  <Icon name="file" size={16} />
-                  Customer KYC
-                </h3>
-                <div className="payment-info">
-                  {invoice.customer.documents.map((doc, idx) => (
-                    <div key={doc.id || idx} style={{ marginBottom: '8px' }}>
-                      <div className="detail-row">
-                        <span className="detail-label">Aadhaar:</span>
-                        <span className="detail-value">
-                          {formatAadhaarNumber(doc.aadharNumber)}
-                          {doc.aadharVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
-                        </span>
-                      </div>
-                      {doc.panNumber && (
-                        <div className="detail-row" style={{ marginTop: '4px' }}>
-                          <span className="detail-label">PAN:</span>
-                          <span className="detail-value">
-                            {doc.panNumber}
-                            {doc.panVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            
 
             {/* Items Table */}
             {invoice.items && invoice.items.length > 0 && (

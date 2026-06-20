@@ -7,7 +7,7 @@ import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
 import SlideOver from '../../components/atoms/SlideOver/SlideOver';
-import { searchCustomers } from '../../services/customersService';
+import { getDocuments, searchCustomers } from '../../services/customersService';
 import {
   createInvoice,
   createDraft,
@@ -17,6 +17,7 @@ import {
   getSequenceAvailability,
 } from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
+import { getHighValueInvoiceKycError } from '../../utils/customerKyc';
 import styles from './CreateInvoicePageMobile.module.css';
 
 const defaultInvoiceState = {
@@ -482,6 +483,12 @@ const CreateInvoicePageMobile = () => {
   };
 
   const handleConfirm = async () => {
+    const kycError = await getInvoiceKycError();
+    if (kycError) {
+      alert(kycError);
+      return;
+    }
+
     const proceedWithCreate = async () => {
       setConfirmation(prev => ({ ...prev, isOpen: false }));
       try {
@@ -527,6 +534,18 @@ const CreateInvoicePageMobile = () => {
     invoiceData.items.length > 0 &&
     invoiceData.items.every(i => i.description && i.hsnSac && parseFloat(i.grossWeight) > 0 && parseFloat(i.rate) > 0) &&
     !settingsLoading;
+
+  const getInvoiceKycError = async () => {
+    const thresholdError = getHighValueInvoiceKycError(calc.total, []);
+    if (!thresholdError) return '';
+
+    try {
+      const documents = await getDocuments(selectedCustomerId);
+      return getHighValueInvoiceKycError(calc.total, Array.isArray(documents) ? documents : []);
+    } catch (error) {
+      return getHighValueInvoiceKycError(calc.total, []);
+    }
+  };
 
   // Show loading state while fetching settings
   if (settingsLoading) {
