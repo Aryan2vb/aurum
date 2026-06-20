@@ -23,6 +23,12 @@
   padding-top: 28px;
 }
 
+.document-form-legacy-note {
+  align-self: center;
+  color: var(--text-secondary, #6b7280);
+  font-size: 13px;
+}
+
 @media (max-width: 640px) {
   .document-form-grid {
     grid-template-columns: 1fr;

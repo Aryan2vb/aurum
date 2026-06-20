@@ -773,6 +773,21 @@
   cursor: not-allowed;
 }
 
+.inline-form-error,
+.inline-form-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.inline-form-error {
+  color: #ef4444;
+}
+
+.inline-form-hint {
+  color: var(--text-secondary);
+}
+
 .inline-form-actions {
   display: flex;
   justify-content: flex-end;

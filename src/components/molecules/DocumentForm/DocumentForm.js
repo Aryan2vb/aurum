@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import FormField from '../FormField/FormField';
 import Button from '../../atoms/Button/Button';
+import {
+  normalizeAadhaarNumber,
+  normalizePanNumber,
+  validateAadhaarNumber,
+  validatePanNumber,
+} from '../../../utils/customerKyc';
 import './DocumentForm.css';
 
 /**
@@ -8,7 +14,8 @@ import './DocumentForm.css';
  */
 const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
   const [formData, setFormData] = useState({
-    aadharLast4: '',
+    aadharNumber: '',
+    panNumber: '',
     aadharVerified: false,
   });
   const [errors, setErrors] = useState({});
@@ -16,14 +23,17 @@ const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
   useEffect(() => {
     if (document) {
       setFormData({
-        aadharLast4: document.aadharLast4 || '',
+        aadharNumber: document.aadharNumber || '',
+        panNumber: document.panNumber || '',
         aadharVerified: document.aadharVerified || false,
       });
     }
   }, [document]);
 
   const handleChange = (field) => (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    let value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    if (field === 'aadharNumber') value = normalizeAadhaarNumber(value);
+    if (field === 'panNumber') value = normalizePanNumber(value);
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -32,9 +42,10 @@ const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
 
   const validate = () => {
     const newErrors = {};
-    if (formData.aadharLast4 && !/^\d{4}$/.test(formData.aadharLast4)) {
-      newErrors.aadharLast4 = 'Must be exactly 4 digits';
-    }
+    const aadhaarError = validateAadhaarNumber(formData.aadharNumber);
+    const panError = validatePanNumber(formData.panNumber);
+    if (aadhaarError) newErrors.aadharNumber = aadhaarError;
+    if (panError) newErrors.panNumber = panError;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -44,7 +55,10 @@ const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
     if (!validate()) return;
     
     const cleanedData = {};
-    if (formData.aadharLast4) cleanedData.aadharLast4 = formData.aadharLast4;
+    if (formData.aadharNumber) {
+      cleanedData.aadharNumber = formData.aadharNumber;
+    }
+    if (formData.panNumber) cleanedData.panNumber = formData.panNumber;
     cleanedData.aadharVerified = formData.aadharVerified;
     
     onSubmit(cleanedData);
@@ -54,14 +68,25 @@ const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
     <form onSubmit={handleSubmit} className="document-form">
       <div className="document-form-grid">
         <FormField
-          label="Aadhar Last 4 Digits"
+          label="Aadhaar Number"
           type="text"
-          placeholder="1234"
-          value={formData.aadharLast4}
-          onChange={handleChange('aadharLast4')}
-          error={errors.aadharLast4}
-          maxLength={4}
-          pattern="[0-9]{4}"
+          placeholder="123456789012"
+          value={formData.aadharNumber}
+          onChange={handleChange('aadharNumber')}
+          error={errors.aadharNumber}
+          maxLength={12}
+          pattern="[0-9]{12}"
+          inputMode="numeric"
+        />
+
+        <FormField
+          label="PAN"
+          type="text"
+          placeholder="ABCDE1234F"
+          value={formData.panNumber}
+          onChange={handleChange('panNumber')}
+          error={errors.panNumber}
+          maxLength={10}
         />
         
         <div className="form-checkbox-group">
@@ -74,6 +99,8 @@ const DocumentForm = ({ document, onSubmit, onCancel, loading = false }) => {
             <span>Aadhar Verified</span>
           </label>
         </div>
+
+
       </div>
 
       <div className="document-form-actions">

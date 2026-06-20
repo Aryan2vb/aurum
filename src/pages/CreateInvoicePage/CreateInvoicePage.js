@@ -11,7 +11,7 @@ import Icon from "../../components/atoms/Icon/Icon";
 import Avatar from "../../components/atoms/Avatar/Avatar";
 import SlideOver from "../../components/atoms/SlideOver/SlideOver";
 import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
-import { searchCustomers } from "../../services/customersService";
+import { getDocuments, searchCustomers } from "../../services/customersService";
 import {
   getInvoiceById,
   getInvoiceSettings,
@@ -28,6 +28,7 @@ import {
   generateModernInvoiceHtml,
 } from "../../utils/invoiceTemplates";
 import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
+import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
 import ConfirmationModal from "../../components/atoms/ConfirmationModal/ConfirmationModal";
 import styles from "./CreateInvoicePage.module.css";
 
@@ -697,6 +698,18 @@ const CreateInvoicePage = () => {
         parseFloat(i.rate) > 0,
     );
 
+  const getInvoiceKycError = async (total) => {
+    const thresholdError = getHighValueInvoiceKycError(total, []);
+    if (!thresholdError) return '';
+
+    try {
+      const documents = await getDocuments(selectedCustomerId);
+      return getHighValueInvoiceKycError(total, Array.isArray(documents) ? documents : []);
+    } catch (error) {
+      return getHighValueInvoiceKycError(total, []);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedCustomerId) {
       alert("Select a customer first");
@@ -714,6 +727,12 @@ const CreateInvoicePage = () => {
       invoiceData.taxes.sgstRate,
       paidAmount,
     ).total;
+
+    const kycError = await getInvoiceKycError(total);
+    if (kycError) {
+      alert(kycError);
+      return;
+    }
 
     const proceedWithSave = async () => {
       setConfirmation((prev) => ({ ...prev, isOpen: false }));

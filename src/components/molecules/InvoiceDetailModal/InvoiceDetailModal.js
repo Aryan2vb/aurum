@@ -4,6 +4,7 @@ import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
+import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import './InvoiceDetailModal.css';
 
 // Format currency
@@ -195,7 +196,24 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                     {customerState}{customerStateCode ? ` (${customerStateCode})` : ''}
                   </div>
                 )}
+                {invoice.customer?.documents?.map((doc, idx) => (
+                  <React.Fragment key={doc.id || idx}>
+                    {doc.aadharNumber && (
+                      <div className="invoice-customer-meta" style={{ marginTop: '4px' }}>
+                        <strong>Aadhaar:</strong> {formatAadhaarNumber(doc.aadharNumber)}
+                        {doc.aadharVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                      </div>
+                    )}
+                    {doc.panNumber && (
+                      <div className="invoice-customer-meta">
+                        <strong>PAN:</strong> {doc.panNumber}
+                        {doc.panVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
+              
               <div className="invoice-top-meta">
                 <StatusPill status={invoice.status} />
                 <div className="invoice-meta-row"><span>Invoice</span><span>{invoice.invoiceNumber || '—'}</span></div>
@@ -203,6 +221,8 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 <div className="invoice-meta-row"><span>FY</span><span>{invoice.financialYear || '—'}</span></div>
               </div>
             </div>
+
+            
 
             {/* Items Table */}
             {invoice.items && invoice.items.length > 0 && (
