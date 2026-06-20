@@ -1478,7 +1478,30 @@ const CreateInvoicePage = () => {
                 <span>{missingSequencesData?.prefix || sequenceData?.prefix || "INV"}</span>
                 <span>{missingSequencesData?.financialYear || sequenceData?.financialYear}</span>
               </div>
-              {missingSequencesData?.missingSequences?.length ? (
+              {missingSequencesData?.missingDetails?.length ? (
+                <div className={styles.missingSeqList}>
+                  {missingSequencesData.missingDetails.map((detail) => (
+                    <button
+                      type="button"
+                      key={detail.sequence}
+                      className={styles.missingSeqItem}
+                      onClick={() => selectMissingSequence(detail.sequence)}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <span>{detail.invoiceNumber}</span>
+                        {(detail.minDate || detail.maxDate) && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>
+                            Expected: {detail.minDate ? new Date(detail.minDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Start'} 
+                            {' — '} 
+                            {detail.maxDate ? new Date(detail.maxDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Now'}
+                          </span>
+                        )}
+                      </div>
+                      <Icon name="arrowRight" size={16} />
+                    </button>
+                  ))}
+                </div>
+              ) : missingSequencesData?.missingSequences?.length ? (
                 <div className={styles.missingSeqList}>
                   {missingSequencesData.missingSequences.map((sequence) => (
                     <button
