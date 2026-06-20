@@ -4,6 +4,7 @@ import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
+import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import './InvoiceDetailModal.css';
 
 // Format currency
@@ -203,6 +204,38 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 <div className="invoice-meta-row"><span>FY</span><span>{invoice.financialYear || '—'}</span></div>
               </div>
             </div>
+
+            {/* Customer Documents */}
+            {invoice.customer?.documents?.length > 0 && (
+              <div className="invoice-section">
+                <h3 className="section-title">
+                  <Icon name="file" size={16} />
+                  Customer KYC
+                </h3>
+                <div className="payment-info">
+                  {invoice.customer.documents.map((doc, idx) => (
+                    <div key={doc.id || idx} style={{ marginBottom: '8px' }}>
+                      <div className="detail-row">
+                        <span className="detail-label">Aadhaar:</span>
+                        <span className="detail-value">
+                          {formatAadhaarNumber(doc.aadharNumber)}
+                          {doc.aadharVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                        </span>
+                      </div>
+                      {doc.panNumber && (
+                        <div className="detail-row" style={{ marginTop: '4px' }}>
+                          <span className="detail-label">PAN:</span>
+                          <span className="detail-value">
+                            {doc.panNumber}
+                            {doc.panVerified && <span style={{ color: 'var(--success)', marginLeft: '4px' }}>✓</span>}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Items Table */}
             {invoice.items && invoice.items.length > 0 && (
