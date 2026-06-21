@@ -16,7 +16,6 @@ import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
 import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
-import { usePermission } from '../../../hooks/usePermission';
 import { flattenInvoiceData } from '../../../utils/exportUtils';
 import { getDateRangeFilenameQualifier } from '../../../utils/exportFilename';
 import { buildBillBookRequest } from '../../../utils/billBookExport';
@@ -162,7 +161,6 @@ const InvoiceTable = ({
   onLoadMore,
   navigate,
 }) => {
-  const { can } = usePermission('invoices');
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
   const [exporting, setExporting] = useState(false);
@@ -817,20 +815,18 @@ const InvoiceTable = ({
           />
         </div>
         <div className="attio-header-right">
-          {can('write') && (
-            <ImportExportMenu 
-              data={[]} // Will be fetched on click for deep export
-              selectedCount={Object.keys(rowSelection).length}
-              filename="Invoice Report"
-              filenameQualifier={getDateRangeFilenameQualifier(filters)}
-              sheetName="Invoices"
-              resourceName="invoices"
-              flattenRow={flattenInvoiceData}
-              onExportTrigger={handleDeepExport} // New prop for async deep fetch
-              onBillBookExport={handleBillBookExport}
-              isLoading={exporting}
-            />
-          )}
+          <ImportExportMenu 
+            data={[]} // Will be fetched on click for deep export
+            selectedCount={Object.keys(rowSelection).length}
+            filename="Invoice Report"
+            filenameQualifier={getDateRangeFilenameQualifier(filters)}
+            sheetName="Invoices"
+            resourceName="invoices"
+            flattenRow={flattenInvoiceData}
+            onExportTrigger={handleDeepExport} // New prop for async deep fetch
+            onBillBookExport={handleBillBookExport}
+            isLoading={exporting}
+          />
         </div>
       </div>
 

@@ -67,7 +67,6 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
 
   const workspaceName = firmIdentity?.displayName || localStorage.getItem('organizationName') || 'Aurum';
   const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
-  const userRole = localStorage.getItem('userRole');
 
   const records = [
     // { iconName: 'dashboard', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
@@ -77,10 +76,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
     { iconName: 'invoice', label: 'Invoice Table', path: '/invoices', color: '#14b8a6' },
     { iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' },
     { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#8b5cf6' },
-  ].filter(item => {
-    if (item.label === 'Reports' && userRole !== 'OWNER') return false;
-    return true;
-  });
+  ];
 
   // Collapsed sidebar (on desktop only)
   if (collapsed && !mobileOpen) {

@@ -174,7 +174,7 @@ function App() {
             <Route
               path="/reports"
               element={
-                <ProtectedRoute allowedRoles={['OWNER']}>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF', 'VIEWER']}>
                   <ReportsPage />
                 </ProtectedRoute>
               }
@@ -189,4 +189,3 @@ function App() {
 }
 
 export default App;
-
