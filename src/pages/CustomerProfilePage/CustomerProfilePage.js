@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import CustomerProfileHeader from '../../components/organisms/CustomerProfileHeader/CustomerProfileHeader';
 import CustomerCreditSummary from '../../components/organisms/CustomerCreditSummary/CustomerCreditSummary';
@@ -10,6 +10,10 @@ import Button from '../../components/atoms/Button/Button';
 import Toast from '../../components/atoms/Toast/Toast';
 import { getCustomerById } from '../../services/customersService';
 import { getCustomerCreditSummary, getCustomerLedger, getCustomerUdhar, getCustomerStatement } from '../../services/creditsService';
+import { getInvoices } from '../../services/invoicesService';
+import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
+import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
+import RecordPaymentModal from '../../components/molecules/RecordPaymentModal/RecordPaymentModal';
 import AmountDisplay from '../../components/atoms/AmountDisplay/AmountDisplay';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import './CustomerProfilePage.css';
@@ -104,20 +108,42 @@ const LedgerCards = ({ entries, getUdhar, getEntry }) => (
 const CustomerProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [customer, setCustomer] = useState(null);
   const [creditSummary, setCreditSummary] = useState(null);
   const [credits, setCredits] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [statement, setStatement] = useState(null);
+  const [invoices, setInvoices] = useState([]);
+  const [invoicesLoading, setInvoicesLoading] = useState(false);
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState(null);
+  const [paymentModalInvoice, setPaymentModalInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const tabFromUrl = searchParams.get('tab') || 'overview';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
 
   useEffect(() => {
     loadCustomerData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    // Update activeTab when URL param changes
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, activeTab]);
+
+  useEffect(() => {
+    // Load invoices when switching to invoices tab
+    if (activeTab === 'invoices' && invoices.length === 0 && !invoicesLoading) {
+      loadInvoices();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const loadCustomerData = async () => {
     try {
@@ -153,8 +179,35 @@ const CustomerProfilePage = () => {
     }
   };
 
+  const loadInvoices = async () => {
+    try {
+      setInvoicesLoading(true);
+      const response = await getInvoices({
+        customerId: id,
+        limit: 1000,
+        sortBy: 'invoiceDate',
+        sortOrder: 'desc',
+      });
+      
+      if (response && response.data) {
+        setInvoices(response.data.map(inv => ({
+          ...inv,
+          remainingBalance: Number(inv.totalAmount) - Number(inv.paidAmount),
+        })));
+      }
+    } catch (err) {
+      console.error('Error loading invoices:', err);
+      setToast({ type: 'error', message: 'Failed to load invoices' });
+    } finally {
+      setInvoicesLoading(false);
+    }
+  };
+
   const handleRefresh = () => {
     loadCustomerData();
+    if (activeTab === 'invoices') {
+      loadInvoices();
+    }
   };
 
   if (loading) {
@@ -184,10 +237,16 @@ const CustomerProfilePage = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'invoices', label: 'Invoices' },
     { id: 'udhar', label: 'Udhar' },
     { id: 'ledger', label: 'Ledger' },
     { id: 'statement', label: 'Statement' },
   ];
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setSearchParams({ tab: tabId });
+  };
 
   return (
     <DashboardTemplate headerTitle="Customer Profile" headerTabs={[]}>
@@ -221,7 +280,7 @@ const CustomerProfilePage = () => {
               key={tab.id}
               label={tab.label}
               active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
             />
           ))}
         </div>
@@ -240,6 +299,25 @@ const CustomerProfilePage = () => {
                 customer={customer}
                 credits={credits}
                 onRefresh={handleRefresh}
+              />
+            </div>
+          )}
+
+          {activeTab === 'invoices' && (
+            <div className="customer-profile-tab-panel">
+              <InvoiceTable
+                embedded
+                data={invoices}
+                isLoading={invoicesLoading}
+                onViewInvoice={(invoiceId) => setSelectedInvoiceId(invoiceId)}
+                onRecordPayment={(invoice) => setPaymentModalInvoice(invoice)}
+                searchQuery=""
+                onSearchChange={() => {}}
+                filters={{}}
+                onFiltersChange={() => {}}
+                showItems={false}
+                onToggleShowItems={() => {}}
+                navigate={navigate}
               />
             </div>
           )}
@@ -270,6 +348,32 @@ const CustomerProfilePage = () => {
           )}
 
         </div>
+
+        {/* Invoice Detail Modal */}
+        {selectedInvoiceId && (
+          <InvoiceDetailModal
+            isOpen={!!selectedInvoiceId}
+            onClose={() => setSelectedInvoiceId(null)}
+            invoiceId={selectedInvoiceId}
+            onRecordPayment={(invoice) => {
+              setSelectedInvoiceId(null);
+              setPaymentModalInvoice(invoice);
+            }}
+          />
+        )}
+
+        {/* Record Payment Modal */}
+        {paymentModalInvoice && (
+          <RecordPaymentModal
+            isOpen={!!paymentModalInvoice}
+            onClose={() => setPaymentModalInvoice(null)}
+            invoice={paymentModalInvoice}
+            onSuccess={() => {
+              setPaymentModalInvoice(null);
+              loadInvoices();
+            }}
+          />
+        )}
       </div>
     </DashboardTemplate>
   );

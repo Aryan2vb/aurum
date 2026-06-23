@@ -140,9 +140,9 @@ const SkeletonRows = ({ rows = 10, columns }) => (
 // ============================================
 // MAIN COMPONENT
 // ============================================
-const InvoiceTable = ({ 
-  data, 
-  isLoading = false, 
+const InvoiceTable = ({
+  data,
+  isLoading = false,
   onViewInvoice,
   pagination = null,
   currentPage = 1,
@@ -161,6 +161,7 @@ const InvoiceTable = ({
   hasMore = false,
   onLoadMore,
   navigate,
+  embedded = false,   // hides header + toolbar when rendered inside another page
 }) => {
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
@@ -218,7 +219,9 @@ const InvoiceTable = ({
             // Per-item GST: proportional share of invoice GST based on item amount vs subtotal
             const invoiceSubtotal = parseFloat(invoice.subtotal || invoice.taxableAmount || 0);
             const gstRatio = invoiceSubtotal > 0 ? itemAmount / invoiceSubtotal : 0;
-            const itemGst = (Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0)) * gstRatio;
+            const itemCgst = Number(invoice.cgstAmount || 0) * gstRatio;
+            const itemSgst = Number(invoice.sgstAmount || 0) * gstRatio;
+            const itemGst = itemCgst + itemSgst;
 
             // Proportional attribution of payments to item (approximation)
             const cashRatio = invoicePaid > 0 ? cashPayments / invoicePaid : (invoice.modeOfPayment === 'CASH' ? 1 : 0);
@@ -252,7 +255,8 @@ const InvoiceTable = ({
               ledgerLabourPG: parseFloat(item.makingCharges || 0),
               ledgerLabourTotal: parseFloat(item.makingChargesAmount || 0),
               ledgerHuid: item.huid || '',
-              ledgerGst: itemGst,
+              ledgerCgst: itemCgst,
+              ledgerSgst: itemSgst,
               ledgerCash: (itemAmount + itemGst) * cashRatio,
               ledgerUpi: (itemAmount + itemGst) * upiRatio,
               ledgerSwipe: (itemAmount + itemGst) * swipeRatio,
@@ -305,7 +309,8 @@ const InvoiceTable = ({
         ledgerLabourPG: items.length === 1 ? parseFloat(items[0].makingCharges || 0) : null,
         ledgerLabourTotal: labourTotal,
         ledgerHuid: items.map(i => i.huid).filter(Boolean).join(', '),
-        ledgerGst: Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0),
+        ledgerCgst: Number(invoice.cgstAmount || 0),
+        ledgerSgst: Number(invoice.sgstAmount || 0),
         ledgerCash: invoice.payments?.length
           ? invoice.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
           : (invoice.modeOfPayment === 'CASH' ? parseFloat(invoice.paidAmount || 0) : 0),
@@ -329,13 +334,14 @@ const InvoiceTable = ({
   }, [data, showItems]);
 
   const aggregations = useMemo(() => {
-    let totalAmount = 0, goldWt = 0, silverWt = 0, totalGst = 0, labourTotal = 0, subtotal = 0;
+    let totalAmount = 0, goldWt = 0, silverWt = 0, totalCgst = 0, totalSgst = 0, labourTotal = 0, subtotal = 0;
     let totalCash = 0, totalUpi = 0, totalSwipe = 0, totalCheque = 0, totalBankTransfer = 0, totalOther = 0;
 
     data.forEach(inv => {
       totalAmount += Number(inv.totalAmount || 0);
       subtotal += Number(inv.subtotal || inv.taxableAmount || 0);
-      totalGst += Number(inv.cgstAmount || 0) + Number(inv.sgstAmount || 0) + Number(inv.igstAmount || 0);
+      totalCgst += Number(inv.cgstAmount || 0);
+      totalSgst += Number(inv.sgstAmount || 0);
       
       const cashPayments = inv.payments?.length
         ? inv.payments.filter(p => p.mode === 'CASH').reduce((sum, p) => sum + Number(p.amount), 0)
@@ -382,7 +388,8 @@ const InvoiceTable = ({
       subtotal,
       goldWt, 
       silverWt, 
-      totalGst, 
+      totalCgst,
+      totalSgst,
       totalCash, 
       totalUpi,
       totalSwipe,
@@ -709,12 +716,19 @@ const InvoiceTable = ({
       header: 'HUID',
       size: 100,
     }),
-    // GST
-    columnHelper.accessor('ledgerGst', {
-      id: 'ledgerGst',
-      header: 'GST 3%',
+    // CGST
+    columnHelper.accessor('ledgerCgst', {
+      id: 'ledgerCgst',
+      header: 'CGST',
       cell: info => formatCurrency(info.getValue()),
-      size: 100,
+      size: 90,
+    }),
+    // SGST
+    columnHelper.accessor('ledgerSgst', {
+      id: 'ledgerSgst',
+      header: 'SGST',
+      cell: info => formatCurrency(info.getValue()),
+      size: 90,
     }),
     // Round Off
     columnHelper.accessor('roundOff', {
@@ -808,91 +822,95 @@ const InvoiceTable = ({
 
   return (
     <div className="attio-table-container">
-      {/* Header */}
-      <div className="attio-header">
-        <div className="attio-header-left">
-          <ViewSelector 
-            currentView="all"
-            views={[{ id: 'all', label: 'All Invoices' }]}
-            onViewChange={() => {}}
-          />
-        </div>
-        <div className="attio-header-right">
-          <ImportExportMenu 
-            data={[]} // Will be fetched on click for deep export
-            selectedCount={Object.keys(rowSelection).length}
-            filename="Invoice Report"
-            filenameQualifier={getDateRangeFilenameQualifier(filters)}
-            sheetName="Invoices"
-            resourceName="invoices"
-            flattenRow={flattenInvoiceData}
-            onExportTrigger={handleDeepExport} // New prop for async deep fetch
-            onBillBookExport={handleBillBookExport}
-            isLoading={exporting}
-          />
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="saas-toolbar">
-        <div className="saas-toolbar-search">
-          <svg className="saas-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="m21 21-4.35-4.35"/>
-          </svg>
-          <input
-            type="text"
-            className="saas-search-input"
-            placeholder="Search invoice no or customer..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
-          {searchQuery && (
-            <button className="saas-search-clear" onClick={() => onSearchChange('')}>
-              <Icon name="close" size={14} />
-            </button>
-          )}
-        </div>
-
-        <div className="saas-toolbar-filters">
-          <EnumFilter
-            label="Status"
-            icon={<Icon name="status" size={14} />}
-            value={filters.status ? [filters.status] : []}
-            options={STATUS_OPTIONS}
-            onChange={(v) => onFiltersChange({ ...filters, status: v[0] || null })}
-            colorMap={STATUS_COLORS}
-          />
-          <DateRangeFilter
-            label="Date Range"
-            icon={<Icon name="date" size={14} />}
-            start={filters.dateFrom ? new Date(filters.dateFrom) : null}
-            end={filters.dateTo ? new Date(filters.dateTo) : null}
-            onChange={(s, e) => onFiltersChange({ 
-              ...filters, 
-              dateFrom: s ? s.toISOString().split('T')[0] : null, 
-              dateTo: e ? e.toISOString().split('T')[0] : null 
-            })}
-          />
-          <div className="ledger-toggle-container">
-             <label className="toggle-switch">
-                <input type="checkbox" checked={showItems} onChange={onToggleShowItems} />
-                <span className="slider round"></span>
-             </label>
-             <span className="toggle-label">Show Items</span>
+      {/* Header — hidden in embedded mode */}
+      {!embedded && (
+        <div className="attio-header">
+          <div className="attio-header-left">
+            <ViewSelector
+              currentView="all"
+              views={[{ id: 'all', label: 'All Invoices' }]}
+              onViewChange={() => {}}
+            />
           </div>
-          {activeFilterCount > 0 && (
-            <button className="saas-clear-filters" onClick={clearAllFilters}>
-              <Icon name="close" size={12} />
-              Clear
-            </button>
-          )}
+          <div className="attio-header-right">
+            <ImportExportMenu
+              data={[]} // Will be fetched on click for deep export
+              selectedCount={Object.keys(rowSelection).length}
+              filename="Invoice Report"
+              filenameQualifier={getDateRangeFilenameQualifier(filters)}
+              sheetName="Invoices"
+              resourceName="invoices"
+              flattenRow={flattenInvoiceData}
+              onExportTrigger={handleDeepExport} // New prop for async deep fetch
+              onBillBookExport={handleBillBookExport}
+              isLoading={exporting}
+            />
+          </div>
         </div>
+      )}
 
-        <div className="saas-toolbar-meta">
-          <span className="saas-count">{aggregations.count} {aggregations.label}</span>
+      {/* Toolbar — hidden in embedded mode */}
+      {!embedded && (
+        <div className="saas-toolbar">
+          <div className="saas-toolbar-search">
+            <svg className="saas-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text"
+              className="saas-search-input"
+              placeholder="Search invoice no or customer..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+            {searchQuery && (
+              <button className="saas-search-clear" onClick={() => onSearchChange('')}>
+                <Icon name="close" size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="saas-toolbar-filters">
+            <EnumFilter
+              label="Status"
+              icon={<Icon name="status" size={14} />}
+              value={filters.status ? [filters.status] : []}
+              options={STATUS_OPTIONS}
+              onChange={(v) => onFiltersChange({ ...filters, status: v[0] || null })}
+              colorMap={STATUS_COLORS}
+            />
+            <DateRangeFilter
+              label="Date Range"
+              icon={<Icon name="date" size={14} />}
+              start={filters.dateFrom ? new Date(filters.dateFrom) : null}
+              end={filters.dateTo ? new Date(filters.dateTo) : null}
+              onChange={(s, e) => onFiltersChange({
+                ...filters,
+                dateFrom: s ? s.toISOString().split('T')[0] : null,
+                dateTo: e ? e.toISOString().split('T')[0] : null
+              })}
+            />
+            <div className="ledger-toggle-container">
+               <label className="toggle-switch">
+                  <input type="checkbox" checked={showItems} onChange={onToggleShowItems} />
+                  <span className="slider round"></span>
+               </label>
+               <span className="toggle-label">Show Items</span>
+            </div>
+            {activeFilterCount > 0 && (
+              <button className="saas-clear-filters" onClick={clearAllFilters}>
+                <Icon name="close" size={12} />
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="saas-toolbar-meta">
+            <span className="saas-count">{aggregations.count} {aggregations.label}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Table Content */}
       <div
@@ -962,7 +980,8 @@ const InvoiceTable = ({
                     ledgerNetWeightSilver: Number(aggregations.silverWt).toFixed(3),
                     ledgerAmount: formatCurrency(aggregations.subtotal),
                     ledgerLabourTotal: formatCurrency(aggregations.labourTotal),
-                    ledgerGst: formatCurrency(aggregations.totalGst),
+                    ledgerCgst: formatCurrency(aggregations.totalCgst),
+                    ledgerSgst: formatCurrency(aggregations.totalSgst),
                     totalAmount: formatCurrency(aggregations.total),
                     ledgerCash: formatCurrency(aggregations.totalCash),
                     ledgerUpi: formatCurrency(aggregations.totalUpi),
