@@ -190,7 +190,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
             {/* Header: customer left, meta right */}
             <div className="invoice-top-row">
               <div className="invoice-top-customer">
-                <button className="invoice-customer-name-btn" onClick={() => { onClose(); navigate(`/customers/${invoice.customerId}`); }}>
+                <button className="invoice-customer-name-btn" onClick={() => { onClose(); navigate(`/customers/${invoice.customerId}?tab=invoices`); }}>
                   {buyer.name || invoice.customer?.fullName || 'N/A'}
                 </button>
                 <div className="invoice-customer-meta">{buyer.phone || invoice.customer?.contactDetails?.[0]?.primaryPhone || ''}</div>

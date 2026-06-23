@@ -179,6 +179,9 @@ export const flattenInvoiceData = (invoice) => {
 
   // If no items, return at least one row with basic info
   if (items.length === 0) {
+    const totalCgst = Number(invoice.cgstAmount || 0);
+    const totalSgst = Number(invoice.sgstAmount || 0);
+
     return [{
       'Serial No.': 1,
       'Invoice No.': invoice.invoiceNumber || 'DRAFT',
@@ -198,7 +201,8 @@ export const flattenInvoiceData = (invoice) => {
       'Labour PG': '',
       'Labour Total': 0,
       'Hallmark Chrgs': 0,
-      'Gst 3%': 0,
+      'CGST': totalCgst.toFixed(2),
+      'SGST': totalSgst.toFixed(2),
       'Round off': invoice.roundOff || 0,
       'Total': invoice.totalAmount || 0,
       'UPI': totalUpi,
@@ -221,12 +225,15 @@ export const flattenInvoiceData = (invoice) => {
     const subtotal = Number(invoice.subtotal || invoice.taxableAmount || 0);
     const ratio = subtotal > 0 ? itemAmount / subtotal : (1 / items.length);
 
-    const totalGst = Number(invoice.cgstAmount || 0) + Number(invoice.sgstAmount || 0) + Number(invoice.igstAmount || 0);
-    const itemGst = totalGst * ratio;
-    
+    const totalCgst = Number(invoice.cgstAmount || 0);
+    const totalSgst = Number(invoice.sgstAmount || 0);
+
+    const itemCgst = totalCgst * ratio;
+    const itemSgst = totalSgst * ratio;
+
     // We only put the full round-off on the first item to keep the total matching
     const itemRoundOff = idx === 0 ? Number(invoice.roundOff || 0) : 0;
-    
+
     return {
       'Serial No.': item.slNo || (idx + 1),
       'Invoice No.': invoice.invoiceNumber || 'DRAFT',
@@ -246,9 +253,10 @@ export const flattenInvoiceData = (invoice) => {
       'Labour Total': itemLabour.toFixed(2),
       'Hallmark Chrgs': itemHallmark.toFixed(2),
       'Amount': itemAmount.toFixed(2),
-      'Gst 3%': itemGst.toFixed(2),
+      'CGST': itemCgst.toFixed(2),
+      'SGST': itemSgst.toFixed(2),
       'Round off': itemRoundOff.toFixed(2),
-      'Total': (itemAmount + itemGst + itemRoundOff).toFixed(2),
+      'Total': (itemAmount + itemCgst + itemSgst + itemRoundOff).toFixed(2),
       'UPI': idx === 0 ? totalUpi.toFixed(2) : '',
       'Swipe': idx === 0 ? totalSwipe.toFixed(2) : '',
       'Cheque': idx === 0 ? totalCheque.toFixed(2) : '',

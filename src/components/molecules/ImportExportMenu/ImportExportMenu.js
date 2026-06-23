@@ -94,8 +94,9 @@ const ImportExportMenu = ({
 
       // 2. Calculation for Totals Row
       const numericColumns = [
-        'Net Wt. Gold', 'Net Wt. Silver', 'Amount', 'Labour Total', 
-        'Hallmark Chrgs', 'Gst 3%', 'Round off', 'Total', 'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'
+        'Net Wt. Gold', 'Net Wt. Silver', 'Amount', 'Labour Total',
+        'Hallmark Chrgs', 'CGST', 'SGST', 'Round off', 'Total',
+        'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'
       ];
 
       const totals = {
@@ -179,9 +180,13 @@ const ImportExportMenu = ({
 
     if (resourceName === 'invoices') {
       const headers = [
-        ["Serial No.", "Invoice No.", "Date", "Customer Details", "", "", "", "Item Details", "", "", "", "", "", "", "", "", "", "", "", "", "Total", "Payment Details", "", "", "", "", "", "Gst No"],
-        ["", "", "", "Customer Name", "Last Name", "Address", "Contact No.", "Metal", "Hsn", "Item Name", "Purity", "Net Wt. Gold", "Net Wt. Silver", "Metal Rate PG", "Labour PG", "Labour Total", "Hallmark Chrgs", "Amount", "Gst 3%", "Round off", "", "UPI", "Swipe", "Cheque", "Bank Transfer", "Cash", "Other", ""]
+        // Row 1: group labels spanning sub-columns
+        // Cols: 0=SerNo, 1=InvNo, 2=Date, 3-6=CustomerDetails(4), 7-20=ItemDetails(14), 21=Total, 22-27=PaymentDetails(6), 28=GstNo
+        ["Serial No.", "Invoice No.", "Date", "Customer Details", "", "", "", "Item Details", "", "", "", "", "", "", "", "", "", "", "", "", "", "Total", "Payment Details", "", "", "", "", "", "Gst No"],
+        // Row 2: sub-column labels
+        ["", "", "", "Customer Name", "Last Name", "Address", "Contact No.", "Metal", "Hsn", "Item Name", "Purity", "Net Wt. Gold", "Net Wt. Silver", "Metal Rate PG", "Labour PG", "Labour Total", "Hallmark Chrgs", "Amount", "CGST", "SGST", "Round off", "", "UPI", "Swipe", "Cheque", "Bank Transfer", "Cash", "Other", ""]
       ];
+
 
       const dataRows = flattenedData.map(row => [
         row['Serial No.'],
@@ -202,7 +207,8 @@ const ImportExportMenu = ({
         row['Labour Total'],
         row['Hallmark Chrgs'],
         row['Amount'],
-        row['Gst 3%'],
+        row['CGST'],
+        row['SGST'],
         row['Round off'],
         row['Total'],
         row['UPI'],
@@ -217,14 +223,14 @@ const ImportExportMenu = ({
       worksheet = XLSX.utils.aoa_to_sheet([...headers, ...dataRows]);
 
       worksheet['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // Serial No.
-        { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // Invoice No.
-        { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // Date
-        { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } }, // Customer Details
-        { s: { r: 0, c: 7 }, e: { r: 0, c: 19 } }, // Item Details
-        { s: { r: 0, c: 20 }, e: { r: 1, c: 20 } }, // Total
-        { s: { r: 0, c: 21 }, e: { r: 0, c: 26 } }, // Payment Details
-        { s: { r: 0, c: 27 }, e: { r: 1, c: 27 } }  // Gst No
+        { s: { r: 0, c: 0  }, e: { r: 1, c: 0  } }, // Serial No.
+        { s: { r: 0, c: 1  }, e: { r: 1, c: 1  } }, // Invoice No.
+        { s: { r: 0, c: 2  }, e: { r: 1, c: 2  } }, // Date
+        { s: { r: 0, c: 3  }, e: { r: 0, c: 6  } }, // Customer Details  (cols 3-6)
+        { s: { r: 0, c: 7  }, e: { r: 0, c: 20 } }, // Item Details       (cols 7-20, 14 sub-cols: CGST+SGST, no IGST)
+        { s: { r: 0, c: 21 }, e: { r: 1, c: 21 } }, // Total
+        { s: { r: 0, c: 22 }, e: { r: 0, c: 27 } }, // Payment Details    (cols 22-27)
+        { s: { r: 0, c: 28 }, e: { r: 1, c: 28 } }, // Gst No
       ];
 
       // Auto-size columns for double header worksheet
@@ -232,7 +238,7 @@ const ImportExportMenu = ({
       const columnKeys = [
         'Serial No.', 'Invoice No.', 'Date', 'Customer Name', 'Last Name', 'Address', 'Contact No.',
         'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver', 'Metal Rate PG',
-        'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'Gst 3%', 'Round off', 'Total',
+        'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off', 'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other', 'Gst No'
       ];
       columnKeys.forEach((key, idx) => {
@@ -330,7 +336,7 @@ const ImportExportMenu = ({
         'Serial No.', 'Invoice No.', 'Date',
         'Customer Name', 'Last Name', 'Address', 'Contact No.',
         'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver',
-        'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'Gst 3%', 'Round off',
+        'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other',
         'Gst No'
@@ -340,22 +346,23 @@ const ImportExportMenu = ({
         'S.No', 'Invoice No.', 'Date',
         'Cust. Name', 'Last Name', 'Address', 'Contact',
         'Metal', 'HSN', 'Item', 'Purity', 'Wt. Gold', 'Wt. Silver',
-        'Rate/g', 'Labour/g', 'Labour', 'Hallmark', 'Amount', 'GST 3%', 'Round off',
+        'Rate/g', 'Labour/g', 'Labour', 'Hallmark', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Tfr', 'Cash', 'Other',
         'GST No'
       ];
 
       // Group definitions: [label, startColIdx, endColIdx (inclusive)]
+      // Columns: 0=S.No, 1=Inv, 2=Date, 3-6=Customer(4), 7-20=Items(14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round), 21=Total, 22-27=Payment(6), 28=GSTNo
       const groups = [
         ['S.No',             0,  0],
         ['Invoice No.',      1,  1],
         ['Date',             2,  2],
         ['Customer Details', 3,  6],
-        ['Item Details',     7, 19],
-        ['Total',           20, 20],
-        ['Payment Details', 21, 26],
-        ['GST No',          27, 27],
+        ['Item Details',     7, 20],
+        ['Total',           21, 21],
+        ['Payment Details', 22, 27],
+        ['GST No',          28, 28],
       ];
 
       // Build group header row — show label only at the first col of each group
@@ -377,10 +384,10 @@ const ImportExportMenu = ({
       const availableWidth = pageW - margin.left - margin.right;
       const rawWidths = [
         28, 68, 50,              // S.No, Invoice, Date
-        58, 48, 68, 50,          // Customer
-        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 38, 42, // Items
+        58, 48, 68, 50,          // Customer (4)
+        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 36, 36, 38, // Items (14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round)
         48,                      // Total
-        42, 38, 42, 48, 38, 38,  // Payment
+        42, 38, 42, 48, 38, 38,  // Payment (6)
         52                       // GST No
       ];
       const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
