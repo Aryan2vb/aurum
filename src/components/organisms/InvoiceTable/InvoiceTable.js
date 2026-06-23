@@ -169,7 +169,6 @@ const InvoiceTable = ({
   const tableWrapperRef = useRef(null);
   const { can } = usePermission();
   const canWrite = can('write');
-  const canDelete = can('delete');
 
   const handleTableScroll = useCallback((event) => {
     if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
@@ -791,7 +790,7 @@ const InvoiceTable = ({
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-  ], [onViewInvoice, onRecordPayment, navigate]);
+  ], [onViewInvoice, onRecordPayment, navigate, canWrite]);
 
   const table = useReactTable({
     data: processedData,
