@@ -20,6 +20,7 @@ import { flattenInvoiceData } from '../../../utils/exportUtils';
 import { getDateRangeFilenameQualifier } from '../../../utils/exportFilename';
 import { buildBillBookRequest } from '../../../utils/billBookExport';
 import { getInvoiceBillBookHtml, getInvoices } from '../../../services/invoicesService';
+import { usePermission } from '../../../hooks/usePermission';
 
 import './InvoiceTable.css';
 
@@ -166,6 +167,9 @@ const InvoiceTable = ({
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
   const tableWrapperRef = useRef(null);
+  const { can } = usePermission();
+  const canWrite = can('write');
+  const canDelete = can('delete');
 
   const handleTableScroll = useCallback((event) => {
     if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
@@ -557,7 +561,7 @@ const InvoiceTable = ({
               <Icon name="eye" size={14} />
             </button>
             
-            {status !== 'CANCELLED' && (
+            {canWrite && status !== 'CANCELLED' && (
               <button 
                 className="attio-icon-btn edit-btn compact" 
                 onClick={(e) => {
@@ -570,7 +574,7 @@ const InvoiceTable = ({
               </button>
             )}
 
-            {hasBalance && (
+            {canWrite && hasBalance && (
               <button 
                 className="attio-icon-btn payment-btn compact" 
                 onClick={(e) => {

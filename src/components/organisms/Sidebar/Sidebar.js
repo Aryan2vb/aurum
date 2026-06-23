@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { clearSession, logout as logoutRequest } from '../../../services/authService';
+import { usePermission } from '../../../hooks/usePermission';
 import Icon from '../../atoms/Icon/Icon';
 import './Sidebar.css';
 
@@ -67,6 +68,8 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
 
   const workspaceName = firmIdentity?.displayName || localStorage.getItem('organizationName') || 'Aurum';
   const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
+  const { can } = usePermission();
+  const canWrite = can('write');
 
   const records = [
     // { iconName: 'dashboard', label: 'Dashboard', path: '/dashboard', color: '#8b5cf6' },
@@ -74,7 +77,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
     { iconName: 'udhar', label: 'Udhar', path: '/credits', color: '#f59e0b' },
     { iconName: 'reminder', label: 'Reminders', path: '/reminders', color: '#10b981' },
     { iconName: 'invoice', label: 'Invoice Table', path: '/invoices', color: '#14b8a6' },
-    { iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' },
+    ...(canWrite ? [{ iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' }] : []),
     { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#8b5cf6' },
   ];
 

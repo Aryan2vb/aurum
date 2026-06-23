@@ -149,7 +149,7 @@ function App() {
             <Route
               path="/invoices/new"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
                   <CreateInvoicePage />
                 </ProtectedRoute>
               }
@@ -157,7 +157,7 @@ function App() {
             <Route
               path="/invoices/edit/:id"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
                   <CreateInvoicePage />
                 </ProtectedRoute>
               }
@@ -165,7 +165,7 @@ function App() {
             <Route
               path="/invoices/new/mobile"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
                   <CreateInvoicePageMobile />
                 </ProtectedRoute>
               }
@@ -179,7 +179,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/" element={<Navigate to="/invoices/new" replace />} />
+            <Route path="/" element={<Navigate to="/invoices" replace />} />
             </Routes>
           </div>
         </Router>

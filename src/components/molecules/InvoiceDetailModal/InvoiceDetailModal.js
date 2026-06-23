@@ -5,6 +5,7 @@ import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
 import { formatAadhaarNumber } from '../../../utils/customerKyc';
+import { usePermission } from '../../../hooks/usePermission';
 import './InvoiceDetailModal.css';
 
 // Format currency
@@ -45,6 +46,9 @@ const formatCustomerAddress = (location) => {
 
 const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => {
   const navigate = useNavigate();
+  const { can } = usePermission();
+  const canWrite = can('write');
+  const canDelete = can('delete');
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -526,7 +530,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 View Invoice
               </button>
 
-              {invoice.status !== 'CANCELLED' && (
+              {canWrite && invoice.status !== 'CANCELLED' && (
                 <button 
                   className="action-btn secondary" 
                   onClick={() => {
@@ -539,7 +543,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 </button>
               )}
               
-              {(invoice.status === 'UNPAID' || invoice.status === 'PARTIAL') && (
+              {canWrite && (invoice.status === 'UNPAID' || invoice.status === 'PARTIAL') && (
                 <button 
                   className="action-btn payment" 
                   style={{ backgroundColor: '#059669', color: 'white' }}
@@ -553,7 +557,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 </button>
               )}
 
-              {invoice.status !== 'CANCELLED' && (
+              {canDelete && invoice.status !== 'CANCELLED' && (
                 <button className="action-btn danger" onClick={handleDelete} disabled={deleting}>
                   <Icon name="close" size={16} />
                   {deleting ? 'Cancelling…' : 'Cancel Invoice'}
