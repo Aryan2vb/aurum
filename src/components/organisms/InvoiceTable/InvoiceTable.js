@@ -16,11 +16,11 @@ import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
 import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
-import { usePermission } from '../../../hooks/usePermission';
 import { flattenInvoiceData } from '../../../utils/exportUtils';
 import { getDateRangeFilenameQualifier } from '../../../utils/exportFilename';
 import { buildBillBookRequest } from '../../../utils/billBookExport';
 import { getInvoiceBillBookHtml, getInvoices } from '../../../services/invoicesService';
+import { usePermission } from '../../../hooks/usePermission';
 
 import './InvoiceTable.css';
 
@@ -162,12 +162,13 @@ const InvoiceTable = ({
   onLoadMore,
   navigate,
 }) => {
-  const { can } = usePermission('invoices');
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
   const tableWrapperRef = useRef(null);
+  const { can } = usePermission();
+  const canWrite = can('write');
 
   const handleTableScroll = useCallback((event) => {
     if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
@@ -559,7 +560,7 @@ const InvoiceTable = ({
               <Icon name="eye" size={14} />
             </button>
             
-            {status !== 'CANCELLED' && (
+            {canWrite && status !== 'CANCELLED' && (
               <button 
                 className="attio-icon-btn edit-btn compact" 
                 onClick={(e) => {
@@ -572,7 +573,7 @@ const InvoiceTable = ({
               </button>
             )}
 
-            {hasBalance && (
+            {canWrite && hasBalance && (
               <button 
                 className="attio-icon-btn payment-btn compact" 
                 onClick={(e) => {
@@ -789,7 +790,7 @@ const InvoiceTable = ({
       cell: info => formatCurrency(info.getValue()),
       size: 110,
     }),
-  ], [onViewInvoice, onRecordPayment, navigate]);
+  ], [onViewInvoice, onRecordPayment, navigate, canWrite]);
 
   const table = useReactTable({
     data: processedData,
@@ -817,20 +818,18 @@ const InvoiceTable = ({
           />
         </div>
         <div className="attio-header-right">
-          {can('write') && (
-            <ImportExportMenu 
-              data={[]} // Will be fetched on click for deep export
-              selectedCount={Object.keys(rowSelection).length}
-              filename="Invoice Report"
-              filenameQualifier={getDateRangeFilenameQualifier(filters)}
-              sheetName="Invoices"
-              resourceName="invoices"
-              flattenRow={flattenInvoiceData}
-              onExportTrigger={handleDeepExport} // New prop for async deep fetch
-              onBillBookExport={handleBillBookExport}
-              isLoading={exporting}
-            />
-          )}
+          <ImportExportMenu 
+            data={[]} // Will be fetched on click for deep export
+            selectedCount={Object.keys(rowSelection).length}
+            filename="Invoice Report"
+            filenameQualifier={getDateRangeFilenameQualifier(filters)}
+            sheetName="Invoices"
+            resourceName="invoices"
+            flattenRow={flattenInvoiceData}
+            onExportTrigger={handleDeepExport} // New prop for async deep fetch
+            onBillBookExport={handleBillBookExport}
+            isLoading={exporting}
+          />
         </div>
       </div>
 
