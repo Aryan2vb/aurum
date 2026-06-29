@@ -1,6 +1,6 @@
 .reports-page {
   width: 100%;
-  max-width: 1100px;
+  max-width: 100%;
 }
 
 .reports-tabs {
@@ -162,4 +162,74 @@
 @media (max-width: 768px) {
   .report-filter-dates { margin-left: 0; width: 100%; }
   .report-date-input { flex: 1; }
+}
+
+/* ── Advances Held report ── */
+.advances-balance-col {
+  background: color-mix(in srgb, var(--color-status-paid) 6%, transparent);
+}
+
+.advances-balance-cell {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-status-paid);
+}
+
+.report-table-total-row td {
+  border-top: 2px solid var(--border-primary);
+  padding-top: var(--spacing-sm);
+  background: var(--bg-secondary);
+}
+
+.report-td-name {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* ── Advances report — expand/collapse rows ── */
+.advances-expand-cell {
+  width: 24px;
+  padding: 0 4px;
+}
+
+.advances-expand-icon {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.advances-row-expanded td {
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+.advances-deposit-row td {
+  background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
+  font-size: var(--font-size-xs);
+  padding-top: 4px;
+  padding-bottom: 4px;
+  border-bottom: none;
+}
+
+.advances-deposit-indent {
+  color: var(--text-tertiary);
+  padding-left: 2rem !important;
+}
+
+/* ── Advances table — 7 columns, no horizontal scroll ── */
+.advances-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.advances-table th:nth-child(1) { width: 28px; }   /* expand toggle */
+.advances-table th:nth-child(2) { width: 28%; }    /* customer + code */
+.advances-table th:nth-child(3) { width: 14%; }    /* phone */
+.advances-table th:nth-child(4) { width: 13%; }    /* received */
+.advances-table th:nth-child(5) { width: 13%; }    /* used */
+.advances-table th:nth-child(6) { width: 14%; }    /* last deposit */
+.advances-table th:nth-child(7) { width: 14%; }    /* balance */
+
+.advances-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

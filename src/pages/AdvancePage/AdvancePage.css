@@ -1,0 +1,75 @@
+/* AdvancePage — only page-specific styles.
+   All .attio-* and .saas-* classes come from CustomerTable.css (imported in JS). */
+
+.saas-view-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── Expand toggle ── */
+.advance-expand-btn {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  line-height: 1;
+  transition: color 0.12s, background 0.12s;
+}
+.advance-expand-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* ── Expanded parent row ── */
+.advance-row-expanded .attio-td {
+  background: color-mix(in srgb, var(--accent) 5%, transparent) !important;
+}
+
+/* ── Deposit sub-rows ── */
+.advance-deposit-row .attio-td {
+  background: color-mix(in srgb, var(--bg-tertiary, var(--bg-secondary)) 60%, transparent);
+  font-size: 12px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed var(--border-color);
+}
+.advance-deposit-label {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  padding-left: 28px !important;
+}
+.advance-deposit-icon { color: var(--text-tertiary); }
+.advance-deposit-method { font-weight: 500; color: var(--text-primary); }
+.advance-deposit-desc {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.advance-deposit-date { color: var(--text-secondary); }
+
+/* ── Deposit row delete button ── */
+.advance-deposit-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.advance-deposit-row:hover .advance-deposit-delete {
+  opacity: 1;
+}
+.advance-deposit-delete:hover {
+  background: color-mix(in srgb, var(--color-status-overdue) 15%, transparent);
+  color: var(--color-status-overdue);
+}

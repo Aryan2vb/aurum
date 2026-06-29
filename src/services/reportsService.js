@@ -18,3 +18,4 @@ export const getGstReport         = (p) => fetch(buildUrl('/reports/gst', p),   
 export const getCollectionsReport = (p) => fetch(buildUrl('/reports/collections', p),     { headers: getAuthHeaders() }).then(parseResponse);
 export const getOutstandingReport = (p) => fetch(buildUrl('/reports/outstanding', p),     { headers: getAuthHeaders() }).then(parseResponse);
 export const getInventoryFlowReport = (p) => fetch(buildUrl('/reports/inventory-flow', p), { headers: getAuthHeaders() }).then(parseResponse);
+export const getAdvancesReport    = ()  => fetch(buildUrl('/reports/advances'),            { headers: getAuthHeaders() }).then(parseResponse);

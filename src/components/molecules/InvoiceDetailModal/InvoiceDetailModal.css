@@ -596,3 +596,91 @@
 .invoice-meta-row { display: flex; gap: 0.5rem; font-size: 0.82rem; }
 .invoice-meta-row span:first-child { color: var(--text-tertiary); }
 .invoice-meta-row span:last-child { color: var(--text-primary); font-weight: 500; }
+
+/* ── Apply Advance inline section ── */
+.advance-apply-section {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px dashed var(--border-primary);
+}
+
+.advance-apply-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  width: 100%;
+  justify-content: center;
+}
+
+.advance-apply-trigger:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.advance-apply-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.advance-apply-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.advance-apply-input {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.advance-apply-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.advance-apply-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+  transition: opacity var(--transition-fast);
+}
+
+.advance-apply-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.advance-apply-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.advance-apply-btn-ghost {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.advance-apply-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-status-overdue);
+  margin: 0;
+}

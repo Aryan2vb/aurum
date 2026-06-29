@@ -8,15 +8,17 @@ import {
   getCollectionsReport,
   getOutstandingReport,
   getInventoryFlowReport,
+  getAdvancesReport,
 } from '../../services/reportsService';
 import './ReportsPage.css';
 
 const TABS = [
-  { id: 'sales',       label: 'Sales',          fetch: getSalesReport,        hasFilters: true },
-  { id: 'gst',         label: 'GST',            fetch: getGstReport,          hasFilters: true },
-  { id: 'collections', label: 'Collections',    fetch: getCollectionsReport,  hasFilters: true },
+  { id: 'sales',       label: 'Sales',          fetch: getSalesReport,        hasFilters: true  },
+  { id: 'gst',         label: 'GST',            fetch: getGstReport,          hasFilters: true  },
+  { id: 'collections', label: 'Collections',    fetch: getCollectionsReport,  hasFilters: true  },
   { id: 'outstanding', label: 'Outstanding',    fetch: getOutstandingReport,  hasFilters: false },
-  { id: 'inventory',   label: 'Inventory Flow', fetch: getInventoryFlowReport,hasFilters: true },
+  { id: 'advances',    label: 'Advances Held',  fetch: getAdvancesReport,     hasFilters: false },
+  { id: 'inventory',   label: 'Inventory Flow', fetch: getInventoryFlowReport,hasFilters: true  },
 ];
 
 const fmtLabel = (key) => key.replace(/([A-Z])/g, ' $1').trim();
@@ -196,11 +198,118 @@ const InventoryReport = ({ data }) => {
   );
 };
 
+const AdvancesReport = ({ data }) => {
+  const [expanded, setExpanded] = React.useState(null);
+
+  if (!data) return null;
+  const rows = data.customers || [];
+
+  const fmt2 = (d) => {
+    if (!d) return '—';
+    try {
+      return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch { return '—'; }
+  };
+
+  return (
+    <>
+      <div className="report-summary">
+        <div className="report-summary-card">
+          <span className="report-summary-label">Total Advances Held</span>
+          <span className="report-summary-amount">{fmtAmt(data.summary?.totalAdvanceHeld)}</span>
+        </div>
+        <div className="report-summary-card">
+          <span className="report-summary-label">Customers</span>
+          <span className="report-summary-count">{data.summary?.customersCount ?? 0}</span>
+        </div>
+      </div>
+
+      {!rows.length
+        ? <p className="report-empty">No customers with advance balance.</p>
+        : (
+          <table className="report-table advances-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Customer</th>
+                <th>Phone</th>
+                <th className="report-th-right">Received</th>
+                <th className="report-th-right">Used / Adjusted</th>
+                <th>Last Deposit</th>
+                <th className="report-th-right advances-balance-col">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const used = parseFloat(r.totalApplied || 0)
+                  + parseFloat(r.totalTransferOut || 0)
+                  + parseFloat(r.totalRefunded || 0)
+                  - parseFloat(r.totalTransferIn || 0);
+                return (
+                  <React.Fragment key={r.customerId}>
+                    <tr
+                      className={expanded === r.customerId ? 'advances-row-expanded' : ''}
+                      style={{ cursor: r.deposits?.length ? 'pointer' : 'default' }}
+                      onClick={() => r.deposits?.length && setExpanded(expanded === r.customerId ? null : r.customerId)}
+                    >
+                      <td className="advances-expand-cell">
+                        {r.deposits?.length > 0 && (
+                          <span className="advances-expand-icon">
+                            {expanded === r.customerId ? '▾' : '▸'}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="report-td-name">{r.customerName}</div>
+                        <div className="report-td-secondary" style={{ fontSize: '0.75rem' }}>{r.customerCode}</div>
+                      </td>
+                      <td className="report-td-secondary">{r.phone || '—'}</td>
+                      <td className="report-th-right">{fmtAmt(r.totalReceived)}</td>
+                      <td className="report-th-right report-td-secondary">
+                        {used > 0 ? fmtAmt(used) : '—'}
+                      </td>
+                      <td className="report-td-secondary">{fmt2(r.lastReceivedAt)}</td>
+                      <td className="report-th-right advances-balance-cell">{fmtAmt(r.availableBalance)}</td>
+                    </tr>
+
+                    {expanded === r.customerId && r.deposits?.map((dep) => (
+                      <tr key={dep.id} className="advances-deposit-row">
+                        <td></td>
+                        <td colSpan={2} className="advances-deposit-indent">
+                          ↳ {fmt2(dep.date)}{dep.paymentMethod ? ` · ${dep.paymentMethod}` : ''}
+                        </td>
+                        <td className="report-th-right">{fmtAmt(dep.amount)}</td>
+                        <td colSpan={2} className="report-td-secondary">
+                          {dep.description || '—'}
+                        </td>
+                        <td></td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="report-table-total-row">
+                <td colSpan={6}><strong>Total</strong></td>
+                <td className="report-th-right advances-balance-cell">
+                  <strong>{fmtAmt(data.summary?.totalAdvanceHeld)}</strong>
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        )
+      }
+    </>
+  );
+};
+
 const RENDERERS = {
   sales:       SalesReport,
   gst:         GstReport,
   collections: CollectionsReport,
   outstanding: OutstandingReport,
+  advances:    AdvancesReport,
   inventory:   InventoryReport,
 };
 
