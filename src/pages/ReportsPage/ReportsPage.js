@@ -188,7 +188,27 @@ const InventoryReport = ({ data }) => {
               <td className="report-th-right">{parseFloat(info.totalGrossWeight || 0).toFixed(2)}g</td>
               <td className="report-th-right">{parseFloat(info.totalNetWeight || 0).toFixed(2)}g</td>
               <td className="report-td-secondary">
-                {info.purities ? Object.entries(info.purities).map(([p, c]) => `${p}: ${c}`).join(' · ') : '—'}
+                {info.purities ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    {Object.entries(info.purities).map(([purity, details]) => {
+                      const isObject = details && typeof details === 'object';
+                      const count = isObject ? details.count : details;
+                      const gw = isObject ? parseFloat(details.grossWeight || 0).toFixed(2) : null;
+                      const nw = isObject ? parseFloat(details.netWeight || 0).toFixed(2) : null;
+                      return (
+                        <div key={purity} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ minWidth: '75px', fontWeight: '500' }}>{purity}:</span>
+                          <span style={{ color: 'var(--text-primary)' }}>{count} pcs</span>
+                          {gw !== null && (
+                            <span style={{ opacity: 0.8, fontSize: '11px' }}>
+                              (Gross: <strong>{gw}g</strong> · Net: <strong>{nw}g</strong>)
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : '—'}
               </td>
             </tr>
           ))}
