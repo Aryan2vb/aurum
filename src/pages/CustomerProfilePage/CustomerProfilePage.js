@@ -9,16 +9,29 @@ import Tab from '../../components/molecules/Tab/Tab';
 import Button from '../../components/atoms/Button/Button';
 import Toast from '../../components/atoms/Toast/Toast';
 import { getCustomerById } from '../../services/customersService';
-import { getCustomerCreditSummary, getCustomerLedger, getCustomerUdhar, getCustomerStatement } from '../../services/creditsService';
+import { getCustomerCreditSummary, getCustomerUdhar, getCustomerStatement } from '../../services/creditsService';
+import { getAdvanceBalance, getAdvanceLedger } from '../../services/advanceService';
 import { getInvoices } from '../../services/invoicesService';
 import InvoiceTable from '../../components/organisms/InvoiceTable/InvoiceTable';
 import InvoiceDetailModal from '../../components/molecules/InvoiceDetailModal/InvoiceDetailModal';
 import RecordPaymentModal from '../../components/molecules/RecordPaymentModal/RecordPaymentModal';
+import AdvancePanel from '../../components/organisms/AdvancePanel/AdvancePanel';
+import AdvanceLedgerTable from '../../components/molecules/AdvanceLedgerTable/AdvanceLedgerTable';
 import AmountDisplay from '../../components/atoms/AmountDisplay/AmountDisplay';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import './CustomerProfilePage.css';
 
-const TYPE_LABELS = { UDHAR: 'Udhar', PAYMENT: 'Payment', ADJUSTMENT: 'Adjustment' };
+const TYPE_LABELS = {
+  UDHAR: 'Udhar',
+  PAYMENT: 'Payment',
+  ADJUSTMENT: 'Adjustment',
+  RETURN: 'Return',
+  ADVANCE_RECEIVED: 'Advance In',
+  ADVANCE_APPLIED: 'Applied',
+  ADVANCE_TRANSFER_OUT: 'Transfer Out',
+  ADVANCE_TRANSFER_IN: 'Transfer In',
+  ADVANCE_REFUND: 'Refunded',
+};
 
 /* ── Udhar picker dropdown ── */
 const StatementTable = ({ statement }) => {
@@ -65,6 +78,7 @@ const StatementTable = ({ statement }) => {
   );
 };
 
+// eslint-disable-next-line no-unused-vars
 const LedgerTable = ({ entries }) => {  if (!entries.length) return <p className="customer-entries-empty">No ledger entries found.</p>;
   return <LedgerCards entries={entries} getUdhar={(e) => e.udharEntry} getEntry={(e) => e} />;
 };
@@ -112,7 +126,6 @@ const CustomerProfilePage = () => {
   const [customer, setCustomer] = useState(null);
   const [creditSummary, setCreditSummary] = useState(null);
   const [credits, setCredits] = useState([]);
-  const [ledger, setLedger] = useState([]);
   const [statement, setStatement] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
@@ -123,6 +136,12 @@ const CustomerProfilePage = () => {
   const [toast, setToast] = useState(null);
   const tabFromUrl = searchParams.get('tab') || 'overview';
   const [activeTab, setActiveTab] = useState(tabFromUrl);
+
+  // Advance state
+  const [advanceBalance, setAdvanceBalance] = useState(null);
+  const [advanceLedger, setAdvanceLedger] = useState([]);
+  const [advanceLedgerLoading, setAdvanceLedgerLoading] = useState(false);
+  const [showAdvancePanel, setShowAdvancePanel] = useState(false);
 
   useEffect(() => {
     loadCustomerData();
@@ -142,6 +161,10 @@ const CustomerProfilePage = () => {
     if (activeTab === 'invoices' && invoices.length === 0 && !invoicesLoading) {
       loadInvoices();
     }
+    // Load advance ledger when switching to advance tab
+    if (activeTab === 'advance' && advanceLedger.length === 0 && !advanceLedgerLoading) {
+      loadAdvanceLedger();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -150,17 +173,17 @@ const CustomerProfilePage = () => {
       setLoading(true);
       setError(null);
       
-      const [customerData, summaryData, ledgerData, udharData, statementData] = await Promise.all([
+      const [customerData, summaryData, udharData, statementData, advanceData] = await Promise.all([
         getCustomerById(id),
         getCustomerCreditSummary(id),
-        getCustomerLedger(id),
         getCustomerUdhar(id),
         getCustomerStatement(id),
+        getAdvanceBalance(id),
       ]);
 
       setCustomer(customerData);
       setCreditSummary(summaryData);
-      setLedger(Array.isArray(ledgerData) ? ledgerData : (ledgerData?.data || ledgerData?.entries || []));
+      setAdvanceBalance(parseFloat(advanceData?.availableAdvance || 0));
       setStatement(statementData);
       const udharList = Array.isArray(udharData) ? udharData : (udharData?.data || udharData?.entries || []);
       setCredits(udharList.map(u => ({
@@ -176,6 +199,18 @@ const CustomerProfilePage = () => {
       setToast({ type: 'error', message: 'Failed to load customer profile' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAdvanceLedger = async () => {
+    try {
+      setAdvanceLedgerLoading(true);
+      const data = await getAdvanceLedger(id);
+      setAdvanceLedger(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error loading advance ledger:', err);
+    } finally {
+      setAdvanceLedgerLoading(false);
     }
   };
 
@@ -208,6 +243,9 @@ const CustomerProfilePage = () => {
     if (activeTab === 'invoices') {
       loadInvoices();
     }
+    if (activeTab === 'advance') {
+      loadAdvanceLedger();
+    }
   };
 
   if (loading) {
@@ -236,11 +274,13 @@ const CustomerProfilePage = () => {
   }
 
   const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'invoices', label: 'Invoices' },
-    { id: 'udhar', label: 'Udhar' },
-    { id: 'ledger', label: 'Ledger' },
-    { id: 'statement', label: 'Statement' },
+    { id: 'overview',  label: 'Overview' },
+    { id: 'invoices',  label: 'Invoices' },
+    { id: 'advance',   label: advanceBalance > 0 ? `Advance (₹${advanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })})` : 'Advance' },
+    { id: 'udhar',     label: 'Udhar' },
+    { id: 'statement', label: 'Ledger' },
+    // Note: raw 'ledger' tab removed — Statement/Ledger tab shows the same data
+    // with running balance which is strictly more useful.
   ];
 
   const handleTabChange = (tabId) => {
@@ -322,16 +362,39 @@ const CustomerProfilePage = () => {
             </div>
           )}
 
-          {activeTab === 'ledger' && (
+          {activeTab === 'advance' && (
             <div className="customer-profile-tab-panel">
-              <div className="customer-entries-table">
-                <LedgerTable entries={ledger} />
+              {/* Advance balance summary + action */}
+              <div className="customer-advance-header">
+                <div className="customer-advance-balance-info">
+                  <span className="customer-advance-balance-label">Available Advance Balance</span>
+                  <AmountDisplay
+                    value={advanceBalance ?? 0}
+                    size="xl"
+                    emphasis
+                    variant={advanceBalance > 0 ? 'positive' : 'neutral'}
+                  />
+                </div>
+                <Button variant="primary" onClick={() => setShowAdvancePanel(true)}>
+                  Manage Advance
+                </Button>
               </div>
+              {/* Advance history table */}
+              <AdvanceLedgerTable
+                entries={advanceLedger}
+                loading={advanceLedgerLoading}
+                customerId={id}
+                onRefresh={() => { loadCustomerData(); loadAdvanceLedger(); }}
+              />
             </div>
           )}
 
           {activeTab === 'statement' && (
             <div className="customer-profile-tab-panel">
+              <p className="customer-ledger-subtitle">
+                Complete financial history — every invoice (udhar), payment, and advance movement with running balance.
+                Positive balance = customer owes you. Negative = you hold their advance.
+              </p>
               <div className="customer-entries-table">
                 <StatementTable statement={statement} />
               </div>
@@ -374,6 +437,18 @@ const CustomerProfilePage = () => {
             }}
           />
         )}
+
+        {/* Advance Panel slide-over */}
+        <AdvancePanel
+          isOpen={showAdvancePanel}
+          onClose={() => setShowAdvancePanel(false)}
+          customerId={id}
+          customerName={customer?.fullName || 'Customer'}
+          onSuccess={() => {
+            loadCustomerData();
+            loadAdvanceLedger();
+          }}
+        />
       </div>
     </DashboardTemplate>
   );

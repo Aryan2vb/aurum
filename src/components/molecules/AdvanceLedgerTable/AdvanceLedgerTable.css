@@ -1,0 +1,143 @@
+.advance-ledger-empty {
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.advance-ledger-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.advance-ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.advance-ledger-table th {
+  padding: var(--spacing-sm) var(--spacing-md);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-primary);
+  white-space: nowrap;
+}
+
+.advance-ledger-table td {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--border-primary);
+  vertical-align: middle;
+}
+
+.advance-ledger-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.advance-ledger-table tbody tr:hover td {
+  background: var(--bg-secondary);
+}
+
+.advance-ledger-th-amount,
+.advance-ledger-td-amount {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.advance-ledger-td-date {
+  white-space: nowrap;
+}
+
+.advance-ledger-td-desc {
+  color: var(--text-secondary);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advance-ledger-dash {
+  color: var(--text-tertiary);
+}
+
+/* ── Type pills ── */
+.advance-ledger-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.advance-ledger-pill-ADVANCE_RECEIVED,
+.advance-ledger-pill-ADVANCE_TRANSFER_IN {
+  background: color-mix(in srgb, var(--color-status-paid) 15%, transparent);
+  color: var(--color-status-paid);
+}
+
+.advance-ledger-pill-ADVANCE_APPLIED,
+.advance-ledger-pill-ADVANCE_TRANSFER_OUT,
+.advance-ledger-pill-ADVANCE_REFUND {
+  background: color-mix(in srgb, var(--color-status-overdue) 12%, transparent);
+  color: var(--color-status-overdue);
+}
+
+/* ── Clickable rows ── */
+.advance-ledger-row-clickable {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.advance-ledger-row-clickable:hover td {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* ── Detail slide-over panel ── */
+.advance-detail-panel {
+  padding: var(--spacing-lg);
+}
+
+.advance-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+.advance-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.advance-detail-row:last-child {
+  border-bottom: none;
+}
+
+.advance-detail-label {
+  flex: 0 0 140px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding-top: 2px;
+}
+
+.advance-detail-value {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  word-break: break-all;
+  margin: 0;
+}
+
+.advance-detail-id {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-family: monospace;
+}

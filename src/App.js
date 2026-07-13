@@ -22,6 +22,7 @@ import InvoicesPage from './pages/InvoicesPage/InvoicesPage';
 import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
+import AdvancePage from './pages/AdvancePage/AdvancePage';
 import './App.css';
 
 function App() {
@@ -176,6 +177,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF', 'VIEWER']}>
                   <ReportsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/advance"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                  <AdvancePage />
                 </ProtectedRoute>
               }
             />

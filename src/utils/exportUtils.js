@@ -267,3 +267,97 @@ export const flattenInvoiceData = (invoice) => {
     };
   });
 }
+
+/**
+ * Payment-date-aware flattening: produces ONE ROW PER PAYMENT per invoice.
+ * If an invoice has 3 payments on different dates, it returns 3 rows
+ * (each repeating the invoice/item base data).
+ *
+ * Payment columns added:
+ *   'Payment Date'   — paidAt formatted the same way as 'Date'
+ *   'Payment Mode'   — Cash / UPI / Swipe/Card / Cheque / Bank Transfer / etc.
+ *   'Payment Amount' — amount of that individual payment
+ *   'Payment Ref'    — reference / cheque number (optional)
+ *
+ * When there are no payments recorded, one row per item is returned with
+ * those columns left blank (or legacy modeOfPayment fallback for row 0).
+ */
+export const flattenInvoiceDataByPayment = (invoice) => {
+  // Re-use the existing flattener to get item-level rows (one per item)
+  const itemRows = flattenInvoiceData(invoice);
+
+  const formatDateLocal = (dateStr) => {
+    if (!dateStr) return '';
+    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (dateOnlyRegex.test(dateStr)) {
+      const parts = dateStr.split('-');
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      if (month < 1 || month > 12) return '';
+      return `${String(day).padStart(2, '0')} ${months[month - 1]} ${year}`;
+    }
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    return `${String(date.getDate()).padStart(2, '0')} ${months[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
+  const MODE_LABELS = {
+    CASH: 'Cash', UPI: 'UPI', CARD: 'Swipe/Card',
+    CHEQUE: 'Cheque', BANK_TRANSFER: 'Bank Transfer',
+    NEFT: 'NEFT', RTGS: 'RTGS', IMPS: 'IMPS',
+    CREDIT: 'Credit/Advance',
+  };
+
+  const payments = invoice.payments || [];
+
+  // Strip the already-collapsed payment columns from item rows —
+  // they will be replaced by the per-payment breakdown below.
+  const PAYMENT_COLS_TO_STRIP = ['UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'];
+
+  const baseRows = itemRows.map(row => {
+    const stripped = { ...row };
+    PAYMENT_COLS_TO_STRIP.forEach(col => { delete stripped[col]; });
+    stripped['Payment Date']   = '';
+    stripped['Payment Mode']   = '';
+    stripped['Payment Amount'] = '';
+    stripped['Payment Ref']    = '';
+    return stripped;
+  });
+
+  if (payments.length === 0) {
+    // No payments recorded — use legacy modeOfPayment fallback on first row
+    const mode = invoice.modeOfPayment;
+    const paid = Number(invoice.paidAmount || 0);
+    baseRows.forEach((row, idx) => {
+      if (idx === 0 && mode && paid > 0) {
+        row['Payment Date']   = formatDateLocal(invoice.updatedAt || invoice.invoiceDate);
+        row['Payment Mode']   = MODE_LABELS[mode] || mode;
+        row['Payment Amount'] = paid.toFixed(2);
+      }
+    });
+    return baseRows;
+  }
+
+  // Expand: for each payment → replicate all item rows with that payment's data
+  const result = [];
+  payments.forEach((payment) => {
+    const payDate   = formatDateLocal(payment.paidAt || payment.createdAt);
+    const payMode   = MODE_LABELS[payment.mode] || payment.mode || '';
+    const payAmount = Number(payment.amount || 0).toFixed(2);
+    const payRef    = payment.reference || payment.notes || '';
+
+    baseRows.forEach(row => {
+      result.push({
+        ...row,
+        'Payment Date':   payDate,
+        'Payment Mode':   payMode,
+        'Payment Amount': payAmount,
+        'Payment Ref':    payRef,
+      });
+    });
+  });
+
+  return result;
+};

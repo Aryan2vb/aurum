@@ -11,7 +11,9 @@ import Icon from "../../components/atoms/Icon/Icon";
 import Avatar from "../../components/atoms/Avatar/Avatar";
 import SlideOver from "../../components/atoms/SlideOver/SlideOver";
 import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
-import { getDocuments, searchCustomers } from "../../services/customersService";
+import {
+  getDocuments, searchCustomers,
+} from "../../services/customersService";
 import {
   getInvoiceById,
   getInvoiceSettings,
@@ -22,6 +24,7 @@ import {
   getMissingSequences,
   getSequenceAvailability,
 } from "../../services/invoicesService";
+import { getAdvanceBalance, applyAdvanceToInvoice, getAdvanceLedger } from "../../services/advanceService";
 import {
   generateInvoiceHtml,
   generateJewelleryInvoiceHtml,
@@ -109,6 +112,50 @@ const paymentModes = [
 ];
 const purityOptions = ["None", "916/22k", "833/20k", "75/18k", "F"];
 
+const formatRelativeName = (fullName = '', relativeName = '', relationType = '', gender = '') => {
+  const fName = (fullName || '').trim();
+  const rName = (relativeName || '').trim();
+  if (!rName) return fName;
+
+  const isFemale = String(gender).toUpperCase() === 'FEMALE';
+  let connector = 's/o';
+
+  if (relationType === 'father' || relationType === 'mother') {
+    connector = isFemale ? 'd/o' : 's/o';
+  } else if (relationType === 'spouse') {
+    connector = isFemale ? 'w/o' : 'h/o';
+  }
+
+  const fParts = fName.split(/\s+/);
+  const rParts = rName.split(/\s+/);
+
+  const fLast = fParts[fParts.length - 1]?.toLowerCase();
+  const rLast = rParts[rParts.length - 1]?.toLowerCase();
+
+  if (fLast && rLast && fLast === rLast && fParts.length > 1) {
+    const fFirstPart = fParts.slice(0, -1).join(' ');
+    return `${fFirstPart} ${connector} ${rName}`;
+  }
+
+  return `${fName} ${connector} ${rName}`;
+};
+
+const detectNameFormat = (buyerName, customer) => {
+  if (!customer) return 'default';
+  const cleanName = (buyerName || '').trim();
+
+  if (customer.fatherName && cleanName === formatRelativeName(customer.fullName, customer.fatherName, 'father', customer.gender)) {
+    return 'father';
+  }
+  if (customer.motherName && cleanName === formatRelativeName(customer.fullName, customer.motherName, 'mother', customer.gender)) {
+    return 'mother';
+  }
+  if (customer.spouseName && cleanName === formatRelativeName(customer.fullName, customer.spouseName, 'spouse', customer.gender)) {
+    return 'spouse';
+  }
+  return 'default';
+};
+
 const formatCustomerAddress = (location) =>
   [
     location?.village,
@@ -136,7 +183,13 @@ const CreateInvoicePage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
+  const [nameFormat, setNameFormat] = useState("default");
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
+  const [advanceBalance, setAdvanceBalance] = useState(null); // available advance for selected customer
+  const [advanceApplied, setAdvanceApplied] = useState(0);   // amount user wants to apply now
+  const [advanceDate, setAdvanceDate] = useState('');         // date of the advance receipt (editable)
+  const [advanceLedgerEntries, setAdvanceLedgerEntries] = useState([]); // raw receipt history
   const [payments, setPayments] = useState([]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(toDateInputValue());
@@ -202,6 +255,14 @@ const CreateInvoicePage = () => {
         if (id) {
           const inv = await getInvoiceById(id);
           setSelectedCustomerId(inv.customerId);
+          setSelectedCustomerObj(inv.customer);
+          if (inv.customer) {
+            const detected = detectNameFormat(
+              inv.buyerSnapshot?.data?.name || inv.buyerSnapshot?.name || "",
+              inv.customer
+            );
+            setNameFormat(detected);
+          }
           if (inv.status === "DRAFT" && inv.sequence) {
             sequenceEditedRef.current = true;
             setManualSequence(String(inv.sequence));
@@ -243,17 +304,20 @@ const CreateInvoicePage = () => {
               destination: inv.destination || "",
             },
             buyer: {
-              name: inv.buyerSnapshot?.name || inv.customer?.fullName || "",
+              name: inv.buyerSnapshot?.data?.name || inv.buyerSnapshot?.name || inv.customer?.fullName || "",
               phone:
+                inv.buyerSnapshot?.data?.phone ||
                 inv.buyerSnapshot?.phone ||
                 inv.customer?.contactDetails?.[0]?.primaryPhone ||
                 "",
               address:
+                inv.buyerSnapshot?.data?.address ||
                 inv.buyerSnapshot?.address ||
                 (inv.customer?.locations?.[0]
                   ? `${inv.customer.locations[0].village || ""} ${inv.customer.locations[0].district || ""}`.trim()
                   : ""),
               stateCode:
+                inv.buyerSnapshot?.data?.stateCode ||
                 inv.buyerSnapshot?.stateCode ||
                 inv.customer?.locations?.[0]?.stateCode ||
                 "",
@@ -489,9 +553,31 @@ const CreateInvoicePage = () => {
     searchDebounceRef.current = setTimeout(() => performSearch(q), 400);
   };
 
+  const handleNameFormatChange = useCallback((format, customer = selectedCustomerObj) => {
+    if (!customer) return;
+    setNameFormat(format);
+    let targetName = customer.fullName || '';
+    if (format === 'father' && customer.fatherName) {
+      targetName = formatRelativeName(customer.fullName, customer.fatherName, 'father', customer.gender);
+    } else if (format === 'mother' && customer.motherName) {
+      targetName = formatRelativeName(customer.fullName, customer.motherName, 'mother', customer.gender);
+    } else if (format === 'spouse' && customer.spouseName) {
+      targetName = formatRelativeName(customer.fullName, customer.spouseName, 'spouse', customer.gender);
+    }
+    setInvoiceData(prev => ({
+      ...prev,
+      buyer: {
+        ...prev.buyer,
+        name: targetName
+      }
+    }));
+  }, [selectedCustomerObj]);
+
   const handleCustomerSelect = (c) => {
     pendingItemDescriptionFocusRef.current = true;
     setSelectedCustomerId(c.id);
+    setSelectedCustomerObj(c);
+    setNameFormat("default");
     setSearchQuery("");
     setSearchResults([]);
     setInvoiceData((prev) => ({
@@ -503,6 +589,27 @@ const CreateInvoicePage = () => {
         stateCode: c.locations?.[0]?.stateCode || c.stateCode || "",
       },
     }));
+    // Load this customer's advance balance and most recent advance date in background
+    setAdvanceBalance(null);
+    setAdvanceApplied(0);
+    setAdvanceDate('');
+    setAdvanceLedgerEntries([]);
+    getAdvanceBalance(c.id)
+      .then((data) => setAdvanceBalance(parseFloat(data?.availableAdvance || 0)))
+      .catch(() => setAdvanceBalance(0));
+    getAdvanceLedger(c.id)
+      .then((entries) => {
+        const arr = Array.isArray(entries) ? entries : [];
+        setAdvanceLedgerEntries(arr);
+        // Default the date picker to the most recent receipt date
+        const received = arr
+          .filter((e) => e.type === 'ADVANCE_RECEIVED')
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        if (received.length > 0) {
+          setAdvanceDate(toDateInputValue(received[0].createdAt));
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -539,6 +646,12 @@ const CreateInvoicePage = () => {
 
   const clearCustomer = () => {
     setSelectedCustomerId("");
+    setSelectedCustomerObj(null);
+    setNameFormat("default");
+    setAdvanceBalance(null);
+    setAdvanceApplied(0);
+    setAdvanceDate('');
+    setAdvanceLedgerEntries([]);
     setInvoiceData((prev) => ({
       ...prev,
       buyer: { name: "", phone: "", address: "", stateCode: "" },
@@ -601,6 +714,7 @@ const CreateInvoicePage = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
     const payload = {
       customerId: selectedCustomerId,
+      buyerName: invoiceData.buyer.name || undefined,
       invoiceDate: invoiceDate,
       manualSequence:
         canEditSequence && Number.isFinite(parsedManualSequence)
@@ -745,8 +859,24 @@ const CreateInvoicePage = () => {
         } else {
           res = await createInvoice(currentPayload);
         }
-        if (res?.id) navigate(`/invoices`);
-        else alert("Failed to finalize invoice");
+        if (!res?.id) {
+          alert("Failed to finalize invoice");
+          return;
+        }
+        // Apply advance immediately if the user specified an amount
+        if (advanceApplied > 0) {
+          try {
+            await applyAdvanceToInvoice(res.id, {
+              amount: advanceApplied,
+              paidAt: advanceDate || undefined,
+              notes: 'Advance payment',
+            });
+          } catch (err) {
+            // Invoice was saved — warn but don't block navigation
+            alert(`Invoice saved, but advance could not be applied: ${err.message}`);
+          }
+        }
+        navigate(`/invoices`);
       } catch (err) {
         console.error(err);
         alert(err.message || "Error saving invoice");
@@ -952,23 +1082,87 @@ const CreateInvoicePage = () => {
                     )}
                   </div>
                 ) : (
-                  <div className={styles.selectedCustomer}>
-                    <Avatar name={invoiceData.buyer.name} size="sm" />
-                    <div className={styles.selectedCustomerText}>
-                      <strong>{invoiceData.buyer.name}</strong>
-                      <span>{invoiceData.buyer.phone}</span>
+                  <div className={styles.selectedCustomerContainer}>
+                    <div className={styles.selectedCustomer}>
+                      <Avatar name={invoiceData.buyer.name} size="sm" />
+                      <div className={styles.selectedCustomerText}>
+                        <strong>{invoiceData.buyer.name}</strong>
+                        <span>{invoiceData.buyer.phone}</span>
+                      </div>
+                      <button
+                        className={styles.changeBtn}
+                        onClick={clearCustomer}
+                      >
+                        Change
+                      </button>
                     </div>
-                    <button
-                      className={styles.changeBtn}
-                      onClick={clearCustomer}
-                    >
-                      Change
-                    </button>
+
+                    {selectedCustomerObj && (selectedCustomerObj.fatherName || selectedCustomerObj.motherName || selectedCustomerObj.spouseName) && (
+                      <div className={styles.nameFormatSelector}>
+                        <span className={styles.nameFormatLabel}>Name format on invoice:</span>
+                        <div className={styles.nameFormatOptions}>
+                          <label className={styles.nameFormatOption}>
+                            <input
+                              type="radio"
+                              name="nameFormat"
+                              value="default"
+                              checked={nameFormat === 'default'}
+                              onChange={() => handleNameFormatChange('default')}
+                            />
+                            <span>Name only</span>
+                          </label>
+                          {selectedCustomerObj.fatherName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="father"
+                                checked={nameFormat === 'father'}
+                                onChange={() => handleNameFormatChange('father')}
+                              />
+                              <span>Name / Father Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.fatherName, 'father', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                          {selectedCustomerObj.motherName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="mother"
+                                checked={nameFormat === 'mother'}
+                                onChange={() => handleNameFormatChange('mother')}
+                              />
+                              <span>Name / Mother Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.motherName, 'mother', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                          {selectedCustomerObj.spouseName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="spouse"
+                                checked={nameFormat === 'spouse'}
+                                onChange={() => handleNameFormatChange('spouse')}
+                              />
+                              <span>Name / Spouse Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.spouseName, 'spouse', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+              {/* Advance balance badge — informational only, input is in the payments section */}
+              {selectedCustomerId && advanceBalance > 0 && (
+                <div className={styles.advanceBanner}>
+                  <span className={styles.advanceBannerIcon}>💰</span>
+                  <span className={styles.advanceBannerText}>
+                    ₹{advanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} advance available — enter amount below to apply
+                  </span>
+                </div>
+              )}
               <div className={styles.dateAndSeqGroup}>
-                <div className={styles.seqField}>
                   <div className={styles.seqHeader}>
                     <label className={styles.dateLabel}>Invoice No.</label>
                     {canEditSequence ? (
@@ -1021,7 +1215,6 @@ const CreateInvoicePage = () => {
                   />
                 </div>
               </div>
-            </div>
 
             {/* Items */}
             <div className={styles.itemsHeader}>
@@ -1331,6 +1524,70 @@ const CreateInvoicePage = () => {
                       )}
                     </div>
                   ))}
+
+                  {/* Advance row — only shown when selected customer has advance balance */}
+                  {advanceBalance > 0 && (
+                    <div className={styles.advanceRowWrap}>
+                      <div className={styles.paymentRow}>
+                        <div className={styles.advanceRowLabel}>
+                          <span className={styles.advancePill}>Advance</span>
+                          <span className={styles.advanceRowAvail}>
+                            avail: ₹{advanceBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className={styles.paymentAmountWrap}>
+                          <span className={styles.currencyPrefix}>₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={advanceBalance}
+                            step="0.01"
+                            value={advanceApplied || ''}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setAdvanceApplied(Math.min(val, advanceBalance));
+                            }}
+                          />
+                        </div>
+                        <input
+                          type="date"
+                          value={advanceDate}
+                          max={toDateInputValue()}
+                          className={styles.paymentDateInput}
+                          aria-label="Advance payment date"
+                          onChange={(e) => setAdvanceDate(e.target.value)}
+                        />
+                        {advanceApplied > 0 && (
+                          <button
+                            type="button"
+                            className={styles.removePaymentBtn}
+                            onClick={() => setAdvanceApplied(0)}
+                          >
+                            <Icon name="close" size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Advance receipt history — shows when/how deposits were made */}
+                      {advanceLedgerEntries.length > 0 && (
+                        <div className={styles.advanceHistory}>
+                          <span className={styles.advanceHistoryLabel}>Deposits:</span>
+                          {advanceLedgerEntries
+                            .filter((e) => e.type === 'ADVANCE_RECEIVED')
+                            .map((e) => (
+                              <span key={e.id} className={styles.advanceHistoryChip}>
+                                ₹{parseFloat(e.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                {' on '}
+                                {toDateInputValue(e.createdAt)}
+                                {e.paymentMethod ? ` · ${e.paymentMethod}` : ''}
+                              </span>
+                            ))
+                          }
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className={styles.advField}>
@@ -1374,9 +1631,14 @@ const CreateInvoicePage = () => {
                   CGST {invoiceData.taxes.cgstRate}% + SGST{" "}
                   {invoiceData.taxes.sgstRate}%
                 </span>
-                {calc.outstanding > 0 && (
+                {advanceApplied > 0 && (
+                  <span style={{ color: "#10b981" }}>
+                    Advance: −{fmt(advanceApplied)}
+                  </span>
+                )}
+                {(calc.outstanding - advanceApplied) > 0 && (
                   <span style={{ color: "#f59e0b" }}>
-                    Bal: {fmt(calc.outstanding)}
+                    Bal: {fmt(Math.max(0, calc.outstanding - advanceApplied))}
                   </span>
                 )}
               </div>

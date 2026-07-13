@@ -4,6 +4,7 @@ import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
+import { applyAdvanceToInvoice, getAdvanceBalance } from '../../../services/advanceService';
 import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import { usePermission } from '../../../hooks/usePermission';
 import './InvoiceDetailModal.css';
@@ -64,6 +65,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
   const [deleting, setDeleting] = useState(false);
   const [negotiationMode, setNegotiationMode] = useState('MAKING_CHARGES');
   const [filterMetalType, setFilterMetalType] = useState('ALL');
+
+  // Advance application state
+  const [advanceBalance, setAdvanceBalance] = useState(null);
+  const [applyAdvanceAmount, setApplyAdvanceAmount] = useState('');
+  const [showApplyAdvance, setShowApplyAdvance] = useState(false);
+  const [applyingAdvance, setApplyingAdvance] = useState(false);
+  const [applyAdvanceError, setApplyAdvanceError] = useState(null);
 
   const handlePreview = async () => {
     if (!targetAmount) return;
@@ -128,6 +136,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
       const response = await getInvoiceById(invoiceId);
       if (response) {
         setInvoice(response);
+        // Load advance balance for the invoice's customer
+        try {
+          const bal = await getAdvanceBalance(response.customerId);
+          setAdvanceBalance(parseFloat(bal?.availableAdvance || 0));
+        } catch {
+          setAdvanceBalance(0);
+        }
       }
     } catch (err) {
       setError('Failed to fetch invoice details');
@@ -136,6 +151,26 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
       setLoading(false);
     }
   }, [invoiceId]);
+
+  const handleApplyAdvance = async () => {
+    const amount = parseFloat(applyAdvanceAmount);
+    if (!amount || amount <= 0) {
+      setApplyAdvanceError('Enter a valid amount');
+      return;
+    }
+    try {
+      setApplyingAdvance(true);
+      setApplyAdvanceError(null);
+      await applyAdvanceToInvoice(invoiceId, { amount });
+      setShowApplyAdvance(false);
+      setApplyAdvanceAmount('');
+      await fetchInvoiceDetails();
+    } catch (err) {
+      setApplyAdvanceError(err.message || 'Failed to apply advance');
+    } finally {
+      setApplyingAdvance(false);
+    }
+  };
 
   useEffect(() => {
     if (isOpen && invoiceId) {
@@ -356,10 +391,63 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                   <span>Paid Amount:</span>
                   <span>{formatCurrency(invoice.paidAmount)}</span>
                 </div>
+                {Number(invoice.advanceAdjustedAmount) > 0 && (
+                  <div className="summary-row" style={{ color: 'var(--color-status-paid)' }}>
+                    <span>Advance Applied:</span>
+                    <span>- {formatCurrency(invoice.advanceAdjustedAmount)}</span>
+                  </div>
+                )}
                 <div className="summary-row balance">
                   <span>Balance:</span>
-                  <span>{formatCurrency(invoice.remainingBalance)}</span>
+                  <span>{formatCurrency(invoice.remainingPayable ?? invoice.remainingBalance)}</span>
                 </div>
+
+                {/* Apply Advance inline widget */}
+                {canWrite && ['UNPAID', 'PARTIAL'].includes(invoice.status) && advanceBalance > 0 && (
+                  <div className="advance-apply-section">
+                    {!showApplyAdvance ? (
+                      <button
+                        className="advance-apply-trigger"
+                        onClick={() => { setShowApplyAdvance(true); setApplyAdvanceError(null); }}
+                      >
+                        <Icon name="add" size={14} />
+                        Apply Advance Balance ({formatCurrency(advanceBalance)} available)
+                      </button>
+                    ) : (
+                      <div className="advance-apply-form">
+                        <div className="advance-apply-row">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            max={Math.min(advanceBalance, parseFloat(invoice.remainingPayable ?? invoice.remainingBalance ?? 0))}
+                            className="advance-apply-input"
+                            placeholder="Amount to apply"
+                            value={applyAdvanceAmount}
+                            onChange={(e) => setApplyAdvanceAmount(e.target.value)}
+                          />
+                          <button
+                            className="advance-apply-btn advance-apply-btn-primary"
+                            onClick={handleApplyAdvance}
+                            disabled={applyingAdvance}
+                          >
+                            {applyingAdvance ? 'Applying…' : 'Apply'}
+                          </button>
+                          <button
+                            className="advance-apply-btn advance-apply-btn-ghost"
+                            onClick={() => { setShowApplyAdvance(false); setApplyAdvanceAmount(''); setApplyAdvanceError(null); }}
+                            disabled={applyingAdvance}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {applyAdvanceError && (
+                          <p className="advance-apply-error">{applyAdvanceError}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
