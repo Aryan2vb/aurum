@@ -78,6 +78,7 @@ const StatementTable = ({ statement }) => {
   );
 };
 
+// eslint-disable-next-line no-unused-vars
 const LedgerTable = ({ entries }) => {  if (!entries.length) return <p className="customer-entries-empty">No ledger entries found.</p>;
   return <LedgerCards entries={entries} getUdhar={(e) => e.udharEntry} getEntry={(e) => e} />;
 };
