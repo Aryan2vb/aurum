@@ -112,6 +112,50 @@ const paymentModes = [
 ];
 const purityOptions = ["None", "916/22k", "833/20k", "75/18k", "F"];
 
+const formatRelativeName = (fullName = '', relativeName = '', relationType = '', gender = '') => {
+  const fName = (fullName || '').trim();
+  const rName = (relativeName || '').trim();
+  if (!rName) return fName;
+
+  const isFemale = String(gender).toUpperCase() === 'FEMALE';
+  let connector = 's/o';
+
+  if (relationType === 'father' || relationType === 'mother') {
+    connector = isFemale ? 'd/o' : 's/o';
+  } else if (relationType === 'spouse') {
+    connector = isFemale ? 'w/o' : 'h/o';
+  }
+
+  const fParts = fName.split(/\s+/);
+  const rParts = rName.split(/\s+/);
+
+  const fLast = fParts[fParts.length - 1]?.toLowerCase();
+  const rLast = rParts[rParts.length - 1]?.toLowerCase();
+
+  if (fLast && rLast && fLast === rLast && fParts.length > 1) {
+    const fFirstPart = fParts.slice(0, -1).join(' ');
+    return `${fFirstPart} ${connector} ${rName}`;
+  }
+
+  return `${fName} ${connector} ${rName}`;
+};
+
+const detectNameFormat = (buyerName, customer) => {
+  if (!customer) return 'default';
+  const cleanName = (buyerName || '').trim();
+
+  if (customer.fatherName && cleanName === formatRelativeName(customer.fullName, customer.fatherName, 'father', customer.gender)) {
+    return 'father';
+  }
+  if (customer.motherName && cleanName === formatRelativeName(customer.fullName, customer.motherName, 'mother', customer.gender)) {
+    return 'mother';
+  }
+  if (customer.spouseName && cleanName === formatRelativeName(customer.fullName, customer.spouseName, 'spouse', customer.gender)) {
+    return 'spouse';
+  }
+  return 'default';
+};
+
 const formatCustomerAddress = (location) =>
   [
     location?.village,
@@ -139,6 +183,8 @@ const CreateInvoicePage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
+  const [nameFormat, setNameFormat] = useState("default");
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
   const [advanceBalance, setAdvanceBalance] = useState(null); // available advance for selected customer
   const [advanceApplied, setAdvanceApplied] = useState(0);   // amount user wants to apply now
@@ -209,6 +255,14 @@ const CreateInvoicePage = () => {
         if (id) {
           const inv = await getInvoiceById(id);
           setSelectedCustomerId(inv.customerId);
+          setSelectedCustomerObj(inv.customer);
+          if (inv.customer) {
+            const detected = detectNameFormat(
+              inv.buyerSnapshot?.data?.name || inv.buyerSnapshot?.name || "",
+              inv.customer
+            );
+            setNameFormat(detected);
+          }
           if (inv.status === "DRAFT" && inv.sequence) {
             sequenceEditedRef.current = true;
             setManualSequence(String(inv.sequence));
@@ -250,17 +304,20 @@ const CreateInvoicePage = () => {
               destination: inv.destination || "",
             },
             buyer: {
-              name: inv.buyerSnapshot?.name || inv.customer?.fullName || "",
+              name: inv.buyerSnapshot?.data?.name || inv.buyerSnapshot?.name || inv.customer?.fullName || "",
               phone:
+                inv.buyerSnapshot?.data?.phone ||
                 inv.buyerSnapshot?.phone ||
                 inv.customer?.contactDetails?.[0]?.primaryPhone ||
                 "",
               address:
+                inv.buyerSnapshot?.data?.address ||
                 inv.buyerSnapshot?.address ||
                 (inv.customer?.locations?.[0]
                   ? `${inv.customer.locations[0].village || ""} ${inv.customer.locations[0].district || ""}`.trim()
                   : ""),
               stateCode:
+                inv.buyerSnapshot?.data?.stateCode ||
                 inv.buyerSnapshot?.stateCode ||
                 inv.customer?.locations?.[0]?.stateCode ||
                 "",
@@ -496,9 +553,31 @@ const CreateInvoicePage = () => {
     searchDebounceRef.current = setTimeout(() => performSearch(q), 400);
   };
 
+  const handleNameFormatChange = useCallback((format, customer = selectedCustomerObj) => {
+    if (!customer) return;
+    setNameFormat(format);
+    let targetName = customer.fullName || '';
+    if (format === 'father' && customer.fatherName) {
+      targetName = formatRelativeName(customer.fullName, customer.fatherName, 'father', customer.gender);
+    } else if (format === 'mother' && customer.motherName) {
+      targetName = formatRelativeName(customer.fullName, customer.motherName, 'mother', customer.gender);
+    } else if (format === 'spouse' && customer.spouseName) {
+      targetName = formatRelativeName(customer.fullName, customer.spouseName, 'spouse', customer.gender);
+    }
+    setInvoiceData(prev => ({
+      ...prev,
+      buyer: {
+        ...prev.buyer,
+        name: targetName
+      }
+    }));
+  }, [selectedCustomerObj]);
+
   const handleCustomerSelect = (c) => {
     pendingItemDescriptionFocusRef.current = true;
     setSelectedCustomerId(c.id);
+    setSelectedCustomerObj(c);
+    setNameFormat("default");
     setSearchQuery("");
     setSearchResults([]);
     setInvoiceData((prev) => ({
@@ -567,6 +646,8 @@ const CreateInvoicePage = () => {
 
   const clearCustomer = () => {
     setSelectedCustomerId("");
+    setSelectedCustomerObj(null);
+    setNameFormat("default");
     setAdvanceBalance(null);
     setAdvanceApplied(0);
     setAdvanceDate('');
@@ -633,6 +714,7 @@ const CreateInvoicePage = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
     const payload = {
       customerId: selectedCustomerId,
+      buyerName: invoiceData.buyer.name || undefined,
       invoiceDate: invoiceDate,
       manualSequence:
         canEditSequence && Number.isFinite(parsedManualSequence)
@@ -1000,18 +1082,74 @@ const CreateInvoicePage = () => {
                     )}
                   </div>
                 ) : (
-                  <div className={styles.selectedCustomer}>
-                    <Avatar name={invoiceData.buyer.name} size="sm" />
-                    <div className={styles.selectedCustomerText}>
-                      <strong>{invoiceData.buyer.name}</strong>
-                      <span>{invoiceData.buyer.phone}</span>
+                  <div className={styles.selectedCustomerContainer}>
+                    <div className={styles.selectedCustomer}>
+                      <Avatar name={invoiceData.buyer.name} size="sm" />
+                      <div className={styles.selectedCustomerText}>
+                        <strong>{invoiceData.buyer.name}</strong>
+                        <span>{invoiceData.buyer.phone}</span>
+                      </div>
+                      <button
+                        className={styles.changeBtn}
+                        onClick={clearCustomer}
+                      >
+                        Change
+                      </button>
                     </div>
-                    <button
-                      className={styles.changeBtn}
-                      onClick={clearCustomer}
-                    >
-                      Change
-                    </button>
+
+                    {selectedCustomerObj && (selectedCustomerObj.fatherName || selectedCustomerObj.motherName || selectedCustomerObj.spouseName) && (
+                      <div className={styles.nameFormatSelector}>
+                        <span className={styles.nameFormatLabel}>Name format on invoice:</span>
+                        <div className={styles.nameFormatOptions}>
+                          <label className={styles.nameFormatOption}>
+                            <input
+                              type="radio"
+                              name="nameFormat"
+                              value="default"
+                              checked={nameFormat === 'default'}
+                              onChange={() => handleNameFormatChange('default')}
+                            />
+                            <span>Name only</span>
+                          </label>
+                          {selectedCustomerObj.fatherName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="father"
+                                checked={nameFormat === 'father'}
+                                onChange={() => handleNameFormatChange('father')}
+                              />
+                              <span>Name / Father Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.fatherName, 'father', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                          {selectedCustomerObj.motherName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="mother"
+                                checked={nameFormat === 'mother'}
+                                onChange={() => handleNameFormatChange('mother')}
+                              />
+                              <span>Name / Mother Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.motherName, 'mother', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                          {selectedCustomerObj.spouseName && (
+                            <label className={styles.nameFormatOption}>
+                              <input
+                                type="radio"
+                                name="nameFormat"
+                                value="spouse"
+                                checked={nameFormat === 'spouse'}
+                                onChange={() => handleNameFormatChange('spouse')}
+                              />
+                              <span>Name / Spouse Name ({formatRelativeName(selectedCustomerObj.fullName, selectedCustomerObj.spouseName, 'spouse', selectedCustomerObj.gender)})</span>
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
