@@ -112,6 +112,76 @@ const INVOICE_COLUMN_GROUPS = [
   },
 ];
 
+const PURCHASE_COLUMN_GROUPS = [
+  {
+    id: 'vendor',
+    label: 'Supplier Details',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+    cols: ['NAME', 'GSTIN'],
+  },
+  {
+    id: 'place_of_supply',
+    label: 'Place of Supply',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+    ),
+    cols: ['STATE CODE', 'STATE NAME'],
+  },
+  {
+    id: 'invoice_details',
+    label: 'Invoice Details',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+    ),
+    cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'],
+  },
+  {
+    id: 'amount_of_tax',
+    label: 'Amount of Tax',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'],
+  },
+  {
+    id: 'weight',
+    label: 'Weight',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="6" x2="12" y2="18" />
+        <line x1="6" y1="12" x2="18" y2="12" />
+      </svg>
+    ),
+    cols: ['GOLD (GM)', 'SILVER (GM)'],
+  },
+];
+
+const PURCHASE_COLUMNS = [
+  'NAME', 'GSTIN',
+  'STATE CODE', 'STATE NAME',
+  'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE',
+  'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX',
+  'GOLD (GM)', 'SILVER (GM)',
+];
+
+
 // Group checkbox: renders a tri-state checkbox (all / partial / none)
 const GroupCheckbox = ({ state, onChange }) => (
   <span
@@ -136,9 +206,10 @@ const GroupCheckbox = ({ state, onChange }) => (
 // ============================================
 // COLUMN PICKER MODAL
 // ============================================
-const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
+const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat, resourceName }) => {
   // Only include groups whose columns exist in the provided `columns` list
-  const activeGroups = INVOICE_COLUMN_GROUPS
+  const columnGroups = resourceName === 'purchases' ? PURCHASE_COLUMN_GROUPS : INVOICE_COLUMN_GROUPS;
+  const activeGroups = columnGroups
     .map(g => ({ ...g, cols: g.cols.filter(c => columns.includes(c)) }))
     .filter(g => g.cols.length > 0);
 
@@ -455,6 +526,8 @@ const ImportExportMenu = ({
     let columns;
     if (resourceName === 'invoices') {
       columns = INVOICE_COLUMNS;
+    } else if (resourceName === 'purchases') {
+      columns = PURCHASE_COLUMNS;
     } else {
       // For non-invoice resources, derive columns from the already-loaded data
       const headersSet = new Set();
@@ -552,6 +625,58 @@ const ImportExportMenu = ({
       worksheet['!merges'] = merges;
 
       // Auto-size columns
+      const colWidths = selectedCols.map((col) => {
+        let maxWidth = col.length;
+        flattenedData.forEach(row => {
+          const val = String(row[col] || '');
+          if (val.length > maxWidth) maxWidth = val.length;
+        });
+        return { wch: Math.min(maxWidth + 2, 50) };
+      });
+      worksheet['!cols'] = colWidths;
+    } else if (resourceName === 'purchases') {
+      const GROUP_DEFS = [
+        { label: 'PLACE OF SUPPLY', cols: ['STATE CODE', 'STATE NAME'] },
+        { label: 'INVOICE DETAILS', cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'] },
+        { label: 'AMOUNT OF TAX',    cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'] },
+        { label: 'WEIGHT',           cols: ['GOLD (GM)', 'SILVER (GM)'] },
+      ];
+      const SOLO_COLS = new Set(['NAME', 'GSTIN']);
+
+      const headRow1 = [];
+      const headRow2 = [];
+
+      selectedCols.forEach(col => {
+        if (SOLO_COLS.has(col)) {
+          headRow1.push(col);
+          headRow2.push('');
+        } else {
+          const group = GROUP_DEFS.find(g => g.cols.includes(col));
+          headRow1.push(group ? group.label : col);
+          headRow2.push(col);
+        }
+      });
+
+      const merges = [];
+      selectedCols.forEach((col, colIdx) => {
+        if (SOLO_COLS.has(col)) {
+          merges.push({ s: { r: 0, c: colIdx }, e: { r: 1, c: colIdx } });
+        }
+      });
+
+      let i = 0;
+      while (i < headRow1.length) {
+        if (SOLO_COLS.has(selectedCols[i])) { i++; continue; }
+        let j = i + 1;
+        while (j < headRow1.length && headRow1[j] === headRow1[i] && !SOLO_COLS.has(selectedCols[j])) j++;
+        if (j - i > 1) merges.push({ s: { r: 0, c: i }, e: { r: 0, c: j - 1 } });
+        i = j;
+      }
+
+      const dataRows = flattenedData.map(row => selectedCols.map(col => row[col] ?? ''));
+      worksheet = XLSX.utils.aoa_to_sheet([headRow1, headRow2, ...dataRows]);
+      worksheet['!merges'] = merges;
+
       const colWidths = selectedCols.map((col) => {
         let maxWidth = col.length;
         flattenedData.forEach(row => {
@@ -778,6 +903,115 @@ const ImportExportMenu = ({
         },
       });
 
+    } else if (resourceName === 'purchases') {
+      const colKeys = [
+        'NAME', 'GSTIN', 
+        'STATE CODE', 'STATE NAME', 
+        'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE', 
+        'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX', 
+        'GOLD (GM)', 'SILVER (GM)'
+      ];
+
+      const subLabels = [
+        'Name', 'GSTIN',
+        'State Code', 'State Name',
+        'Invoice No', 'Date', 'Value',
+        'Taxable Val', 'SGST', 'CGST', 'IGST', 'Total Tax',
+        'Gold (g)', 'Silver (g)'
+      ];
+
+      const groups = [
+        ['Name',             0,  0],
+        ['GSTIN',            1,  1],
+        ['Place of Supply',  2,  3],
+        ['Invoice Details',  4,  6],
+        ['Amount of Tax',    7, 11],
+        ['Weight',          12, 13],
+      ];
+
+      // Build group header row — show label only at the first col of each group
+      const headRow1 = subLabels.map((_, colIdx) => {
+        const group = groups.find(([, s, e]) => colIdx >= s && colIdx <= e);
+        if (!group) return '';
+        const [label, start] = group;
+        return colIdx === start ? label : '';
+      });
+
+      const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
+      if (totalsRow) {
+        body.push(colKeys.map(k => totalsRow[k] ?? ''));
+      }
+
+      const margin = { top: 44, left: 14, right: 14, bottom: 22 };
+      const availableWidth = pageW - margin.left - margin.right;
+      const rawWidths = [
+        80, 70,       // Name, GSTIN
+        50, 60,       // State Code, State Name
+        60, 50, 60,   // Invoice No, Date, Value
+        60, 40, 40, 40, 50, // Taxable, SGST, CGST, IGST, Total Tax
+        50, 50        // Gold, Silver
+      ];
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
+      const scale = availableWidth / rawTotal;
+      const scaledWidths = rawWidths.map(w => w * scale);
+
+      autoTable(doc, {
+        startY: 44,
+        margin,
+        head: [headRow1, subLabels],
+        body,
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 3,
+          halign: 'center',
+          valign: 'middle',
+          overflow: 'linebreak',
+          textColor: [0, 0, 0],
+          fillColor: false,
+          lineColor: [80, 80, 80],
+          lineWidth: 0.4,
+        },
+        headStyles: {
+          fillColor: [60, 60, 60],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 7.5,
+        },
+        alternateRowStyles: {
+          fillColor: [220, 220, 220],
+        },
+        columnStyles: scaledWidths.reduce((acc, w, i) => {
+          acc[i] = { cellWidth: w };
+          return acc;
+        }, {}),
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.row.index === 1) {
+            data.cell.styles.fillColor = [120, 120, 120];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+          }
+          if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fontSize = 7.5;
+            data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
+          }
+        },
+        didDrawPage: (data) => {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(80);
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}`,
+            pageW / 2,
+            doc.internal.pageSize.getHeight() - 12,
+            { align: 'center' }
+          );
+        },
+      });
+
     } else {
       // ── Generic single-level table ────────────────────────────────────────
       const headers = Object.keys(flattenedData[0] || {});
@@ -882,6 +1116,7 @@ const ImportExportMenu = ({
         <ColumnPickerModal
           columns={colPicker.columns}
           exportFormat={colPicker.format}
+          resourceName={resourceName}
           onConfirm={handleColPickerConfirm}
           onCancel={handleColPickerCancel}
         />

@@ -77,6 +77,8 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
     { iconName: 'advance',  label: 'Advance',        path: '/advance',      color: '#10b981' },
     { iconName: 'invoice',  label: 'Invoice Table',  path: '/invoices',     color: '#14b8a6' },
     ...(canWrite ? [{ iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' }] : []),
+    { iconName: 'product',  label: 'Stock',          path: '/stock',        color: '#8b5cf6' },
+    { iconName: 'order',    label: 'Purchases',      path: '/purchases',    color: '#ec4899' },
     { iconName: 'dashboard',label: 'Reports',        path: '/reports',      color: '#64748b' },
   ];
 

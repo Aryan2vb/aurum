@@ -12,6 +12,7 @@ export const clearSession = () => {
   localStorage.removeItem('userFullName');
   localStorage.removeItem('userRole');
   localStorage.removeItem('organizationName');
+  localStorage.removeItem('organizationId');
   clearFirmIdentitySettingsCache({ notify: true });
 };
 
@@ -87,9 +88,14 @@ export const whoami = async () => {
   });
   const payload = await parseResponse(response);
   const organizationName = payload?.organization?.name;
+  const organizationId = payload?.organization?.id;
 
   if (organizationName) {
     localStorage.setItem('organizationName', organizationName);
+  }
+
+  if (organizationId) {
+    localStorage.setItem('organizationId', organizationId);
   }
   
   if (payload?.fullName) {

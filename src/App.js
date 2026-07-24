@@ -23,6 +23,8 @@ import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
 import AdvancePage from './pages/AdvancePage/AdvancePage';
+import StockPage from './pages/StockPage/StockPage';
+import PurchasesPage from './pages/PurchasesPage/PurchasesPage';
 import './App.css';
 
 function App() {
@@ -185,6 +187,22 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
                   <AdvancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stock"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                  <StockPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                  <PurchasesPage />
                 </ProtectedRoute>
               }
             />

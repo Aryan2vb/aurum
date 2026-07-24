@@ -1,0 +1,1011 @@
+.purchase-bill-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  min-height: calc(100vh - 60px);
+}
+
+/* Hide number input arrows for cleaner look */
+.purchase-bill-page input[type="number"]::-webkit-inner-spin-button, 
+.purchase-bill-page input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+.purchase-bill-page input[type="number"] { 
+  -moz-appearance: textfield; 
+}
+
+/* Attio Container Style */
+.purchase-bill-container.glass-panel {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* Header Top */
+.attio-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.attio-header-top h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+/* Header Action Buttons */
+.attio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attio-action-clear,
+.attio-action-print,
+.attio-action-save {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.attio-action-clear {
+  color: #4b5563;
+  background: transparent;
+  border: none;
+}
+.attio-action-clear:hover { background: #f3f4f6; color: #111827; }
+
+.attio-action-print {
+  color: #4b5563;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+.attio-action-print:hover { background: #f9fafb; border-color: #d1d5db; color: #111827; }
+
+.attio-action-save {
+  color: #ffffff;
+  background: #111827;
+  border: 1px solid transparent;
+}
+.attio-action-save:hover { background: #1f2937; }
+.attio-action-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Fluid, auto-wrapping grid */
+.attio-properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem 2rem;
+  padding: 1.25rem 1.5rem;
+  background: #ffffff;
+}
+
+.attio-property {
+  display: flex;
+  align-items: center;
+  min-width: 0; /* Prevents flex children from overflowing their container */
+}
+
+.attio-prop-label {
+  width: 6.5rem; /* Slightly wider to prevent text wrapping on longer labels */
+  flex-shrink: 0; /* Stops the label from squishing when inputs get wide */
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Forces the input/value side of the property to fill remaining space gracefully */
+.attio-property > *:not(.attio-prop-label) {
+  flex: 1;
+  min-width: 0; 
+}
+
+/* Smooth Minimalist Inline Input */
+.inline-input {
+  width: 100%;
+  background: #f9fafb; /* Changed from transparent for better visibility */
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.375rem 0.5rem; /* Slightly increased padding */
+  font-size: 0.84rem;
+  color: #111827;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.inline-input:hover:not([readonly]):not(:focus) {
+  border-color: #e5e7eb;
+  background: #f3f4f6; /* Darker on hover */
+}
+
+.inline-input:focus:not([readonly]) {
+  border-color: #d1d5db;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.inline-input[readonly] {
+  color: #4b5563;
+  cursor: default;
+}
+
+.vendor-select-row {
+  display: flex;
+  align-items: center;
+  width: 50%;
+  gap: 0.00rem;
+}
+
+.icon-action-btn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.icon-action-btn:hover { background: #f3f4f6; color: #4b5563; }
+
+/* Attio Dynamic Badge */
+.party-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #dbeafe;
+}
+
+/* Dense Minimal Data Entry Table Layout */
+.purchase-grid-wrap {
+  padding: 0.5rem 1.5rem 1.25rem 1.5rem;
+  overflow-x: auto;
+}
+
+.purchase-entry-grid.simple-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures specified column structural widths are locked */
+}
+
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid.simple-grid td {
+  border: none;
+  border-right: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 0.375rem 0.25rem;
+  vertical-align: middle;
+}
+
+.purchase-entry-grid.simple-grid th:last-child,
+.purchase-entry-grid.simple-grid td:last-child {
+  border-right: none;
+}
+
+.purchase-entry-grid.simple-grid th {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Reset heavy row styles */
+.purchase-entry-grid input,
+.purchase-entry-grid select {
+  width: 100%;
+  min-height: auto;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #111827;
+  padding: 0.25rem 0.375rem;
+  outline: none;
+  font-size: 0.84rem;
+  transition: all 0.15s ease;
+}
+
+.purchase-entry-grid input:hover:not(:focus),
+.purchase-entry-grid select:hover:not(:focus) {
+  border-color: #e5e7eb;
+  background: #f9fafb;
+}
+
+.purchase-entry-grid input:focus,
+.purchase-entry-grid select:focus {
+  border-color: #d1d5db;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.attio-grid-row:hover {
+  background-color: #fafafa;
+}
+
+/* Row Action Utility Visibility */
+.attio-grid-row:hover .grid-remove-btn {
+  opacity: 1;
+}
+
+.grid-remove-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-remove-btn:hover {
+  background: #fee2e2;
+}
+
+.grid-remove-btn:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed;
+}
+
+/* Vendor Management Modal Layout */
+.vendor-modal-wide {
+  width: 900px !important;
+  max-width: 95vw;
+  height: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.vendor-modal-wide .stock-modal-header {
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.75rem;
+}
+
+.vendor-manage-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.vendor-manage-sidebar {
+  width: 250px;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 1rem;
+  background: #f9fafb;
+}
+
+.vendor-search-wrap {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vendor-search-input {
+  flex: 1;
+  padding: 0.375rem 0.625rem !important;
+  font-size: 0.8125rem;
+}
+
+.add-vendor-btn {
+  padding: 0.375rem 0.625rem;
+  min-height: auto;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.vendor-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vendor-list-item {
+  padding: 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #f3f4f6;
+}
+
+.vendor-list-item:hover {
+  background: #f3f4f6;
+}
+
+.vendor-list-item.active {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+}
+
+.vendor-item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.vendor-item-sub {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.vendor-manage-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+
+.vendor-form-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #f3f4f6;
+  padding-bottom: 0.5rem;
+}
+
+.vendor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.vendor-form-grid .form-group.full-width {
+  grid-column: span 2;
+}
+
+.vendor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* History & Stats Section */
+.vendor-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.vendor-stats-mini-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.vendor-stat-mini {
+  flex: 1;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.vendor-stat-mini span {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.vendor-stat-mini strong {
+  font-size: 1rem;
+  color: #111827;
+  font-weight: 600;
+}
+
+.vendor-history-table-wrapper {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vendor-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.vendor-history-table th,
+.vendor-history-table td {
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.vendor-history-table th {
+  background: #f9fafb;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.vendor-history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.no-history,
+.no-vendors-found {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+.grid-remove-btn.hover-show {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  margin: 0 auto;
+}
+
+.attio-grid-row:hover .grid-remove-btn.hover-show {
+  opacity: 1;
+}
+
+.grid-remove-btn.hover-show:hover {
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+/* Footer & Totaling Adjustments */
+.purchase-entry-grid tfoot td {
+  border-bottom: none;
+  padding-top: 0.75rem;
+  font-size: 0.84rem;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.computed-cell {
+  font-size: 0.84rem;
+  color: #4b5563;
+  padding-right: 0.375rem !important;
+}
+
+.total-cell {
+  color: #111827;
+  font-weight: 600;
+}
+
+.grid-add-btn.attio-secondary-btn {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.15s ease;
+}
+.grid-add-btn.attio-secondary-btn:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+/* Financial Section Styling */
+.attio-totals-section {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background: #fafafa;
+  border-top: 1px solid #f3f4f6;
+  gap: 3rem;
+}
+
+.attio-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
+  max-width: 400px;
+}
+
+.attio-contextual-totals {
+  display: flex;
+  gap: 2.5rem;
+}
+
+.ctx-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ctx-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.ctx-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.attio-financials {
+  width: 100%;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+}
+
+.fin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #4b5563;
+}
+
+.fin-val {
+  font-weight: 500;
+  color: #111827;
+}
+
+.tax-select {
+  width: auto;
+  min-width: 130px;
+  font-size: 0.75rem;
+  color: #4b5563;
+  margin-left: 0;
+  padding-left: 0.5rem !important; /* Restore padding to show it is a field */
+  background: #f9fafb;
+}
+
+.grand-row {
+  padding: 0.75rem 0.875rem;
+  margin-top: 0.5rem;
+  border-top: none;
+  background: #f3f4f6; /* Highlight container */
+  border-radius: 6px;
+}
+
+.fin-label-bold {
+  font-weight: 600;
+  color: #111827;
+}
+
+.fin-val-bold {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* Remarks Input Area */
+.remark-input-box {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.875rem;
+  color: #111827;
+  outline: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.remark-input-box:focus {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+
+.remark-input-box::placeholder {
+  color: #9ca3af;
+}
+
+/* History Grid Elements */
+.purchases-history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.purchase-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.purchase-stat {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+
+.purchase-stat span,
+.vendor-cell span {
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.purchase-stat strong,
+.vendor-cell strong {
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.vendor-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.saas-input,
+.saas-select,
+.saas-textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.saas-input:hover:not(:disabled):not([readonly]),
+.saas-select:hover:not(:disabled),
+.saas-textarea:hover:not(:disabled) {
+  border-color: var(--border-light);
+  background-color: var(--bg-secondary);
+}
+
+.saas-input:focus,
+.saas-select:focus,
+.saas-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background-color: var(--bg-primary);
+}
+
+.saas-input[readonly] {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+  font-weight: 600;
+  padding-left: 0;
+  padding-right: 0;
+}
+.saas-input[readonly]:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.saas-textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.purchase-bill-page .attio-primary-btn,
+.purchase-bill-page .attio-secondary-btn,
+.stock-modal-actions .attio-primary-btn,
+.stock-modal-actions .attio-secondary-btn {
+  min-height: 40px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.purchase-bill-page .attio-primary-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-glow {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.btn-glow:hover {
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.purchase-bill-page .attio-primary-btn,
+.stock-modal-actions .attio-primary-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid transparent;
+}
+
+.purchase-bill-page .attio-primary-btn:hover:not(:disabled),
+.stock-modal-actions .attio-primary-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.purchase-bill-page .attio-secondary-btn,
+.stock-modal-actions .attio-secondary-btn {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.purchase-bill-page .attio-secondary-btn:hover:not(:disabled),
+.stock-modal-actions .attio-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.text-danger:hover {
+  color: var(--error) !important;
+  border-color: color-mix(in srgb, var(--error) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--error) 5%, transparent) !important;
+}
+
+.purchase-bill-page button:disabled,
+.stock-modal-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.vendor-modal {
+  width: 420px;
+}
+
+.stock-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.stock-modal-content {
+  width: 460px;
+  max-width: 100%;
+  padding: 1.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+}
+
+
+
+.stock-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.stock-modal-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.stock-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.stock-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.stock-modal-form,
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  gap: 0.4rem;
+}
+
+.stock-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+@media print {
+  .sidebar,
+  .mobile-menu-button,
+  .bottom-nav,
+  .dashboard-header,
+  .purchases-history-panel,
+  .purchase-actions {
+    display: none !important;
+  }
+
+  .purchase-bill-page {
+    padding: 0;
+    background: #fff;
+  }
+
+  .purchase-bill {
+    border: none;
+    color: #000;
+  }
+}
+
+@media (max-width: 1100px) {
+  .purchase-bill-header,
+  .purchase-bill-footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .party-field {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .purchase-bill-page {
+    padding: 0.75rem;
+  }
+
+  .purchase-bill-header,
+  .purchase-bill-footer,
+  .purchase-stats-row,
+  .totals-mini,
+  .gst-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .remark-field {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* 2. Fix Touch Device Delete Buttons */
+@media (hover: none) and (pointer: coarse) {
+  .grid-remove-btn.hover-show {
+    opacity: 1; /* Always visible on touch screens */
+    color: #ef4444; 
+    background: #fef2f2;
+  }
+}
+
+/* 4. Fix Mobile Vendor Modal */
+@media (max-width: 768px) {
+  .vendor-manage-layout {
+    flex-direction: column; /* Stack vertically on mobile */
+  }
+
+  .vendor-manage-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    max-height: 250px; /* Prevent sidebar from taking over the screen */
+  }
+  
+  .vendor-manage-main {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .vendor-form-grid {
+    grid-template-columns: 1fr; /* Stack form fields */
+  }
+  
+  .vendor-form-grid .form-group.full-width {
+    grid-column: span 1;
+  }
+  
+  .vendor-modal-wide {
+    height: 85vh; /* Give more height on mobile */
+  }
+}
+
+/* Compact action buttons in history panel header */
+.attio-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attio-header-right .attio-secondary-btn {
+  min-height: 32px !important;
+  height: 32px;
+  padding: 0 0.75rem !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  background: var(--bg-primary, #ffffff);
+  color: var(--text-secondary, #4b5563);
+  border: 1px solid var(--border-color, #e5e7eb);
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.attio-header-right .attio-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-hover, #f9fafb);
+  border-color: var(--border-hover, #d1d5db);
+  color: var(--text-primary, #111827);
+}
+
+.attio-header-right .attio-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
