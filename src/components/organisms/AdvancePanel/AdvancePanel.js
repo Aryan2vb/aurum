@@ -5,6 +5,7 @@ import Input from '../../atoms/Input/Input';
 import AmountDisplay from '../../atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../atoms/Toast/Toast';
 import Avatar from '../../atoms/Avatar/Avatar';
+import PaymentAccountSelect from '../../molecules/PaymentAccountSelect/PaymentAccountSelect';
 import {
   getAdvanceBalance,
   receiveAdvance,
@@ -12,18 +13,12 @@ import {
   transferAdvance,
 } from '../../../services/advanceService';
 import { searchCustomers } from '../../../services/customersService';
+import { PAYMENT_MODES, withFinancialAccount } from '../../../utils/paymentAccounts';
 import './AdvancePanel.css';
 
-const PAYMENT_METHODS = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'UPI', label: 'UPI' },
-  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
-  { value: 'CHEQUE', label: 'Cheque' },
-  { value: 'NEFT', label: 'NEFT' },
-  { value: 'RTGS', label: 'RTGS' },
-  { value: 'IMPS', label: 'IMPS' },
-  { value: 'OTHER', label: 'Other' },
-];
+const PAYMENT_METHODS = PAYMENT_MODES
+  .filter((mode) => !['CREDIT', 'OLD_GOLD'].includes(mode))
+  .map((mode) => ({ value: mode, label: mode.replaceAll('_', ' ') }));
 
 const TABS = [
   { id: 'receive', label: 'Receive Advance' },
@@ -34,6 +29,7 @@ const TABS = [
 const emptyForm = () => ({
   amount: '',
   paymentMethod: 'CASH',
+  financialAccountId: '',
   reference: '',
   notes: '',
 });
@@ -114,12 +110,13 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
     if (!amount || amount <= 0) { setToast({ type: 'error', message: 'Enter a valid amount' }); return; }
     try {
       setSaving(true);
-      await receiveAdvance(customerId, {
+      await receiveAdvance(customerId, withFinancialAccount({
         amount,
         paymentMethod: form.paymentMethod,
+        financialAccountId: form.financialAccountId,
         ...(form.reference && { reference: form.reference }),
         ...(form.notes && { notes: form.notes }),
-      });
+      }));
       setToast({ type: 'success', message: `Advance of ${fmtAmt(amount)} recorded` });
       setForm(emptyForm());
       await loadBalance();
@@ -142,12 +139,13 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
     }
     try {
       setSaving(true);
-      await refundAdvance(customerId, {
+      await refundAdvance(customerId, withFinancialAccount({
         amount,
         paymentMethod: form.paymentMethod,
+        financialAccountId: form.financialAccountId,
         ...(form.reference && { reference: form.reference }),
         ...(form.notes && { notes: form.notes }),
-      });
+      }));
       setToast({ type: 'success', message: `Refund of ${fmtAmt(amount)} processed` });
       setForm(emptyForm());
       await loadBalance();
@@ -241,6 +239,8 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                 {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
+            <PaymentAccountSelect mode={form.paymentMethod} value={form.financialAccountId}
+              onChange={(value) => handleFieldChange('financialAccountId', value)} />
             {needsReference && (
               <div className="advance-panel-field">
                 <label className="advance-panel-label">Reference / UTR</label>
@@ -282,6 +282,8 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                 {PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
               </select>
             </div>
+            <PaymentAccountSelect mode={form.paymentMethod} value={form.financialAccountId}
+              onChange={(value) => handleFieldChange('financialAccountId', value)} />
             {needsReference && (
               <div className="advance-panel-field">
                 <label className="advance-panel-label">Reference / UTR</label>

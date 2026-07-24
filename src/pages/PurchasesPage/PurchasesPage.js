@@ -10,17 +10,37 @@ import DashboardTemplate from '../../components/templates/DashboardTemplate/Dash
 import Icon from '../../components/atoms/Icon/Icon';
 import Toast from '../../components/atoms/Toast/Toast';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
-import { getPurchases, createPurchase } from '../../services/purchasesService';
+import {
+  getPurchases,
+  createPurchase,
+  updatePurchase,
+  updatePurchaseAttachment,
+  getPurchaseBillBookHtml,
+} from '../../services/purchasesService';
 import { getVendors, createVendor, updateVendor } from '../../services/vendorsService';
+import { getPresignedUrl, uploadToR2, deleteAsset } from '../../services/uploadService';
+import { getFinancialAccounts } from '../../services/financeService';
 import ImportExportMenu from '../../components/molecules/ImportExportMenu/ImportExportMenu';
+import PurchaseDetailSlideOver from '../../components/molecules/PurchaseDetailSlideOver/PurchaseDetailSlideOver';
+import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
+import { PAYMENT_MODES, paymentNeedsBankAccount, withFinancialAccount } from '../../utils/paymentAccounts';
+import { buildPurchaseBillBookRequest } from '../../utils/billBookExport';
 import './PurchasesPage.css';
 
 const columnHelper = createColumnHelper();
+const PURCHASE_PAYMENT_MODES = PAYMENT_MODES.filter((mode) => !['CREDIT', 'OLD_GOLD'].includes(mode));
 const fmtAmt = (n) => "₹" + Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtWeight = (n) => `${Number(n || 0).toFixed(3)} g`;
 const num = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 const round3 = (value) => Math.round((value + Number.EPSILON) * 1000) / 1000;
+const todayInput = () => new Date().toISOString().slice(0, 10);
+const statusLabel = (status) => ({
+  UNPAID: 'Unpaid',
+  PARTIAL: 'Partial',
+  PAID: 'Paid',
+  CANCELLED: 'Cancelled',
+}[status] || status || 'Unpaid');
 
 const emptyItem = () => ({
   itemName: '',
@@ -28,6 +48,13 @@ const emptyItem = () => ({
   purity: '22K',
   netWeight: '',
   rate: '',
+});
+
+const emptyPayment = (paidAt = todayInput()) => ({
+  mode: 'UPI',
+  amount: '',
+  paidAt,
+  financialAccountId: '',
 });
 
 const SkeletonRows = ({ rows = 5, cols = 7 }) => (
@@ -46,7 +73,7 @@ const buildColumns = () => [
   columnHelper.accessor(row => row.vendor?.name || '—', {
     id: 'vendorName',
     header: 'Vendor',
-    size: 190,
+    size: 180,
     cell: info => {
       const vendor = info.row.original.vendor;
       return (
@@ -57,22 +84,43 @@ const buildColumns = () => [
       );
     },
   }),
-  columnHelper.accessor(row => row.items?.length || 1, { id: 'items', header: 'Items', size: 80 }),
+  columnHelper.accessor(row => row.status || 'UNPAID', {
+    id: 'status',
+    header: 'Status',
+    size: 100,
+    cell: info => <span className={`purchase-status-badge status-${String(info.getValue()).toLowerCase()}`}>{statusLabel(info.getValue())}</span>,
+  }),
   columnHelper.accessor(row => row.totalGoldWeight || (row.metalType === 'GOLD' ? row.totalWeight : 0), {
     id: 'goldWeight',
     header: 'Gold',
-    size: 110,
+    size: 95,
     cell: info => fmtWeight(info.getValue()),
   }),
   columnHelper.accessor(row => row.totalSilverWeight || (row.metalType === 'SILVER' ? row.totalWeight : 0), {
     id: 'silverWeight',
     header: 'Silver',
-    size: 110,
+    size: 95,
     cell: info => fmtWeight(info.getValue()),
   }),
-  columnHelper.accessor(row => row.grandTotal || row.totalAmount, { id: 'grandTotal', header: 'Total', size: 130,
+  columnHelper.accessor(row => row.grandTotal || row.totalAmount, { id: 'grandTotal', header: 'Total', size: 120,
     cell: info => fmtAmt(info.getValue()),
   }),
+  columnHelper.accessor(
+    row => round2(num(row.grandTotal || row.totalAmount) - num(row.paidAmount)),
+    {
+      id: 'due',
+      header: 'Due',
+      size: 110,
+      cell: info => {
+        const due = num(info.getValue());
+        return (
+          <span className={due > 0.009 ? 'purchase-due-amt' : 'purchase-due-clear'}>
+            {due > 0.009 ? fmtAmt(due) : '—'}
+          </span>
+        );
+      },
+    },
+  ),
 ];
 
 const flattenPurchaseRow = (p) => {
@@ -110,10 +158,26 @@ const PurchasesPage = () => {
     vendorId: '',
     invoiceNumber: '',
     purchaseDate: new Date().toISOString().slice(0, 10),
-    taxType: 'IGST',
+    taxType: 'CGST_SGST',
     notes: '',
   });
   const [items, setItems] = useState([emptyItem()]);
+  const [payments, setPayments] = useState([]);
+  const [financialAccounts, setFinancialAccounts] = useState([]);
+  const [financialAccountsLoaded, setFinancialAccountsLoaded] = useState(false);
+  const [editingPurchaseId, setEditingPurchaseId] = useState(null);
+  const [detailPurchase, setDetailPurchase] = useState(null);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [billBookExporting, setBillBookExporting] = useState(false);
+  const [isFormCollapsed, setIsFormCollapsed] = useState(false);
+  /** Saved attachment on the purchase being edited (or after load) */
+  const [savedAttachment, setSavedAttachment] = useState(null);
+  /** Newly picked local File (not yet uploaded) */
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
+  /** User cleared existing attachment */
+  const [attachmentCleared, setAttachmentCleared] = useState(false);
+  const attachmentInputRef = React.useRef(null);
 
   // Manage Vendor UI State
   const [selectedVendorIdForManage, setSelectedVendorIdForManage] = useState(null);
@@ -156,6 +220,54 @@ const PurchasesPage = () => {
     };
   }, [calculatedItems, formData.taxType]);
 
+  const paidTotal = useMemo(
+    () => round2(payments.reduce((sum, p) => sum + num(p.amount), 0)),
+    [payments],
+  );
+  const remainingBalance = useMemo(
+    () => round2(Math.max(0, totals.grandTotal - paidTotal)),
+    [totals.grandTotal, paidTotal],
+  );
+  const insufficientAccountWarnings = useMemo(() => {
+    if (editingPurchaseId) return [];
+    const activeAccounts = financialAccounts.filter(
+      (account) => account.isActive !== false && account.status !== 'INACTIVE',
+    );
+    const cashAccount = activeAccounts.find((account) => account.type === 'CASH' && account.isDefault)
+      || activeAccounts.find((account) => account.type === 'CASH');
+    const spendingByAccount = new Map();
+
+    payments.forEach((payment) => {
+      const amount = num(payment.amount);
+      if (amount <= 0) return;
+      const account = payment.mode === 'CASH'
+        ? cashAccount
+        : activeAccounts.find((candidate) => candidate.id === payment.financialAccountId);
+      if (!account) return;
+      const existing = spendingByAccount.get(account.id);
+      spendingByAccount.set(account.id, {
+        account,
+        amount: round2((existing?.amount || 0) + amount),
+        modes: [...new Set([...(existing?.modes || []), payment.mode])],
+      });
+    });
+
+    return [...spendingByAccount.values()]
+      .map(({ account, amount, modes }) => {
+        const available = num(account.currentBalance ?? account.balance ?? account.openingBalance);
+        return {
+          id: account.id,
+          name: account.name || account.bankName || (account.type === 'CASH' ? 'Cash Book' : 'Bank Account'),
+          modes: modes.map((mode) => mode.replaceAll('_', ' ')).join(' + '),
+          modeValues: modes,
+          amount,
+          available,
+          shortfall: round2(amount - available),
+        };
+      })
+      .filter((warning) => warning.shortfall > 0.01);
+  }, [editingPurchaseId, financialAccounts, payments]);
+
   const loadPurchases = useCallback(async () => {
     try {
       setLoading(true);
@@ -177,10 +289,23 @@ const PurchasesPage = () => {
     }
   }, []);
 
+  const loadFinancialAccounts = useCallback(async () => {
+    setFinancialAccountsLoaded(false);
+    try {
+      const data = await getFinancialAccounts();
+      const accounts = data?.accounts || data?.data?.accounts || data?.data || data;
+      setFinancialAccounts(Array.isArray(accounts) ? accounts : []);
+      setFinancialAccountsLoaded(true);
+    } catch {
+      setFinancialAccounts([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadPurchases();
     loadVendors();
-  }, [loadPurchases, loadVendors]);
+    loadFinancialAccounts();
+  }, [loadFinancialAccounts, loadPurchases, loadVendors]);
 
   const handleHeaderChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -200,14 +325,163 @@ const PurchasesPage = () => {
 
   const addItem = () => setItems(prev => [...prev, emptyItem()]);
   const removeItem = (index) => setItems(prev => prev.length === 1 ? prev : prev.filter((_, itemIndex) => itemIndex !== index));
+
+  const addPayment = () => setPayments(prev => [...prev, emptyPayment(formData.purchaseDate || todayInput())]);
+  const removePayment = (index) => setPayments(prev => prev.filter((_, i) => i !== index));
+  const handlePaymentChange = (index, field, value) => {
+    setPayments(prev => prev.map((payment, i) => i === index ? { ...payment, [field]: value } : payment));
+  };
+
+  const clearAttachmentState = () => {
+    setSavedAttachment(null);
+    setPendingFile(null);
+    setAttachmentCleared(false);
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+  };
+
+  const handleAttachmentPick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    if (!allowed.includes(file.type)) {
+      setToast({ type: 'error', message: 'Only JPEG, PNG, WebP, or PDF files are allowed' });
+      e.target.value = '';
+      return;
+    }
+    if (file.size > 10_000_000) {
+      setToast({ type: 'error', message: 'File must be 10 MB or smaller' });
+      e.target.value = '';
+      return;
+    }
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    setPendingFile(file);
+    setPendingPreviewUrl(file.type.startsWith('image/') ? URL.createObjectURL(file) : null);
+    setAttachmentCleared(false);
+  };
+
+  const handleAttachmentRemove = () => {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    setPendingFile(null);
+    setPendingPreviewUrl(null);
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    if (savedAttachment?.url) {
+      setAttachmentCleared(true);
+    }
+  };
+
+  const syncPurchaseAttachment = async (purchaseId) => {
+    if (pendingFile) {
+      const { presignedUrl, publicUrl, key } = await getPresignedUrl(
+        'PURCHASE_DOC',
+        pendingFile,
+        purchaseId,
+      );
+      await uploadToR2(presignedUrl, pendingFile);
+      return updatePurchaseAttachment(purchaseId, {
+        attachmentUrl: publicUrl,
+        attachmentKey: key,
+        attachmentName: pendingFile.name,
+        attachmentMime: pendingFile.type,
+      });
+    }
+    if (attachmentCleared && savedAttachment) {
+      if (savedAttachment.key) {
+        try {
+          await deleteAsset(savedAttachment.key);
+        } catch {
+          /* best-effort */
+        }
+      }
+      return updatePurchaseAttachment(purchaseId, {
+        attachmentUrl: null,
+        attachmentKey: null,
+        attachmentName: null,
+        attachmentMime: null,
+      });
+    }
+    return null;
+  };
+
   const resetBill = () => {
-    setFormData(prev => ({
-      ...prev,
+    setEditingPurchaseId(null);
+    setFormData({
+      vendorId: '',
       invoiceNumber: '',
-      dueDate: '',
+      purchaseDate: todayInput(),
+      taxType: 'CGST_SGST',
       notes: '',
-    }));
+    });
     setItems([emptyItem()]);
+    setPayments([]);
+    clearAttachmentState();
+  };
+
+  const loadPurchaseIntoForm = useCallback((purchase) => {
+    setEditingPurchaseId(purchase.id);
+    setIsFormCollapsed(false);
+    setFormData({
+      vendorId: purchase.vendorId || '',
+      invoiceNumber: purchase.invoiceNumber || '',
+      purchaseDate: (purchase.purchaseDate || '').slice(0, 10) || todayInput(),
+      taxType: purchase.addGst === false
+        ? 'NONE'
+        : (purchase.taxType === 'CGST_SGST' ? 'CGST_SGST' : purchase.taxType === 'IGST' ? 'IGST' : 'NONE'),
+      notes: purchase.notes || '',
+    });
+    const nextItems = (purchase.items?.length ? purchase.items : []).map((item) => ({
+      itemName: item.itemName || '',
+      metalType: item.metalType || 'GOLD',
+      purity: item.purity || (item.metalType === 'SILVER' ? 'F' : '22K'),
+      netWeight: item.netWeight != null ? String(item.netWeight) : '',
+      rate: item.rate != null ? String(item.rate) : '',
+    }));
+    setItems(nextItems.length ? nextItems : [emptyItem()]);
+    setPayments((purchase.payments || []).map((p) => ({
+      mode: p.mode || 'UPI',
+      amount: p.amount != null ? String(p.amount) : '',
+      paidAt: (p.paidAt || purchase.purchaseDate || '').slice(0, 10) || todayInput(),
+      financialAccountId: p.financialAccountId || '',
+    })));
+    setPendingFile(null);
+    setPendingPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setAttachmentCleared(false);
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    setSavedAttachment(
+      purchase.attachmentUrl
+        ? {
+            url: purchase.attachmentUrl,
+            key: purchase.attachmentKey || null,
+            name: purchase.attachmentName || 'Supplier invoice',
+            mime: purchase.attachmentMime || '',
+          }
+        : null,
+    );
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const openPurchaseDetail = (purchase) => {
+    setDetailPurchase(purchase);
+  };
+
+  const closePurchaseDetail = () => setDetailPurchase(null);
+
+  const handleDetailUpdated = (updated) => {
+    setPurchases((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+    setDetailPurchase((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+  };
+
+  const handleDetailDeleted = (deletedId) => {
+    setPurchases((prev) => prev.filter((p) => p.id !== deletedId));
+    setDetailPurchase(null);
+    if (editingPurchaseId === deletedId) resetBill();
+    setToast({ type: 'success', message: 'Purchase deleted' });
   };
 
   const handleVendorChange = (e) => {
@@ -312,80 +586,231 @@ const PurchasesPage = () => {
       setToast({ type: 'error', message: 'Add at least one item with net weight greater than 0' });
       return;
     }
+    const validPayments = payments
+      .filter((p) => num(p.amount) > 0)
+      .map((p) => withFinancialAccount({
+        mode: p.mode,
+        amount: num(p.amount),
+        paidAt: p.paidAt || formData.purchaseDate,
+        financialAccountId: p.financialAccountId,
+      }));
+    if (paidTotal > totals.grandTotal + 0.01) {
+      setToast({ type: 'error', message: 'Paid amount cannot exceed bill total' });
+      return;
+    }
+    if (!editingPurchaseId && validPayments.length > 0 && !financialAccountsLoaded) {
+      setToast({ type: 'error', message: 'Could not verify Cash & Bank balances. Refresh and try again.' });
+      return;
+    }
+    if (insufficientAccountWarnings.length > 0) {
+      const warning = insufficientAccountWarnings[0];
+      setToast({
+        type: 'error',
+        message: `${warning.name} is short by ${fmtAmt(warning.shortfall)}. Add funds or reduce the payment amount.`,
+      });
+      return;
+    }
+
+    const payload = {
+      vendorId: formData.vendorId,
+      invoiceNumber: formData.invoiceNumber || undefined,
+      purchaseDate: formData.purchaseDate,
+      addGst: formData.taxType !== 'NONE',
+      gstInclusive: false,
+      taxType: formData.taxType === 'NONE' ? undefined : formData.taxType,
+      cgstRate: formData.taxType === 'CGST_SGST' ? 1.5 : 0,
+      sgstRate: formData.taxType === 'CGST_SGST' ? 1.5 : 0,
+      igstRate: formData.taxType === 'IGST' ? 3.0 : 0,
+      metalType: validItems[0].metalType,
+      purity: validItems[0].purity,
+      totalWeight: validItems.reduce((sum, item) => sum + item.netWeight, 0),
+      rate: validItems[0].rate ? parseFloat(validItems[0].rate) : 0,
+      totalAmount: totals.grandTotal,
+      notes: formData.notes?.trim() || undefined,
+      items: validItems.map((item) => ({
+        itemName: item.itemName || undefined,
+        metalType: item.metalType || 'GOLD',
+        purity: item.purity || (item.metalType === 'SILVER' ? 'F' : '22K'),
+        grossWeight: num(item.netWeight),
+        netWeight: item.netWeight,
+        rate: num(item.rate),
+      })),
+      payments: validPayments,
+    };
 
     try {
       setIsSubmitting(true);
-      await createPurchase({
-        vendorId: formData.vendorId,
-        invoiceNumber: formData.invoiceNumber || undefined,
-        purchaseDate: formData.purchaseDate,
-        addGst: formData.taxType !== 'NONE',
-        gstInclusive: false,
-        taxType: formData.taxType === 'NONE' ? undefined : formData.taxType,
-        cgstRate: formData.taxType === 'CGST_SGST' ? 1.5 : 0,
-        sgstRate: formData.taxType === 'CGST_SGST' ? 1.5 : 0,
-        igstRate: formData.taxType === 'IGST' ? 3.0 : 0,
-        metalType: validItems[0].metalType,
-        purity: validItems[0].purity,
-        totalWeight: validItems.reduce((sum, item) => sum + item.netWeight, 0),
-        rate: validItems[0].rate ? parseFloat(validItems[0].rate) : 0,
-        totalAmount: totals.grandTotal,
-        notes: formData.notes?.trim() || undefined,
-        items: validItems.map((item) => ({
-          itemType: 'P',
-          itemName: item.itemName || undefined,
-          metalType: item.metalType,
-          purity: item.purity,
-          pieces: 1,
-          grossWeight: num(item.netWeight),
-          lessWeight: 0,
-          netWeight: item.netWeight,
-          rate: num(item.rate),
-          labour: 0,
-          otherCharges: 0,
-          discount: 0,
-        })),
-      });
-      setToast({ type: 'success', message: 'Purchase bill saved and stock updated' });
+      let saved;
+      if (editingPurchaseId) {
+        saved = await updatePurchase(editingPurchaseId, payload);
+      } else {
+        saved = await createPurchase(payload);
+      }
+
+      try {
+        const withAttachment = await syncPurchaseAttachment(saved.id);
+        if (withAttachment) saved = withAttachment;
+        setToast({
+          type: 'success',
+          message: editingPurchaseId
+            ? 'Purchase bill updated and stock rebalanced'
+            : 'Purchase bill saved and stock updated',
+        });
+      } catch (attachErr) {
+        setToast({
+          type: 'error',
+          message: `Bill saved; attachment failed — ${attachErr.message || 'retry from edit'}`,
+        });
+      }
+
       resetBill();
       loadPurchases();
+      loadFinancialAccounts();
     } catch (err) {
-      setToast({ type: 'error', message: err.message || 'Failed to record purchase bill' });
+      setToast({ type: 'error', message: err.message || 'Failed to save purchase bill' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const filteredPurchases = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    if (!q) return purchases;
+    return purchases.filter((p) => {
+      const hay = [
+        p.invoiceNumber,
+        p.vendor?.name,
+        p.vendorName,
+        p.vendor?.gstin,
+        p.status,
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [purchases, historyQuery]);
+
+  const handleBillBookExport = async () => {
+    if (filteredPurchases.length === 0) {
+      alert('No purchase bills to export.');
+      return;
+    }
+
+    const billBookWindow = window.open('', '_blank');
+    if (!billBookWindow) {
+      alert('Please allow pop-ups to prepare the Bill Book PDF.');
+      return;
+    }
+
+    billBookWindow.document.write(`<!DOCTYPE html><html><head><title>Preparing Bill Book...</title>
+      <style>body{font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;color:#374151}
+      .status{text-align:center}.spinner{width:32px;height:32px;border:3px solid #e5e7eb;border-top-color:#111827;border-radius:50%;
+      margin:0 auto 16px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style></head>
+      <body><div class="status"><div class="spinner"></div><strong>Preparing Bill Book...</strong>
+      <p>Large exports may take a moment.</p></div></body></html>`);
+    billBookWindow.document.close();
+
+    try {
+      setBillBookExporting(true);
+      const request = buildPurchaseBillBookRequest({
+        purchases: filteredPurchases,
+        search: historyQuery,
+      });
+      const html = await getPurchaseBillBookHtml(request);
+      if (billBookWindow.closed) return;
+      billBookWindow.document.open();
+      billBookWindow.document.write(html);
+      billBookWindow.document.close();
+    } catch (error) {
+      console.error('Purchase Bill Book export failed', error);
+      if (billBookWindow.closed) return;
+      billBookWindow.document.open();
+      billBookWindow.document.write(`<!DOCTYPE html><html><head><title>Bill Book Error</title></head>
+        <body style="font-family:Arial,sans-serif;padding:32px"><h2>Could not prepare Bill Book</h2>
+        <p id="bill-book-error"></p></body></html>`);
+      billBookWindow.document.close();
+      billBookWindow.document.getElementById('bill-book-error').textContent =
+        error.message || 'Please try again.';
+    } finally {
+      setBillBookExporting(false);
+    }
+  };
+
   const columns = useMemo(() => buildColumns(), []);
   const table = useReactTable({
-    data: purchases, columns,
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
+    data: filteredPurchases,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
   const colCount = columns.length;
   const purchaseStats = useMemo(() => purchases.reduce((acc, purchase) => {
+    const total = Number(purchase.grandTotal || purchase.totalAmount || 0);
+    const paid = Number(purchase.paidAmount || 0);
     acc.totalWeight += Number(purchase.totalWeight || 0);
-    acc.totalAmount += Number(purchase.grandTotal || purchase.totalAmount || 0);
-    acc.todayCount += purchase.purchaseDate?.slice(0, 10) === new Date().toISOString().slice(0, 10) ? 1 : 0;
+    acc.totalAmount += total;
+    acc.paidAmount += paid;
+    acc.dueAmount += Math.max(0, total - paid);
+    acc.todayCount += purchase.purchaseDate?.slice(0, 10) === todayInput() ? 1 : 0;
     return acc;
-  }, { totalWeight: 0, totalAmount: 0, todayCount: 0 }), [purchases]);
+  }, { totalWeight: 0, totalAmount: 0, paidAmount: 0, dueAmount: 0, todayCount: 0 }), [purchases]);
 
   return (
     <DashboardTemplate headerTitle="Purchases (Inward)" headerTabs={[]}>
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
       <div className="purchase-bill-page">
-        <div className="purchase-bill-container glass-panel animate-fade-in">
+        <div className={`purchase-bill-container glass-panel animate-fade-in ${editingPurchaseId ? 'is-editing' : ''}`}>
           <div className="section-header attio-header-top">
-            <h3>Record New Purchase Bill</h3>
+            <div className="purchase-form-title-wrap">
+              <h3>{editingPurchaseId ? 'Edit Purchase Bill' : 'New Purchase Bill'}</h3>
+              {editingPurchaseId && (
+                <span className="purchase-edit-chip">Editing · stock will rebalance on save</span>
+              )}
+            </div>
             <div className="attio-header-actions">
-              <button type="button" className="attio-action-clear" onClick={resetBill}>Clear Form</button>
-              <button type="submit" form="purchase-bill-form" className="attio-action-save" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Bill'}</button>
+              <button
+                type="button"
+                className="attio-action-clear"
+                onClick={() => setIsFormCollapsed((v) => !v)}
+              >
+                {isFormCollapsed ? 'Expand' : 'Collapse'}
+              </button>
+              <button type="button" className="attio-action-clear" onClick={resetBill}>
+                {editingPurchaseId ? 'Cancel Edit' : 'Clear'}
+              </button>
+              {!isFormCollapsed && (
+                <label
+                  className={`attio-action-attach ${pendingFile || (savedAttachment && !attachmentCleared) ? 'has-attachment' : ''}`}
+                  title={pendingFile?.name || savedAttachment?.name || 'Attach supplier invoice'}
+                >
+                  <Icon name="clip" size={14} />
+                  {pendingFile || (savedAttachment && !attachmentCleared) ? 'Replace Invoice' : 'Attach Invoice'}
+                  <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="purchase-attachment-input"
+                    onChange={handleAttachmentPick}
+                  />
+                </label>
+              )}
+              {!isFormCollapsed && (pendingFile || (savedAttachment && !attachmentCleared)) && (
+                <button type="button" className="attio-action-remove-attachment" onClick={handleAttachmentRemove} title="Remove attached invoice">
+                  <Icon name="close" size={14} />
+                </button>
+              )}
+              {!isFormCollapsed && (
+                <button type="submit" form="purchase-bill-form" className="attio-action-save" disabled={isSubmitting}>
+                  <Icon name="checkCircle" size={14} />
+                  {isSubmitting ? 'Saving...' : editingPurchaseId ? 'Update Bill' : 'Save Bill'}
+                </button>
+              )}
             </div>
           </div>
+          {!isFormCollapsed && (
           <form id="purchase-bill-form" className="purchase-bill premium-form" onSubmit={handleSubmit}>
                 <div className="attio-properties-grid">
-                  <div className="attio-property group">
+                  <div className="attio-field">
                     <span className="attio-prop-label">Party Name *</span>
-                    <div className="vendor-select-row flex-1">
+                    <div className="vendor-select-row">
                       <select name="vendorId" className="inline-input font-medium cursor-pointer" value={formData.vendorId} onChange={handleHeaderChange} required>
                         <option value="">Select supplier...</option>
                         {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -395,40 +820,40 @@ const PurchasesPage = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="attio-property group">
+                  <div className="attio-field attio-field-compact">
                     <span className="attio-prop-label">Date</span>
                     <input type="date" name="purchaseDate" className="inline-input cursor-pointer" value={formData.purchaseDate} onChange={handleHeaderChange} required />
                   </div>
-                  <div className="attio-property group">
+                  <div className="attio-field attio-field-compact">
                     <span className="attio-prop-label">Bill No.</span>
                     <input name="invoiceNumber" className="inline-input" value={formData.invoiceNumber} onChange={handleHeaderChange} placeholder="Manual" />
                   </div>
-                  <div className="attio-property group">
+                  <div className="attio-field">
                     <span className="attio-prop-label">Party Type</span>
-                    <div className="flex-1 px-1-5">
+                    <div className="attio-field-static">
                       <span className="party-badge">Supplier</span>
                     </div>
                   </div>
-                  <div className="attio-property group">
+                  <div className="attio-field attio-field-compact">
                     <span className="attio-prop-label">Mobile No</span>
-                    <input className="inline-input text-gray" value={selectedVendor?.phone || ''} readOnly />
+                    <input className="inline-input text-gray" value={selectedVendor?.phone || ''} placeholder="—" readOnly />
                   </div>
-                  <div className="attio-property group">
+                  <div className="attio-field attio-field-wide attio-field-address">
                     <span className="attio-prop-label">Address</span>
-                    <input className="inline-input text-gray" value={selectedVendor?.address || ''} readOnly />
+                    <input className="inline-input text-gray" value={selectedVendor?.address || ''} placeholder="—" readOnly />
                   </div>
                 </div>
 
                 <div className="purchase-grid-wrap">
                   <table className="purchase-entry-grid simple-grid">
                     <colgroup>
-                      <col style={{ width: 'auto' }} />
-                      <col style={{ width: '130px' }} />
-                      <col style={{ width: '130px' }} />
-                      <col style={{ width: '150px' }} />
-                      <col style={{ width: '150px' }} />
-                      <col style={{ width: '150px' }} />
-                      <col style={{ width: '50px' }} />
+                      <col style={{ width: '35%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '10%' }} />
+                      <col style={{ width: '40px' }} />
                     </colgroup>
                     <thead>
                       <tr>
@@ -456,9 +881,9 @@ const PurchasesPage = () => {
                               {item.metalType === 'GOLD' ? <><option value="24K">24K</option><option value="22K">22K</option><option value="20K">20K</option><option value="18K">18K</option><option value="75">75</option></> : <><option value="F">F</option><option value="925">925</option><option value="22">22</option></>}
                             </select>
                           </td>
-                          <td className="num-col px-2"><input type="number" step="0.001" className="inline-input text-right" value={item.netWeight === 0 ? '' : item.netWeight} onChange={(e) => handleItemChange(index, 'netWeight', e.target.value)} /></td>
-                          <td className="num-col px-2"><input type="number" step="0.01" className="inline-input text-right" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} /></td>
-                          <td className="computed-cell total-cell num-col pl-2">{fmtAmt(item.totalAmount)}</td>
+                          <td className="num-col px-2"><input type="number" step="0.001" className="inline-input text-right" placeholder="0.000" value={item.netWeight === 0 ? '' : item.netWeight} onChange={(e) => handleItemChange(index, 'netWeight', e.target.value)} /></td>
+                          <td className="num-col px-2"><input type="number" step="0.01" className="inline-input text-right" placeholder="0.00" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} /></td>
+                          <td className={`computed-cell total-cell num-col pl-2 ${item.totalAmount ? '' : 'is-zero'}`}>{fmtAmt(item.totalAmount)}</td>
                           <td className="center-col">
                             <button type="button" className="grid-remove-btn hover-show" onClick={() => removeItem(index)} disabled={items.length === 1} title="Remove Item"><Icon name="delete" size={16} /></button>
                           </td>
@@ -479,86 +904,183 @@ const PurchasesPage = () => {
 
                 <div className="attio-totals-section">
                   <div className="attio-footer-left">
-                    <input 
-                      name="notes" 
-                      className="remark-input-box" 
-                      placeholder="e.g. Gold Ornaments MIX"
-                      value={formData.notes} 
-                      onChange={handleHeaderChange} 
-                    />
-                    <div className="attio-contextual-totals">
-                      <div className="ctx-total">
-                        <span className="ctx-label">Total Gold Wt.</span>
-                        <span className="ctx-value">{fmtWeight(totals.totalGoldWeight)}</span>
+                    <div className="purchase-payments-block">
+                      <div className="purchase-payments-header">
+                        <span className="ctx-label">Payments / Split</span>
+                        <button type="button" className="grid-add-btn attio-secondary-btn" style={{ padding: '0.3rem 0.65rem', minHeight: 'auto' }} onClick={addPayment}>
+                          + Add Mode
+                        </button>
                       </div>
-                      <div className="ctx-total">
-                        <span className="ctx-label">Total Silver Wt.</span>
-                        <span className="ctx-value">{fmtWeight(totals.totalSilverWeight)}</span>
+                      {payments.length === 0 ? (
+                        <p className="purchase-payments-empty">No payments yet — leave unpaid or add UPI/cash split.</p>
+                      ) : (
+                        <div className="purchase-payment-table">
+                          <div className="purchase-payment-table-head">
+                            <span>Mode</span>
+                            <span>Account</span>
+                            <span className="text-right">Amount</span>
+                            <span>Date</span>
+                            <span />
+                          </div>
+                          {payments.map((payment, index) => {
+                            const warning = insufficientAccountWarnings.find((item) => (
+                              item.modeValues.includes(payment.mode)
+                              && (payment.mode === 'CASH' || item.id === payment.financialAccountId)
+                            ));
+                            const warningMessage = warning
+                              ? `${warning.modes}: ${warning.name} is short by ${fmtAmt(warning.shortfall)}`
+                              : '';
+                            return (
+                            <div key={index} className="purchase-payment-row">
+                              <div className={`purchase-payment-mode-cell ${warning ? 'has-warning' : ''}`}>
+                                <select
+                                  className="inline-input cursor-pointer"
+                                  value={payment.mode}
+                                  onChange={(e) => handlePaymentChange(index, 'mode', e.target.value)}
+                                >
+                                  {PURCHASE_PAYMENT_MODES.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                                </select>
+                                {warning && (
+                                  <span
+                                    className="purchase-payment-mode-warning"
+                                    data-tooltip={`${warning.modes} payment exceeds ${warning.name}'s available balance of ${fmtAmt(warning.available)} by ${fmtAmt(warning.shortfall)}. Add funds or reduce this payment.`}
+                                    aria-label={warningMessage}
+                                    tabIndex={0}
+                                  >
+                                    <Icon name="warning" size={16} />
+                                  </span>
+                                )}
+                              </div>
+                              {paymentNeedsBankAccount(payment.mode) ? (
+                                <PaymentAccountSelect
+                                  mode={payment.mode}
+                                  value={payment.financialAccountId}
+                                  onChange={(value) => handlePaymentChange(index, 'financialAccountId', value)}
+                                />
+                              ) : (
+                                <span className="purchase-payment-account-static">Default Cash Book</span>
+                              )}
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="inline-input text-right"
+                                placeholder="0.00"
+                                value={payment.amount}
+                                onChange={(e) => handlePaymentChange(index, 'amount', e.target.value)}
+                              />
+                              <input
+                                type="date"
+                                className="inline-input cursor-pointer"
+                                value={payment.paidAt || formData.purchaseDate}
+                                onChange={(e) => handlePaymentChange(index, 'paidAt', e.target.value)}
+                              />
+                              <button type="button" className="grid-remove-btn hover-show" style={{ opacity: 1 }} onClick={() => removePayment(index)} title="Remove payment">
+                                <Icon name="delete" size={14} />
+                              </button>
+                            </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <div className="purchase-footer-metrics">
+                      <div className="attio-contextual-totals purchase-payment-summary">
+                        <div className="ctx-total">
+                          <span className="ctx-label">Paid</span>
+                          <span className="ctx-value">{fmtAmt(paidTotal)}</span>
+                        </div>
+                        <div className="ctx-total">
+                          <span className="ctx-label">Remaining</span>
+                          <span className="ctx-value">{fmtAmt(remainingBalance)}</span>
+                        </div>
+                      </div>
+                      <div className="attio-contextual-totals metal-weights-box">
+                        <div className="ctx-total">
+                          <span className="ctx-label">Total Gold Wt.</span>
+                          <span className="ctx-value">{fmtWeight(totals.totalGoldWeight)}</span>
+                        </div>
+                        <div className="ctx-total">
+                          <span className="ctx-label">Total Silver Wt.</span>
+                          <span className="ctx-value">{fmtWeight(totals.totalSilverWeight)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="attio-financials">
-                    <div className="fin-row">
-                      <span>Taxable Amount</span>
-                      <span className="fin-val">{fmtAmt(totals.taxableAmount)}</span>
-                    </div>
-                    
-                    <div className="fin-row flex-center">
-                      <select name="taxType" className="inline-input cursor-pointer tax-select" value={formData.taxType} onChange={handleHeaderChange} style={{ paddingLeft: 0, fontWeight: 500 }}>
-                        <option value="NONE">No GST</option>
-                        <option value="IGST">Interstate (IGST)</option>
-                        <option value="CGST_SGST">Local (CGST + SGST)</option>
-                      </select>
-                    </div>
-
-                    {formData.taxType === 'CGST_SGST' && (
-                      <>
-                        <div className="fin-row">
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>CGST (1.5%)</span>
-                          <span className="fin-val">{fmtAmt(totals.cgstAmount)}</span>
-                        </div>
-                        <div className="fin-row">
-                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>SGST (1.5%)</span>
-                          <span className="fin-val">{fmtAmt(totals.sgstAmount)}</span>
-                        </div>
-                      </>
-                    )}
-
-                    {formData.taxType === 'IGST' && (
+                    <div className="attio-financials-card">
                       <div className="fin-row">
-                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>IGST (3%)</span>
-                        <span className="fin-val">{fmtAmt(totals.igstAmount)}</span>
+                        <span>Taxable Amount</span>
+                        <span className="fin-val">{fmtAmt(totals.taxableAmount)}</span>
                       </div>
-                    )}
 
-                    <div className="fin-row grand-row">
-                      <span className="fin-label-bold">Bill Closing Balance</span>
-                      <span className="fin-val-bold">{fmtAmt(totals.grandTotal)}</span>
+                      <div className="fin-row fin-tax-row">
+                        <select name="taxType" className="inline-input cursor-pointer tax-select" value={formData.taxType} onChange={handleHeaderChange}>
+                          <option value="CGST_SGST">Local (CGST + SGST)</option>
+                          <option value="IGST">Interstate (IGST)</option>
+                          <option value="NONE">No GST</option>
+                        </select>
+                        <span className="fin-tax-rate">
+                          {formData.taxType === 'IGST' ? '3%' : formData.taxType === 'CGST_SGST' ? '3%' : '—'}
+                        </span>
+                        <span className="fin-val">
+                          {fmtAmt(
+                            formData.taxType === 'IGST'
+                              ? totals.igstAmount
+                              : formData.taxType === 'CGST_SGST'
+                                ? totals.cgstAmount + totals.sgstAmount
+                                : 0,
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="fin-row grand-row">
+                        <span className="fin-label-bold">Bill Closing Balance</span>
+                        <span className="fin-val-bold">{fmtAmt(totals.grandTotal)}</span>
+                      </div>
+                      <input
+                        name="notes"
+                        className="remark-input-box financial-note-input"
+                        placeholder="e.g. Note about this bill..."
+                        value={formData.notes}
+                        onChange={handleHeaderChange}
+                      />
                     </div>
                   </div>
                 </div>
         </form>
+          )}
       </div>
 
         <div className="purchases-history-panel">
           <div className="purchase-stats-row">
             <div className="purchase-stat"><span>Total inward</span><strong>{fmtWeight(purchaseStats.totalWeight)}</strong></div>
             <div className="purchase-stat"><span>Purchase value</span><strong>{fmtAmt(purchaseStats.totalAmount)}</strong></div>
-            <div className="purchase-stat"><span>Today</span><strong>{purchaseStats.todayCount} bills</strong></div>
+            <div className="purchase-stat"><span>Paid</span><strong>{fmtAmt(purchaseStats.paidAmount)}</strong></div>
+            <div className="purchase-stat due-stat"><span>Outstanding</span><strong>{fmtAmt(purchaseStats.dueAmount)}</strong></div>
           </div>
           <div className="attio-table-container">
             <div className="attio-header">
               <div className="attio-header-left">
                 <span className="saas-view-label">Purchase History</span>
+                <span className="purchase-history-hint">Click a row for details & payments</span>
               </div>
               <div className="attio-header-right">
+                <input
+                  type="search"
+                  className="purchase-history-search"
+                  placeholder="Search bill / vendor…"
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                />
                 <ImportExportMenu
-                  data={purchases}
+                  data={filteredPurchases}
                   filename="Purchases"
                   resourceName="purchases"
                   flattenRow={flattenPurchaseRow}
-                  isLoading={loading}
+                  isLoading={loading || billBookExporting}
+                  onBillBookExport={handleBillBookExport}
+                  billBookLabel="Purchase Invoice Book PDF"
                 />
                 <button className="attio-secondary-btn" onClick={loadPurchases} disabled={loading}><Icon name="refresh" size={14} /><span>Refresh</span></button>
               </div>
@@ -568,9 +1090,15 @@ const PurchasesPage = () => {
                 <thead><tr>{table.getHeaderGroups()[0]?.headers.map(header => <th key={header.id} className="attio-th" style={{ width: header.getSize() }}><div className="attio-th-content"><span>{flexRender(header.column.columnDef.header, header.getContext())}</span></div></th>)}</tr></thead>
                 <tbody>
                   {loading ? <SkeletonRows cols={colCount} /> : table.getRowModel().rows.length === 0 ? (
-                    <tr><td colSpan={colCount} className="attio-empty"><Icon name="order" size={36} color="var(--text-tertiary)" /><span>No purchase invoices found.</span></td></tr>
+                    <tr><td colSpan={colCount} className="attio-empty"><Icon name="order" size={36} color="var(--text-tertiary)" /><span>{historyQuery ? 'No matching bills.' : 'No purchase invoices found.'}</span></td></tr>
                   ) : table.getRowModel().rows.map(row => (
-                    <tr key={row.id}>{row.getVisibleCells().map(cell => <td key={cell.id} className="attio-td">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}</tr>
+                    <tr
+                      key={row.id}
+                      className={`purchase-history-row ${detailPurchase?.id === row.original.id ? 'is-active' : ''}`}
+                      onClick={() => openPurchaseDetail(row.original)}
+                    >
+                      {row.getVisibleCells().map(cell => <td key={cell.id} className="attio-td">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -777,6 +1305,19 @@ const PurchasesPage = () => {
           </div>
         </div>
       )}
+
+      <PurchaseDetailSlideOver
+        isOpen={!!detailPurchase}
+        purchaseId={detailPurchase?.id}
+        initialPurchase={detailPurchase}
+        onClose={closePurchaseDetail}
+        onEdit={loadPurchaseIntoForm}
+        onUpdated={(updated) => {
+          handleDetailUpdated(updated);
+          setToast({ type: 'success', message: 'Payment recorded' });
+        }}
+        onDeleted={handleDetailDeleted}
+      />
     </DashboardTemplate>
   );
 };

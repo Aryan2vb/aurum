@@ -20,12 +20,27 @@
   animation: dropdownFadeIn 0.1s ease-out;
 }
 
+/* Portaled menus use fixed coords from JS — skip absolute left/right anchors */
+.dropdown-menu-portal {
+  position: fixed;
+  top: auto;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #111);
+  white-space: nowrap;
+}
+
 .dropdown-align-left {
   left: 0;
 }
 
 .dropdown-align-right {
   right: 0;
+}
+
+.dropdown-menu-portal.dropdown-align-left,
+.dropdown-menu-portal.dropdown-align-right {
+  left: auto;
+  right: auto;
 }
 
 @keyframes dropdownFadeIn {

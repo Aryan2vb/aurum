@@ -1,4 +1,4 @@
-import { buildBillBookRequest, getSelectedInvoiceIds } from './billBookExport';
+import { buildBillBookRequest, buildPurchaseBillBookRequest, getSelectedInvoiceIds } from './billBookExport';
 
 describe('Bill Book export helpers', () => {
   it('deduplicates selected invoice IDs from invoice and item rows', () => {
@@ -27,5 +27,19 @@ describe('Bill Book export helpers', () => {
       dateTo: '2026-04-30',
       search: 'MJ',
     });
+  });
+});
+
+describe('Purchase Bill Book export helpers', () => {
+  it('returns unique purchase IDs from the filtered list', () => {
+    expect(buildPurchaseBillBookRequest({
+      purchases: [{ id: 'p-1' }, { id: 'p-1' }, { id: 'p-2' }],
+      search: 'gold',
+    })).toEqual({ purchaseIds: ['p-1', 'p-2'] });
+  });
+
+  it('falls back to search when no purchases are provided', () => {
+    expect(buildPurchaseBillBookRequest({ purchases: [], search: '  vendor  ' }))
+      .toEqual({ search: 'vendor' });
   });
 });

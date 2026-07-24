@@ -1,0 +1,52 @@
+[ 3665471ms] [ERROR] WebSocket connection to 'ws://localhost:4001/ws' failed:  @ http://localhost:4001/static/js/bundle.js:230730
+[ 3666540ms] [ERROR] WebSocket connection to 'ws://localhost:4001/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:4001/static/js/bundle.js:230730
+[ 3668583ms] [ERROR] WebSocket connection to 'ws://localhost:4001/ws' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:4001/static/js/bundle.js:230730
+[ 4142537ms] TypeError: balances.reduce is not a function
+    at http://localhost:4001/static/js/bundle.js:326647:29
+    at updateMemo (http://localhost:4001/static/js/bundle.js:84154:23)
+    at Object.useMemo (http://localhost:4001/static/js/bundle.js:84730:20)
+    at useMemo (http://localhost:4001/static/js/bundle.js:227948:25)
+    at StockPage (http://localhost:4001/static/js/bundle.js:326646:70)
+    at renderWithHooks (http://localhost:4001/static/js/bundle.js:83365:22)
+    at updateFunctionComponent (http://localhost:4001/static/js/bundle.js:86933:24)
+    at beginWork (http://localhost:4001/static/js/bundle.js:88652:20)
+    at HTMLUnknownElement.callCallback (http://localhost:4001/static/js/bundle.js:73621:18)
+    at Object.invokeGuardedCallbackDev (http://localhost:4001/static/js/bundle.js:73665:20)
+[ 4142540ms] TypeError: balances.reduce is not a function
+    at http://localhost:4001/static/js/bundle.js:326647:29
+    at updateMemo (http://localhost:4001/static/js/bundle.js:84154:23)
+    at Object.useMemo (http://localhost:4001/static/js/bundle.js:84730:20)
+    at useMemo (http://localhost:4001/static/js/bundle.js:227948:25)
+    at StockPage (http://localhost:4001/static/js/bundle.js:326646:70)
+    at renderWithHooks (http://localhost:4001/static/js/bundle.js:83365:22)
+    at updateFunctionComponent (http://localhost:4001/static/js/bundle.js:86933:24)
+    at beginWork (http://localhost:4001/static/js/bundle.js:88652:20)
+    at HTMLUnknownElement.callCallback (http://localhost:4001/static/js/bundle.js:73621:18)
+    at Object.invokeGuardedCallbackDev (http://localhost:4001/static/js/bundle.js:73665:20)
+[ 4142473ms] [ERROR] The above error occurred in the <StockPage> component:
+
+    at StockPage (http://localhost:4001/static/js/bundle.js:325680:82)
+    at ProtectedRoute (http://localhost:4001/static/js/bundle.js:266421:3)
+    at RenderedRoute (http://localhost:4001/static/js/bundle.js:223054:5)
+    at Routes (http://localhost:4001/static/js/bundle.js:223788:5)
+    at div
+    at Router (http://localhost:4001/static/js/bundle.js:223722:15)
+    at BrowserRouter (http://localhost:4001/static/js/bundle.js:221623:5)
+    at ErrorBoundary (http://localhost:4001/static/js/bundle.js:266259:5)
+    at ThemeProvider (http://localhost:4001/static/js/bundle.js:303681:3)
+    at App
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary. @ http://localhost:4001/static/js/bundle.js:86145
+[ 4142473ms] [ERROR] ErrorBoundary caught an error: TypeError: balances.reduce is not a function
+    at http://localhost:4001/static/js/bundle.js:326647:29
+    at updateMemo (http://localhost:4001/static/js/bundle.js:84154:23)
+    at Object.useMemo (http://localhost:4001/static/js/bundle.js:84730:20)
+    at useMemo (http://localhost:4001/static/js/bundle.js:227948:25)
+    at StockPage (http://localhost:4001/static/js/bundle.js:326646:70)
+    at renderWithHooks (http://localhost:4001/static/js/bundle.js:83365:22)
+    at updateFunctionComponent (http://localhost:4001/static/js/bundle.js:86933:24)
+    at beginWork (http://localhost:4001/static/js/bundle.js:88652:20)
+    at beginWork$1 (http://localhost:4001/static/js/bundle.js:93599:18)
+    at performUnitOfWork (http://localhost:4001/static/js/bundle.js:92869:16) {componentStack: 
+    at StockPage (http://localhost:4001/static/js…ost:4001/static/js/bundle.js:303681:3)
+    at App} @ http://localhost:4001/static/js/bundle.js:266277

@@ -4,7 +4,9 @@ import Input from '../../atoms/Input/Input';
 import Button from '../../atoms/Button/Button';
 import AmountDisplay from '../../atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../atoms/Toast/Toast';
+import PaymentAccountSelect from '../../molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { getCreditById, addPaymentTransaction } from '../../../services/creditsService';
+import { withFinancialAccount } from '../../../utils/paymentAccounts';
 import './RecordPaymentPanel.css';
 
 const RecordPaymentPanel = ({
@@ -22,6 +24,7 @@ const RecordPaymentPanel = ({
   const [formData, setFormData] = useState({
     amount: '',
     paymentMethod: 'CASH',
+    financialAccountId: '',
     transactionDate: new Date().toISOString().split('T')[0],
     referenceNumber: '',
     collectedBy: '',
@@ -74,14 +77,15 @@ const RecordPaymentPanel = ({
 
     try {
       setSaving(true);
-      const paymentData = {
+      const paymentData = withFinancialAccount({
         amount: parseFloat(formData.amount),
         paymentMethod: formData.paymentMethod,
+        financialAccountId: formData.financialAccountId,
         ...(formData.transactionDate && { transactionDate: formData.transactionDate }),
         ...(formData.referenceNumber && { referenceNumber: formData.referenceNumber }),
         ...(formData.collectedBy && { collectedBy: formData.collectedBy }),
         ...(formData.notes && { notes: formData.notes }),
-      };
+      });
 
       await addPaymentTransaction(creditId, paymentData);
       setToast({ type: 'success', message: 'Payment recorded successfully' });
@@ -93,6 +97,7 @@ const RecordPaymentPanel = ({
         setFormData({
           amount: '',
           paymentMethod: 'CASH',
+          financialAccountId: '',
           transactionDate: new Date().toISOString().split('T')[0],
           referenceNumber: '',
           collectedBy: '',
@@ -212,6 +217,11 @@ const RecordPaymentPanel = ({
                 <option value="OTHER">Other</option>
               </select>
             </div>
+            <PaymentAccountSelect
+              mode={formData.paymentMethod}
+              value={formData.financialAccountId}
+              onChange={(value) => handleInputChange('financialAccountId', value)}
+            />
 
             <div className="record-payment-panel-form-field">
               <label className="record-payment-panel-form-label">Transaction Date</label>

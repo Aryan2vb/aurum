@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './Dropdown.css';
 
 /**
@@ -17,11 +18,62 @@ const Dropdown = ({
   onOpenChange 
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
   const ref = useRef(null);
+  const menuRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen || !ref.current) {
+      setMenuStyle(null);
+      return;
+    }
+    const place = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const menuH = menuRef.current?.offsetHeight || 220;
+      const gap = 4;
+      const spaceBelow = window.innerHeight - rect.bottom - gap;
+      const openUp = spaceBelow < menuH && rect.top > spaceBelow;
+      const style = {
+        position: 'fixed',
+        zIndex: 10000,
+        minWidth: Math.max(rect.width, 220),
+        maxHeight: Math.min(320, window.innerHeight - 16),
+        overflowY: 'auto',
+      };
+      if (openUp) {
+        style.bottom = window.innerHeight - rect.top + gap;
+        style.top = 'auto';
+      } else {
+        style.top = rect.bottom + gap;
+        style.bottom = 'auto';
+      }
+      if (align === 'right') {
+        style.right = Math.max(8, window.innerWidth - rect.right);
+        style.left = 'auto';
+      } else {
+        style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 228));
+        style.right = 'auto';
+      }
+      setMenuStyle(style);
+    };
+    place();
+    // Remeasure after paint once menu height is known
+    const raf = requestAnimationFrame(place);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [isOpen, align]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
+      const inTrigger = ref.current?.contains(e.target);
+      const inMenu = menuRef.current?.contains(e.target);
+      if (!inTrigger && !inMenu) {
         setIsOpen(false);
         onOpenChange?.(false);
       }
@@ -41,16 +93,23 @@ const Dropdown = ({
     onOpenChange?.(false);
   };
 
+  const menu = isOpen && menuStyle && createPortal(
+    <div
+      ref={menuRef}
+      className={`dropdown-menu dropdown-menu-portal dropdown-align-${align}`}
+      style={menuStyle}
+    >
+      {typeof children === 'function' ? children({ close: handleClose }) : children}
+    </div>,
+    document.body,
+  );
+
   return (
     <div className={`dropdown ${className}`} ref={ref}>
       <div className="dropdown-trigger" onClick={handleToggle}>
         {typeof trigger === 'function' ? trigger({ isOpen }) : trigger}
       </div>
-      {isOpen && (
-        <div className={`dropdown-menu dropdown-align-${align}`}>
-          {typeof children === 'function' ? children({ close: handleClose }) : children}
-        </div>
-      )}
+      {menu}
     </div>
   );
 };

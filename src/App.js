@@ -25,6 +25,7 @@ import ReportsPage from './pages/ReportsPage/ReportsPage';
 import AdvancePage from './pages/AdvancePage/AdvancePage';
 import StockPage from './pages/StockPage/StockPage';
 import PurchasesPage from './pages/PurchasesPage/PurchasesPage';
+import BooksPage from './pages/BooksPage/BooksPage';
 import './App.css';
 
 function App() {
@@ -203,6 +204,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
                   <PurchasesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/books"
+              element={
+                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                  <BooksPage />
                 </ProtectedRoute>
               }
             />

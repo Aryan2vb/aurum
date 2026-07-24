@@ -40,6 +40,7 @@ import {
   FiCheck,
   FiCheckCircle,
   FiFileText,
+  FiPaperclip,
   FiEdit,
   FiCreditCard,
   FiCircle,
@@ -51,6 +52,8 @@ import {
   FiPrinter,
   FiTrash2,
   FiRefreshCw,
+  FiAlertTriangle,
+  FiBookOpen,
 } from 'react-icons/fi';
 import { MdExpandMore } from 'react-icons/md';
 import { IoMdSettings } from 'react-icons/io';
@@ -106,6 +109,7 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     check: FiCheck,
     checkCircle: FiCheckCircle,
     file: FiFileText,
+    clip: FiPaperclip,
     edit: FiEdit,
     workspace: FiGrid,
     udhar: FiCreditCard,
@@ -123,6 +127,8 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     printer: FiPrinter,
     delete: FiTrash2,
     refresh: FiRefreshCw,
+    warning: FiAlertTriangle,
+    book: FiBookOpen,
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;

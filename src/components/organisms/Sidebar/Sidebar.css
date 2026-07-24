@@ -6,8 +6,9 @@
   --sidebar-hover: #f0f0f0;
   --sidebar-active: #e8f0fe;
   --sidebar-active-text: #1a73e8;
-  width: 180px;
-  min-width: 180px;
+  width: 220px;
+  min-width: 220px;
+  box-sizing: border-box;
   flex-shrink: 0;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
@@ -52,7 +53,7 @@
   width: 60px;
   min-width: 60px;
   flex-shrink: 0;
-  padding: 12px 8px;
+  padding: 12px 7px;
   align-items: center;
 }
 
@@ -63,6 +64,13 @@
   padding: 12px 0;
   border-bottom: 1px solid var(--sidebar-border);
   width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.attio-collapsed-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .attio-collapsed-item {
@@ -87,6 +95,16 @@
 .attio-collapsed-item.active {
   background: var(--sidebar-active);
   color: var(--sidebar-active-text);
+}
+
+.attio-collapsed-item .icon,
+.attio-section-chevron .icon,
+.attio-section-group-icon .icon,
+.attio-record-icon .icon,
+.attio-settings-link .icon,
+.attio-profile-card .icon,
+.attio-profile-menu .icon {
+  color: currentColor !important;
 }
 
 .attio-collapsed-workspace {
@@ -341,36 +359,55 @@
   font-family: inherit;
 }
 
-.attio-section {
-  padding: 8px 8px;
+.attio-navigation {
   flex: 1;
   overflow-y: auto;
+  padding: 12px 8px;
+  scrollbar-width: none;
+}
+
+.attio-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+.attio-navigation-label {
+  padding: 2px 8px 8px;
+  color: var(--sidebar-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.attio-section {
+  padding: 1px 0;
 }
 
 .attio-section-header {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 7px;
   width: 100%;
   background: none;
   border: none;
-  padding: 8px 6px;
+  padding: 8px;
+  border-radius: 7px;
   cursor: pointer;
-  color: var(--sidebar-text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--sidebar-text);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .attio-section-header:hover {
-  color: var(--sidebar-text);
+  background: var(--sidebar-hover);
 }
 
 .attio-section-chevron {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--sidebar-text-secondary);
+  transition: transform 140ms ease;
 }
 
 .attio-section-chevron.expanded {
@@ -382,18 +419,25 @@
   text-align: left;
 }
 
+.attio-section-group-icon {
+  display: flex;
+  color: var(--sidebar-text-secondary);
+}
+
 .attio-section-content {
-  padding-left: 4px;
+  margin-left: 15px;
+  padding-left: 15px;
+  border-left: 1px solid var(--sidebar-border);
 }
 
 .attio-record-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
   background: none;
   border: none;
-  padding: 10px 12px;
+  padding: 7px 9px;
   border-radius: 6px;
   cursor: pointer;
   color: var(--sidebar-text);
@@ -424,10 +468,142 @@
 
 .attio-record-label {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.attio-spacer {
+.attio-sidebar-footer {
+  flex: 0 0 auto;
+  padding: 8px;
+  border-top: 1px solid var(--sidebar-border);
+  background: var(--sidebar-bg);
+}
+
+.attio-settings-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  margin-bottom: 6px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.attio-settings-link:hover,
+.attio-settings-link.active {
+  background: var(--sidebar-hover);
+}
+
+.attio-settings-link.active {
+  color: var(--sidebar-active-text);
+}
+
+.attio-profile-menu-wrap {
+  position: relative;
+}
+
+.attio-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 11px;
+  background: var(--bg-secondary);
+  color: var(--sidebar-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.attio-profile-card:hover {
+  background: var(--sidebar-hover);
+}
+
+.attio-profile-avatar {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--sidebar-active);
+}
+
+.attio-profile-copy {
+  display: flex;
   flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.attio-profile-copy strong,
+.attio-profile-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attio-profile-copy strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.attio-profile-copy small {
+  color: var(--sidebar-text-secondary);
+  font-size: 11px;
+}
+
+.attio-profile-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 1000;
+  padding: 6px;
+  border: 1px solid var(--sidebar-border);
+  border-radius: 10px;
+  background: var(--sidebar-bg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.attio-profile-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+
+.attio-profile-menu button:hover {
+  background: var(--sidebar-hover);
+}
+
+.attio-profile-menu button.danger {
+  color: #ef4444;
+}
+
+.attio-profile-menu button:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 @media (max-width: 768px) {

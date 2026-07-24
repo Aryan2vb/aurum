@@ -403,6 +403,7 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat, resourc
  * @param {function} props.flattenRow - Function to flatten a single row. Can return an object or array of objects.
  * @param {function} props.onExportTrigger - Optional async function to fetch data for export.
  * @param {function} props.onBillBookExport - Optional handler for exporting complete invoice bills.
+ * @param {string} props.billBookLabel - Label for the bill-book menu item
  * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
@@ -416,6 +417,7 @@ const ImportExportMenu = ({
   flattenRow,
   onExportTrigger,
   onBillBookExport,
+  billBookLabel = 'Bill Book PDF',
   isLoading = false,
   selectedCount = 0,
   resourceName = 'items'
@@ -714,43 +716,8 @@ const ImportExportMenu = ({
     XLSX.writeFile(workbook, buildExportFilename(filename, 'xlsx', filenameQualifier));
   }, [filename, filenameQualifier, sheetName, resourceName]);
 
-  // ── Handle confirmation from column picker ────────────────────────────────
-  const handleColPickerConfirm = useCallback(async (selectedCols) => {
-    if (!colPicker) return;
-    const { format } = colPicker;
-    setColPicker(null);
-
-    // Now fetch data using the correct flattener (payment-aware if needed)
-    const flattenedData = await getFlattenedData(selectedCols);
-    if (!flattenedData || flattenedData.length === 0) return;
-
-    if (format === 'csv') {
-      doExportCSV(flattenedData, selectedCols);
-    } else if (format === 'xlsx') {
-      doExportExcel(flattenedData, selectedCols);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colPicker, doExportCSV, doExportExcel]);
-
-  const handleColPickerCancel = useCallback(() => {
-    setColPicker(null);
-  }, []);
-
-  // ── PDF export (unchanged — no column picker for PDF) ─────────────────────
-  const exportToPDF = async (close) => {
-    if (!onExportTrigger && !hasSelection && data.length === 0) {
-      alert(`Please select at least one ${resourceName} to export`);
-      close();
-      return;
-    }
-
-    const flattenedData = await getFlattenedData();
-    if (flattenedData.length === 0) {
-      close();
-      return;
-    }
-
-    // Separate totals row from data rows
+  // ── PDF export after column selection ─────────────────────────────────────
+  const doExportPDF = useCallback((flattenedData, selectedCols) => {
     const isInvoice = resourceName === 'invoices';
     let dataRows = flattenedData;
     let totalsRow = null;
@@ -765,7 +732,6 @@ const ImportExportMenu = ({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: FS_LANDSCAPE_FORMAT_PT });
     const pageW = doc.internal.pageSize.getWidth();
 
-    // ── Title bar — black fill, white text (prints cleanly on green paper) ──
     doc.setFillColor(0, 0, 0);
     doc.rect(0, 0, pageW, 36, 'F');
     doc.setTextColor(255, 255, 255);
@@ -779,67 +745,67 @@ const ImportExportMenu = ({
     doc.text(`Generated: ${dateStr}`, pageW - 28, 23, { align: 'right' });
     doc.setTextColor(0, 0, 0);
 
+    const buildHeadRow1 = (colKeys, groupDefs) =>
+      colKeys.map((col, colIdx) => {
+        const group = groupDefs.find(g => g.cols.includes(col));
+        if (!group) return col;
+        const firstInGroup = colKeys.findIndex(c => group.cols.includes(c));
+        return colIdx === firstInGroup ? group.label : '';
+      });
+
     if (isInvoice) {
-      // ── Column keys (match exportUtils order) ────────────────────────────
-      const colKeys = [
+      const ALL_COLS = [
         'Serial No.', 'Invoice No.', 'Date',
         'Customer Name', 'Last Name', 'Address', 'Contact No.',
         'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver',
         'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other',
-        'Gst No'
+        'Gst No',
       ];
-
-      const subLabels = [
+      const ALL_SUB = [
         'S.No', 'Invoice No.', 'Date',
         'Cust. Name', 'Last Name', 'Address', 'Contact',
         'Metal', 'HSN', 'Item', 'Purity', 'Wt. Gold', 'Wt. Silver',
         'Rate/g', 'Labour/g', 'Labour', 'Hallmark', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Tfr', 'Cash', 'Other',
-        'GST No'
+        'GST No',
+      ];
+      const ALL_WIDTHS = [
+        28, 68, 50,
+        58, 48, 68, 50,
+        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 36, 36, 38,
+        48,
+        42, 38, 42, 48, 38, 38,
+        52,
+      ];
+      const GROUP_DEFS = [
+        { label: 'S.No', cols: ['Serial No.'] },
+        { label: 'Invoice No.', cols: ['Invoice No.'] },
+        { label: 'Date', cols: ['Date'] },
+        { label: 'Customer Details', cols: ['Customer Name', 'Last Name', 'Address', 'Contact No.'] },
+        { label: 'Item Details', cols: ['Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver', 'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off'] },
+        { label: 'Total', cols: ['Total'] },
+        { label: 'Payment Details', cols: ['UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'] },
+        { label: 'GST No', cols: ['Gst No'] },
       ];
 
-      // Group definitions: [label, startColIdx, endColIdx (inclusive)]
-      // Columns: 0=S.No, 1=Inv, 2=Date, 3-6=Customer(4), 7-20=Items(14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round), 21=Total, 22-27=Payment(6), 28=GSTNo
-      const groups = [
-        ['S.No',             0,  0],
-        ['Invoice No.',      1,  1],
-        ['Date',             2,  2],
-        ['Customer Details', 3,  6],
-        ['Item Details',     7, 20],
-        ['Total',           21, 21],
-        ['Payment Details', 22, 27],
-        ['GST No',          28, 28],
-      ];
+      const selectedSet = new Set(selectedCols);
+      const indices = ALL_COLS.map((c, i) => (selectedSet.has(c) ? i : -1)).filter(i => i >= 0);
+      const colKeys = indices.map(i => ALL_COLS[i]);
+      const subLabels = indices.map(i => ALL_SUB[i]);
+      const rawWidths = indices.map(i => ALL_WIDTHS[i]);
+      const headRow1 = buildHeadRow1(colKeys, GROUP_DEFS);
 
-      // Build group header row — show label only at the first col of each group
-      const headRow1 = subLabels.map((_, colIdx) => {
-        const group = groups.find(([, s, e]) => colIdx >= s && colIdx <= e);
-        if (!group) return '';
-        const [label, start] = group;
-        return colIdx === start ? label : '';
-      });
-
-      // Build body
       const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
       if (totalsRow) {
         body.push(colKeys.map(k => totalsRow[k] ?? ''));
       }
 
-      // Column widths (raw proportions) — scaled to fit exactly within page margins
       const margin = { top: 44, left: 14, right: 14, bottom: 22 };
       const availableWidth = pageW - margin.left - margin.right;
-      const rawWidths = [
-        28, 68, 50,              // S.No, Invoice, Date
-        58, 48, 68, 50,          // Customer (4)
-        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 36, 36, 38, // Items (14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round)
-        48,                      // Total
-        42, 38, 42, 48, 38, 38,  // Payment (6)
-        52                       // GST No
-      ];
-      const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0) || 1;
       const scale = availableWidth / rawTotal;
       const scaledWidths = rawWidths.map(w => w * scale);
 
@@ -848,7 +814,6 @@ const ImportExportMenu = ({
         margin,
         head: [headRow1, subLabels],
         body,
-        // B&W palette — safe on green paper with a monochrome printer
         theme: 'grid',
         styles: {
           fontSize: 6.5,
@@ -857,32 +822,30 @@ const ImportExportMenu = ({
           valign: 'middle',
           overflow: 'linebreak',
           textColor: [0, 0, 0],
-          fillColor: false,          // transparent — green paper shows through
+          fillColor: false,
           lineColor: [80, 80, 80],
           lineWidth: 0.4,
         },
         headStyles: {
-          fillColor: [60, 60, 60],   // dark gray — group header row
+          fillColor: [60, 60, 60],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
           fontSize: 7,
         },
         alternateRowStyles: {
-          fillColor: [220, 220, 220], // light gray stripe — subtle on green
+          fillColor: [220, 220, 220],
         },
         columnStyles: scaledWidths.reduce((acc, w, i) => {
           acc[i] = { cellWidth: w };
           return acc;
         }, {}),
         didParseCell: (data) => {
-          // Sub-header row (row index 1) — medium gray
           if (data.section === 'head' && data.row.index === 1) {
             data.cell.styles.fillColor = [120, 120, 120];
             data.cell.styles.textColor = [255, 255, 255];
             data.cell.styles.fontStyle = 'bold';
           }
-          // Totals row (last body row) — white fill, bold, thick top border
           if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
             data.cell.styles.fillColor = [255, 255, 255];
             data.cell.styles.fontStyle = 'bold';
@@ -904,54 +867,48 @@ const ImportExportMenu = ({
       });
 
     } else if (resourceName === 'purchases') {
-      const colKeys = [
-        'NAME', 'GSTIN', 
-        'STATE CODE', 'STATE NAME', 
-        'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE', 
-        'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX', 
-        'GOLD (GM)', 'SILVER (GM)'
+      const ALL_COLS = [
+        'NAME', 'GSTIN',
+        'STATE CODE', 'STATE NAME',
+        'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE',
+        'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX',
+        'GOLD (GM)', 'SILVER (GM)',
       ];
-
-      const subLabels = [
+      const ALL_SUB = [
         'Name', 'GSTIN',
         'State Code', 'State Name',
         'Invoice No', 'Date', 'Value',
         'Taxable Val', 'SGST', 'CGST', 'IGST', 'Total Tax',
-        'Gold (g)', 'Silver (g)'
+        'Gold (g)', 'Silver (g)',
+      ];
+      const ALL_WIDTHS = [
+        80, 70,
+        50, 60,
+        60, 50, 60,
+        60, 40, 40, 40, 50,
+        50, 50,
+      ];
+      const GROUP_DEFS = [
+        { label: 'Name', cols: ['NAME'] },
+        { label: 'GSTIN', cols: ['GSTIN'] },
+        { label: 'Place of Supply', cols: ['STATE CODE', 'STATE NAME'] },
+        { label: 'Invoice Details', cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'] },
+        { label: 'Amount of Tax', cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'] },
+        { label: 'Weight', cols: ['GOLD (GM)', 'SILVER (GM)'] },
       ];
 
-      const groups = [
-        ['Name',             0,  0],
-        ['GSTIN',            1,  1],
-        ['Place of Supply',  2,  3],
-        ['Invoice Details',  4,  6],
-        ['Amount of Tax',    7, 11],
-        ['Weight',          12, 13],
-      ];
-
-      // Build group header row — show label only at the first col of each group
-      const headRow1 = subLabels.map((_, colIdx) => {
-        const group = groups.find(([, s, e]) => colIdx >= s && colIdx <= e);
-        if (!group) return '';
-        const [label, start] = group;
-        return colIdx === start ? label : '';
-      });
+      const selectedSet = new Set(selectedCols);
+      const indices = ALL_COLS.map((c, i) => (selectedSet.has(c) ? i : -1)).filter(i => i >= 0);
+      const colKeys = indices.map(i => ALL_COLS[i]);
+      const subLabels = indices.map(i => ALL_SUB[i]);
+      const rawWidths = indices.map(i => ALL_WIDTHS[i]);
+      const headRow1 = buildHeadRow1(colKeys, GROUP_DEFS);
 
       const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
-      if (totalsRow) {
-        body.push(colKeys.map(k => totalsRow[k] ?? ''));
-      }
 
       const margin = { top: 44, left: 14, right: 14, bottom: 22 };
       const availableWidth = pageW - margin.left - margin.right;
-      const rawWidths = [
-        80, 70,       // Name, GSTIN
-        50, 60,       // State Code, State Name
-        60, 50, 60,   // Invoice No, Date, Value
-        60, 40, 40, 40, 50, // Taxable, SGST, CGST, IGST, Total Tax
-        50, 50        // Gold, Silver
-      ];
-      const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0) || 1;
       const scale = availableWidth / rawTotal;
       const scaledWidths = rawWidths.map(w => w * scale);
 
@@ -992,12 +949,6 @@ const ImportExportMenu = ({
             data.cell.styles.textColor = [255, 255, 255];
             data.cell.styles.fontStyle = 'bold';
           }
-          if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
-            data.cell.styles.fillColor = [255, 255, 255];
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fontSize = 7.5;
-            data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
-          }
         },
         didDrawPage: (data) => {
           const pageCount = doc.internal.getNumberOfPages();
@@ -1013,8 +964,9 @@ const ImportExportMenu = ({
       });
 
     } else {
-      // ── Generic single-level table ────────────────────────────────────────
-      const headers = Object.keys(flattenedData[0] || {});
+      const headers = selectedCols.length
+        ? selectedCols
+        : Object.keys(flattenedData[0] || {});
       autoTable(doc, {
         startY: 44,
         head: [headers],
@@ -1027,8 +979,31 @@ const ImportExportMenu = ({
     }
 
     doc.save(buildExportFilename(filename, 'pdf', filenameQualifier));
-    close();
-  };
+  }, [filename, filenameQualifier, resourceName]);
+
+  // ── Handle confirmation from column picker ────────────────────────────────
+  const handleColPickerConfirm = useCallback(async (selectedCols) => {
+    if (!colPicker) return;
+    const { format } = colPicker;
+    setColPicker(null);
+
+    // Now fetch data using the correct flattener (payment-aware if needed)
+    const flattenedData = await getFlattenedData(selectedCols);
+    if (!flattenedData || flattenedData.length === 0) return;
+
+    if (format === 'csv') {
+      doExportCSV(flattenedData, selectedCols);
+    } else if (format === 'xlsx') {
+      doExportExcel(flattenedData, selectedCols);
+    } else if (format === 'pdf') {
+      doExportPDF(flattenedData, selectedCols);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colPicker, doExportCSV, doExportExcel, doExportPDF]);
+
+  const handleColPickerCancel = useCallback(() => {
+    setColPicker(null);
+  }, []);
 
   const handleImportClick = (close) => {
     const input = document.createElement('input');
@@ -1067,6 +1042,20 @@ const ImportExportMenu = ({
       <Dropdown className="import-export-menu" trigger={trigger} align="right">
         {({ close }) => (
           <>
+            {onBillBookExport && (
+              <>
+                <DropdownItem
+                  icon={<DownloadIcon />}
+                  onClick={() => {
+                    close();
+                    onBillBookExport();
+                  }}
+                >
+                  {billBookLabel}
+                </DropdownItem>
+                <DropdownDivider />
+              </>
+            )}
             <DropdownItem 
               icon={<DownloadIcon />} 
               onClick={() => openColPicker('csv', close)}
@@ -1081,24 +1070,10 @@ const ImportExportMenu = ({
             </DropdownItem>
             <DropdownItem 
               icon={<DownloadIcon />} 
-              onClick={() => exportToPDF(close)}
+              onClick={() => openColPicker('pdf', close)}
             >
               {exportLabel} PDF
             </DropdownItem>
-            {onBillBookExport && (
-              <>
-                <DropdownDivider />
-                <DropdownItem
-                  icon={<DownloadIcon />}
-                  onClick={() => {
-                    close();
-                    onBillBookExport();
-                  }}
-                >
-                  Bill Book PDF
-                </DropdownItem>
-              </>
-            )}
             {onImport && (
               <>
                 <DropdownDivider />

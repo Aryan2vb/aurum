@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from '../../atoms/Icon/Icon';
+import PaymentAccountSelect from '../PaymentAccountSelect/PaymentAccountSelect';
 import { recordPayment } from '../../../services/invoicesService';
+import { PAYMENT_MODES, withFinancialAccount } from '../../../utils/paymentAccounts';
 import styles from './RecordPaymentModal.module.css';
 
 const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
@@ -9,12 +11,14 @@ const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
   const [mode, setMode] = useState('UPI');
   const [loading, setLoading] = useState(false);
   const [notes, setNotes] = useState('');
+  const [financialAccountId, setFinancialAccountId] = useState('');
 
   React.useEffect(() => {
     if (isOpen && invoice) {
       setAmount(invoice.remainingBalance || 0);
       setMode('UPI');
       setNotes('');
+      setFinancialAccountId('');
     }
   }, [isOpen, invoice]);
 
@@ -32,11 +36,12 @@ const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
 
     try {
       setLoading(true);
-      await recordPayment(invoice.id, { 
+      await recordPayment(invoice.id, withFinancialAccount({
         amount, 
         paymentMethod: mode,
+        financialAccountId,
         notes: notes || `Payment for invoice ${invoice.invoiceNumber}`
-      });
+      }));
       onRefresh();
       onClose();
     } catch (err) {
@@ -89,15 +94,12 @@ const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
             <div className={styles.inputGroup}>
               <label>Payment Mode</label>
               <select value={mode} onChange={e => setMode(e.target.value)}>
-                <option value="UPI">UPI</option>
-                <option value="CASH">CASH</option>
-                <option value="BANK_TRANSFER">BANK TRANSFER</option>
-                <option value="CHEQUE">CHEQUE</option>
-                <option value="CARD">CARD</option>
-                <option value="OLD_GOLD">OLD GOLD</option>
-                <option value="OTHER">OTHER</option>
+                {PAYMENT_MODES.map((paymentMode) => (
+                  <option key={paymentMode} value={paymentMode}>{paymentMode.replaceAll('_', ' ')}</option>
+                ))}
               </select>
             </div>
+            <PaymentAccountSelect mode={mode} value={financialAccountId} onChange={setFinancialAccountId} />
 
             <div className={styles.inputGroup}>
               <label>Notes</label>

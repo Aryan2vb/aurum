@@ -5,7 +5,9 @@ import Input from '../../components/atoms/Input/Input';
 import Button from '../../components/atoms/Button/Button';
 import AmountDisplay from '../../components/atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../components/atoms/Toast/Toast';
+import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { getCreditById, getCreditTransactions, updatePaymentTransaction } from '../../services/creditsService';
+import { withFinancialAccount } from '../../utils/paymentAccounts';
 import './EditPaymentPage.css';
 
 const EditPaymentPage = () => {
@@ -21,6 +23,7 @@ const EditPaymentPage = () => {
   const [formData, setFormData] = useState({
     amount: '',
     paymentMethod: 'CASH',
+    financialAccountId: '',
     transactionDate: '',
     referenceNumber: '',
     collectedBy: '',
@@ -62,6 +65,7 @@ const EditPaymentPage = () => {
       setFormData({
         amount: foundPayment.amount || '',
         paymentMethod: foundPayment.paymentMethod || 'CASH',
+        financialAccountId: foundPayment.financialAccountId || '',
         transactionDate: formatDateForInput(foundPayment.transactionDate),
         referenceNumber: foundPayment.referenceNumber || '',
         collectedBy: foundPayment.collectedBy || '',
@@ -101,14 +105,15 @@ const EditPaymentPage = () => {
 
     try {
       setSaving(true);
-      const updateData = {
+      const updateData = withFinancialAccount({
         amount: parseFloat(formData.amount),
         paymentMethod: formData.paymentMethod,
+        financialAccountId: formData.financialAccountId,
         ...(formData.transactionDate && { transactionDate: formData.transactionDate }),
         ...(formData.referenceNumber && { referenceNumber: formData.referenceNumber }),
         ...(formData.collectedBy && { collectedBy: formData.collectedBy }),
         ...(formData.notes !== undefined && { notes: formData.notes }),
-      };
+      });
 
       await updatePaymentTransaction(id, transactionId, updateData);
       setToast({ type: 'success', message: 'Payment updated successfully' });
@@ -244,6 +249,11 @@ const EditPaymentPage = () => {
                     <option value="OTHER">Other</option>
                   </select>
                 </div>
+                <PaymentAccountSelect
+                  mode={formData.paymentMethod}
+                  value={formData.financialAccountId}
+                  onChange={(value) => handleInputChange('financialAccountId', value)}
+                />
 
                 <div className="edit-payment-form-field">
                   <label className="edit-payment-form-label">Transaction Date</label>

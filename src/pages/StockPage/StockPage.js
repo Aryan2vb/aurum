@@ -16,7 +16,7 @@ import './StockPage.css';
 const columnHelper = createColumnHelper();
 const formatType = (type) => {
   switch (type) {
-    case 'OPENING_BALANCE': return 'Opening Balance';
+    case 'OPENING_BALANCE': return 'Opening';
     case 'PURCHASE': return 'Purchase';
     case 'SALE': return 'Sale';
     case 'ADJUSTMENT': return 'Adjustment';
@@ -27,46 +27,114 @@ const formatType = (type) => {
 const SkeletonRows = ({ rows = 5, cols = 8 }) => (
   <>{Array.from({ length: rows }).map((_, ri) => (
     <tr key={ri}>{Array.from({ length: cols }).map((__, ci) => (
-      <td key={ci} className="attio-td"><div className="skeleton-cell"><div className="skeleton-bar" style={{ width: ['40%','60%','80%'][(ri+ci)%3] }} /></div></td>
+      <td key={ci} className="attio-td"><div className="skeleton-cell"><div className="skeleton-bar" style={{ width: ['40%', '60%', '80%'][(ri + ci) % 3] }} /></div></td>
     ))}</tr>
   ))}</>
 );
 
-const fmtAmt = (n) => n == null || parseFloat(n) === 0 ? '—' : "₹" + Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtWeight = (n) => `${Number(n || 0).toFixed(3)} g`;
+const fmtAmt = (n) => n == null || parseFloat(n) === 0 ? '—' : '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const getPurityRank = (purity) => ({ '24K': 1, '22K': 2, '20K': 3, '18K': 4, F: 1, 925: 2 }[purity] || 99);
 
+/** Indian FY starts 1 Apr. Returns YYYY-MM-DD. */
+const toDateInput = (d = new Date()) => {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+const currentFyStartDate = (d = new Date()) => {
+  const fyStartYear = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${fyStartYear}-04-01`;
+};
+const emptyOpeningBalanceModal = () => ({
+  metalType: 'GOLD',
+  purity: '22K',
+  quantity: '',
+  rate: '',
+  date: currentFyStartDate(),
+});
+
+const summaryRange = (preset, today = new Date()) => {
+  const todayStr = toDateInput(today);
+  if (preset === 'this_month') {
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    return { startDate: `${today.getFullYear()}-${mm}-01`, endDate: todayStr };
+  }
+  if (preset === 'last_month') {
+    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const last = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { startDate: toDateInput(first), endDate: toDateInput(last) };
+  }
+  return { startDate: currentFyStartDate(today), endDate: todayStr };
+};
+
+const SUMMARY_PRESETS = [
+  { id: 'this_month', label: 'This Month' },
+  { id: 'last_month', label: 'Last Month' },
+  { id: 'this_fy', label: 'This FY' },
+];
+
+const formatDateReadable = (dStr) => {
+  if (!dStr) return '';
+  const [y, m, d] = dStr.split('-').map(Number);
+  if (!y || !m || !d) return dStr;
+  return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const buildColumns = () => [
-  columnHelper.accessor('date', { id: 'date', header: 'Date', size: 160,
-    cell: info => info.getValue() ? <DateDisplay date={info.getValue()} format="absolute" size="sm" /> : '—',
+  columnHelper.accessor('date', {
+    id: 'date', header: 'Date', size: 140,
+    cell: (info) => (info.getValue() ? <DateDisplay date={info.getValue()} format="absolute" size="sm" /> : '—'),
   }),
-  columnHelper.accessor('transactionType', { id: 'transactionType', header: 'Type', size: 140,
-    cell: info => <span className={`stock-badge type-${info.getValue()?.toLowerCase()}`}>{formatType(info.getValue())}</span>,
+  columnHelper.accessor('transactionType', {
+    id: 'transactionType', header: 'Type', size: 120,
+    cell: (info) => <span className={`stock-badge type-${info.getValue()?.toLowerCase()}`}>{formatType(info.getValue())}</span>,
   }),
-  columnHelper.accessor('metalType', { id: 'metalType', header: 'Metal', size: 100 }),
-  columnHelper.accessor('purity', { id: 'purity', header: 'Purity', size: 100 }),
-  columnHelper.accessor('quantityIn', { id: 'quantityIn', header: 'Inward (g)', size: 120,
-    cell: info => { const v = parseFloat(info.getValue() || 0); return v > 0 ? <span style={{ color: 'var(--success)' }}>+{v.toFixed(3)}</span> : '—'; },
+  columnHelper.accessor('metalType', {
+    id: 'metalType', header: 'Metal', size: 90,
+    cell: (info) => <span className={`metal-badge ${(info.getValue() || '').toLowerCase()}`}>{info.getValue()}</span>,
   }),
-  columnHelper.accessor('quantityOut', { id: 'quantityOut', header: 'Outward (g)', size: 120,
-    cell: info => { const v = parseFloat(info.getValue() || 0); return v > 0 ? <span style={{ color: 'var(--error)' }}>-{v.toFixed(3)}</span> : '—'; },
+  columnHelper.accessor('purity', {
+    id: 'purity', header: 'Purity', size: 80,
+    cell: (info) => <span className="purity-badge">{info.getValue()}</span>,
   }),
-  columnHelper.accessor('rate', { id: 'rate', header: 'Rate', size: 110,
-    cell: info => fmtAmt(info.getValue()),
+  columnHelper.accessor('quantityIn', {
+    id: 'quantityIn', header: 'In (g)', size: 100,
+    cell: (info) => {
+      const v = parseFloat(info.getValue() || 0);
+      return v > 0 ? <span className="qty-in">+{v.toFixed(3)}</span> : '—';
+    },
   }),
-  columnHelper.accessor('totalValue', { id: 'totalValue', header: 'Value', size: 120,
-    cell: info => fmtAmt(info.getValue()),
+  columnHelper.accessor('quantityOut', {
+    id: 'quantityOut', header: 'Out (g)', size: 100,
+    cell: (info) => {
+      const v = parseFloat(info.getValue() || 0);
+      return v > 0 ? <span className="qty-out">−{v.toFixed(3)}</span> : '—';
+    },
   }),
-  columnHelper.accessor('runningBalance', { id: 'runningBalance', header: 'Balance (g)', size: 120,
-    cell: info => { const v = parseFloat(info.getValue() || 0); return <strong>{v.toFixed(3)}</strong>; },
+  columnHelper.accessor('rate', {
+    id: 'rate', header: 'Rate', size: 110,
+    cell: (info) => fmtAmt(info.getValue()),
+  }),
+  columnHelper.accessor('totalValue', {
+    id: 'totalValue', header: 'Value', size: 120,
+    cell: (info) => fmtAmt(info.getValue()),
+  }),
+  columnHelper.accessor('runningBalance', {
+    id: 'runningBalance', header: 'Balance', size: 110,
+    cell: (info) => {
+      const v = parseFloat(info.getValue() || 0);
+      return <strong className={v < 0 ? 'qty-out' : ''}>{v.toFixed(3)}</strong>;
+    },
   }),
   columnHelper.accessor('referenceId', {
-    id: 'referenceId',
-    header: 'Reference',
-    size: 140,
-    cell: info => info.getValue() ? <span className="reference-pill">{String(info.getValue()).slice(0, 8)}</span> : '—',
+    id: 'referenceId', header: 'Ref', size: 120,
+    cell: (info) => (info.getValue() ? <span className="reference-pill">{String(info.getValue()).slice(0, 8)}</span> : '—'),
   }),
-  columnHelper.accessor('notes', { id: 'notes', header: 'Notes', size: 200, cell: info => info.getValue() || '—' }),
+  columnHelper.accessor('notes', {
+    id: 'notes', header: 'Notes', size: 180,
+    cell: (info) => <span className="ledger-note">{info.getValue() || '—'}</span>,
+  }),
 ];
 
 const StockPage = () => {
@@ -76,40 +144,33 @@ const StockPage = () => {
   const [error, setError] = useState(null);
   const [sorting, setSorting] = useState([]);
   const [toast, setToast] = useState(null);
-  
-  // Tab Navigation State
   const [activeTab, setActiveTab] = useState('live');
-
-  // Stock Summary Report Filter State
-  const [startDate, setStartDate] = useState('2026-04-01');
-  const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
+  const [summaryPreset, setSummaryPreset] = useState('this_fy');
+  const [{ startDate, endDate }, setSummaryRange] = useState(() => summaryRange('this_fy'));
   const [summaryData, setSummaryData] = useState([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
-
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
-  const [modalData, setModalData] = useState({
-    metalType: 'GOLD',
-    purity: '22K',
-    quantity: '',
-    rate: '',
-    date: '2026-04-01',
-  });
+  const [modalData, setModalData] = useState(() => emptyOpeningBalanceModal());
+
+  const closeModal = useCallback(() => {
+    if (modalLoading) return;
+    setIsModalOpen(false);
+    setModalData(emptyOpeningBalanceModal());
+  }, [modalLoading]);
 
   const loadData = useCallback(async () => {
-    try { 
-      setLoading(true); 
-      setError(null); 
-      const [balRes, ledRes] = await Promise.all([
-        getStockBalances(),
-        getStockLedger()
-      ]);
-      setBalances(balRes || []); 
-      setLedger(ledRes || []); 
+    try {
+      setLoading(true);
+      setError(null);
+      const [balRes, ledRes] = await Promise.all([getStockBalances(), getStockLedger()]);
+      setBalances(balRes || []);
+      setLedger(ledRes || []);
+    } catch (err) {
+      setError(err.message || 'Failed to load stock data');
+    } finally {
+      setLoading(false);
     }
-    catch (err) { setError(err.message || 'Failed to load stock data'); }
-    finally { setLoading(false); }
   }, []);
 
   const generateSummary = useCallback(async () => {
@@ -124,23 +185,24 @@ const StockPage = () => {
     }
   }, [startDate, endDate]);
 
-  useEffect(() => { 
-    loadData(); 
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
-    if (activeTab === 'summary') {
-      generateSummary();
-    }
+    if (activeTab === 'summary') generateSummary();
   }, [activeTab, generateSummary]);
+
+  useEffect(() => {
+    if (!isModalOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') closeModal(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isModalOpen, closeModal]);
 
   const handleModalChange = (e) => {
     const { name, value } = e.target;
-    setModalData(prev => {
+    setModalData((prev) => {
       const updated = { ...prev, [name]: value };
-      if (name === 'metalType') {
-        updated.purity = value === 'GOLD' ? '22K' : 'F';
-      }
+      if (name === 'metalType') updated.purity = value === 'GOLD' ? '22K' : 'F';
       return updated;
     });
   };
@@ -148,15 +210,15 @@ const StockPage = () => {
   const handleModalSubmit = async (e) => {
     e.preventDefault();
     if (!modalData.quantity || parseFloat(modalData.quantity) <= 0) {
-      setToast({ type: 'error', message: 'Please enter a valid weight quantity' });
+      setToast({ type: 'error', message: 'Enter a valid weight quantity' });
       return;
     }
     if (!modalData.rate || parseFloat(modalData.rate) <= 0) {
-      setToast({ type: 'error', message: 'Please enter a valid rate' });
+      setToast({ type: 'error', message: 'Enter a valid rate' });
       return;
     }
     if (!modalData.date) {
-      setToast({ type: 'error', message: 'Please select a date' });
+      setToast({ type: 'error', message: 'Select a date' });
       return;
     }
 
@@ -167,11 +229,11 @@ const StockPage = () => {
         purity: modalData.purity,
         quantity: parseFloat(modalData.quantity),
         rate: parseFloat(modalData.rate),
-        date: new Date(modalData.date).toISOString()
+        date: modalData.date,
       });
-      setToast({ type: 'success', message: 'Opening balance saved successfully' });
+      setToast({ type: 'success', message: 'Opening balance saved' });
       setIsModalOpen(false);
-      setModalData({ metalType: 'GOLD', purity: '22K', quantity: '', rate: '', date: '2026-04-01' });
+      setModalData(emptyOpeningBalanceModal());
       loadData();
       if (activeTab === 'summary') generateSummary();
     } catch (err) {
@@ -181,53 +243,17 @@ const StockPage = () => {
     }
   };
 
-  const applyPreset = (preset) => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-
-    if (preset === 'this_month') {
-      const start = `${yyyy}-${mm}-01`;
-      setStartDate(start);
-      setEndDate(todayStr);
-    } else if (preset === 'last_month') {
-      let lastMonthVal = today.getMonth() - 1;
-      let lastMonthYear = yyyy;
-      if (lastMonthVal < 0) {
-        lastMonthVal = 11;
-        lastMonthYear -= 1;
-      }
-      const lastMm = String(lastMonthVal + 1).padStart(2, '0');
-      const start = `${lastMonthYear}-${lastMm}-01`;
-      const lastDay = new Date(lastMonthYear, lastMonthVal + 1, 0).getDate();
-      const end = `${lastMonthYear}-${lastMm}-${String(lastDay).padStart(2, '0')}`;
-      setStartDate(start);
-      setEndDate(end);
-    } else if (preset === 'this_fy') {
-      const fyStartYear = today.getMonth() >= 3 ? yyyy : yyyy - 1;
-      const start = `${fyStartYear}-04-01`;
-      const end = `${fyStartYear + 1}-03-31`;
-      setStartDate(start);
-      setEndDate(end);
-    }
+  const applySummaryPreset = (preset) => {
+    setSummaryPreset(preset);
+    setSummaryRange(summaryRange(preset));
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Group summary mapping & calculations
   const groupedSummary = useMemo(() => {
     const groups = { GOLD: [], SILVER: [] };
-    summaryData.forEach(item => {
-      if (groups[item.metalType]) {
-        groups[item.metalType].push(item);
-      }
+    summaryData.forEach((item) => {
+      if (groups[item.metalType]) groups[item.metalType].push(item);
     });
-    const purityOrder = { '24K': 1, '22K': 2, '20K': 3, '18K': 4, 'F': 1, '925': 2 };
-    const sortFn = (a, b) => (purityOrder[a.purity] || 99) - (purityOrder[b.purity] || 99);
+    const sortFn = (a, b) => getPurityRank(a.purity) - getPurityRank(b.purity);
     groups.GOLD.sort(sortFn);
     groups.SILVER.sort(sortFn);
     return groups;
@@ -237,10 +263,9 @@ const StockPage = () => {
     const totals = {
       GOLD: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
       SILVER: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
-      GRAND: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 }
+      GRAND: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
     };
-
-    summaryData.forEach(item => {
+    summaryData.forEach((item) => {
       const g = item.metalType;
       if (totals[g]) {
         totals[g].opQty += item.opening.quantity;
@@ -261,7 +286,6 @@ const StockPage = () => {
       totals.GRAND.clQty += item.closing.quantity;
       totals.GRAND.clVal += item.closing.value;
     });
-
     return totals;
   }, [summaryData]);
 
@@ -270,7 +294,7 @@ const StockPage = () => {
     const fmtRate = (qty, val) => (Number(qty) !== 0 && Number(val) !== 0) ? Math.abs(Number(val) / Number(qty)).toFixed(2) : '—';
     const fmtVal = (val) => {
       const v = Number(val) || 0;
-      return v !== 0 ? (v < 0 ? '-' : '') + "₹" + Math.abs(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+      return v !== 0 ? `${v < 0 ? '−' : ''}₹${Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
     };
     const fmtQty = (qty) => {
       const q = Number(qty) || 0;
@@ -278,227 +302,154 @@ const StockPage = () => {
     };
     const fmtItemRate = (rate, qty) => (Number(qty) !== 0 && Number(rate) !== 0) ? Math.abs(Number(rate)).toFixed(2) : '—';
 
-    // Group GOLD
-    if (groupedSummary.GOLD.length > 0) {
-      const gTot = calculatedTotals.GOLD;
+    const pushMetalBlock = (metal, items, tot) => {
+      if (!items.length) return;
       rows.push(
-        <tr key="gold-header" style={{ fontWeight: 'bold', backgroundColor: 'var(--bg-hover)' }}>
-          <td className="attio-td">GOLD</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(gTot.opQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(gTot.opQty, gTot.opVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(gTot.opVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(gTot.inQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(gTot.inQty, gTot.inVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(gTot.inVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(gTot.outQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(gTot.outQty, gTot.outVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(gTot.outVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(gTot.clQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(gTot.clQty, gTot.clVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(gTot.clVal)}</td>
-        </tr>
+        <tr key={`${metal}-header`} className="summary-group-row">
+          <td className="attio-td">{metal}</td>
+          <td className="attio-td num">{fmtQty(tot.opQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.opQty, tot.opVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.opVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.inQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.inQty, tot.inVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.inVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.outQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.outQty, tot.outVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.outVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.clQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.clQty, tot.clVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.clVal)}</td>
+        </tr>,
       );
-
-      groupedSummary.GOLD.forEach(item => {
+      items.forEach((item) => {
         rows.push(
-          <tr key={`gold-${item.purity}`}>
-            <td className="attio-td" style={{ paddingLeft: '2rem', fontStyle: 'italic' }}>{item.purity}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.opening.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.opening.rate, item.opening.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.opening.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.inwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.inwards.rate, item.inwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.inwards.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.outwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.outwards.rate, item.outwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.outwards.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.closing.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.closing.rate, item.closing.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.closing.value)}</td>
-          </tr>
+          <tr key={`${metal}-${item.purity}`} className="summary-purity-row">
+            <td className="attio-td purity-cell">{item.purity}</td>
+            <td className="attio-td num">{fmtQty(item.opening.quantity)}</td>
+            <td className="attio-td num">{fmtItemRate(item.opening.rate, item.opening.quantity)}</td>
+            <td className="attio-td num">{fmtVal(item.opening.value)}</td>
+            <td className="attio-td num">{fmtQty(item.inwards.quantity)}</td>
+            <td className="attio-td num">{fmtItemRate(item.inwards.rate, item.inwards.quantity)}</td>
+            <td className="attio-td num">{fmtVal(item.inwards.value)}</td>
+            <td className="attio-td num">{fmtQty(item.outwards.quantity)}</td>
+            <td className="attio-td num">{fmtItemRate(item.outwards.rate, item.outwards.quantity)}</td>
+            <td className="attio-td num">{fmtVal(item.outwards.value)}</td>
+            <td className="attio-td num">{fmtQty(item.closing.quantity)}</td>
+            <td className="attio-td num">{fmtItemRate(item.closing.rate, item.closing.quantity)}</td>
+            <td className="attio-td num">{fmtVal(item.closing.value)}</td>
+          </tr>,
         );
       });
-    }
+    };
 
-    // Group SILVER
-    if (groupedSummary.SILVER.length > 0) {
-      const sTot = calculatedTotals.SILVER;
-      rows.push(
-        <tr key="silver-header" style={{ fontWeight: 'bold', backgroundColor: 'var(--bg-hover)' }}>
-          <td className="attio-td">SILVER</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(sTot.opQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(sTot.opQty, sTot.opVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(sTot.opVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(sTot.inQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(sTot.inQty, sTot.inVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(sTot.inVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(sTot.outQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(sTot.outQty, sTot.outVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(sTot.outVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(sTot.clQty)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(sTot.clQty, sTot.clVal)}</td>
-          <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(sTot.clVal)}</td>
-        </tr>
-      );
+    pushMetalBlock('GOLD', groupedSummary.GOLD, calculatedTotals.GOLD);
+    pushMetalBlock('SILVER', groupedSummary.SILVER, calculatedTotals.SILVER);
 
-      groupedSummary.SILVER.forEach(item => {
-        rows.push(
-          <tr key={`silver-${item.purity}`}>
-            <td className="attio-td" style={{ paddingLeft: '2rem', fontStyle: 'italic' }}>{item.purity}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.opening.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.opening.rate, item.opening.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.opening.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.inwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.inwards.rate, item.inwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.inwards.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.outwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.outwards.rate, item.outwards.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.outwards.value)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(item.closing.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtItemRate(item.closing.rate, item.closing.quantity)}</td>
-            <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(item.closing.value)}</td>
-          </tr>
-        );
-      });
-    }
-
-    // Grand Total Row
     const grand = calculatedTotals.GRAND;
     rows.push(
-      <tr key="grand-total" style={{ fontWeight: 'bold', borderTop: '2px solid var(--border-color)', borderBottom: '2px double var(--border-color)', backgroundColor: 'var(--bg-hover)' }}>
+      <tr key="grand-total" className="summary-grand-row">
         <td className="attio-td">Grand Total</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(grand.opQty)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(grand.opQty, grand.opVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(grand.opVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(grand.inQty)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(grand.inQty, grand.inVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(grand.inVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(grand.outQty)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(grand.outQty, grand.outVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(grand.outVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtQty(grand.clQty)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtRate(grand.clQty, grand.clVal)}</td>
-        <td className="attio-td" style={{ textAlign: 'right' }}>{fmtVal(grand.clVal)}</td>
-      </tr>
+        <td className="attio-td num">{fmtQty(grand.opQty)}</td>
+        <td className="attio-td num">{fmtRate(grand.opQty, grand.opVal)}</td>
+        <td className="attio-td num">{fmtVal(grand.opVal)}</td>
+        <td className="attio-td num">{fmtQty(grand.inQty)}</td>
+        <td className="attio-td num">{fmtRate(grand.inQty, grand.inVal)}</td>
+        <td className="attio-td num">{fmtVal(grand.inVal)}</td>
+        <td className="attio-td num">{fmtQty(grand.outQty)}</td>
+        <td className="attio-td num">{fmtRate(grand.outQty, grand.outVal)}</td>
+        <td className="attio-td num">{fmtVal(grand.outVal)}</td>
+        <td className="attio-td num">{fmtQty(grand.clQty)}</td>
+        <td className="attio-td num">{fmtRate(grand.clQty, grand.clVal)}</td>
+        <td className="attio-td num">{fmtVal(grand.clVal)}</td>
+      </tr>,
     );
-
     return rows;
   };
 
   const columns = useMemo(() => buildColumns(), []);
-
   const table = useReactTable({
-    data: ledger, columns,
+    data: ledger,
+    columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   const colCount = columns.length;
-  const stockMetrics = useMemo(() => {
-    const totals = balances.reduce((acc, item) => {
-      const qty = Number(item.quantity || 0);
-      acc.totalWeight += qty;
-      acc[item.metalType] = (acc[item.metalType] || 0) + qty;
-      return acc;
-    }, { totalWeight: 0, GOLD: 0, SILVER: 0 });
+  const balanceRows = useMemo(() => [...balances].sort((a, b) => {
+    if (a.metalType !== b.metalType) return a.metalType.localeCompare(b.metalType);
+    return getPurityRank(a.purity) - getPurityRank(b.purity);
+  }), [balances]);
 
-    return {
-      totalWeight: totals.totalWeight,
-      goldWeight: totals.GOLD,
-      silverWeight: totals.SILVER,
-      balanceGroups: balances.length,
-      movementCount: ledger.length,
-    };
-  }, [balances, ledger.length]);
-  const balanceRows = useMemo(() => {
-    return [...balances].sort((a, b) => {
-      if (a.metalType !== b.metalType) return a.metalType.localeCompare(b.metalType);
-      return getPurityRank(a.purity) - getPurityRank(b.purity);
-    });
-  }, [balances]);
-
-  // Format readable date interval for print header
-  const formatDateReadable = (dStr) => {
-    if (!dStr) return '';
-    const d = new Date(dStr);
-    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const modalValue = modalData.quantity && modalData.rate
+    ? parseFloat(modalData.quantity) * parseFloat(modalData.rate)
+    : 0;
 
   return (
     <DashboardTemplate headerTitle="Stock & Inventory" headerTabs={[]}>
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
-      
-      {/* Custom Tabs Navigation */}
-      <div className="stock-tabs">
-        <button 
-          type="button" 
-          className={`tab-btn ${activeTab === 'live' ? 'active' : ''}`} 
+
+      <div className="stock-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'live'}
+          className={`tab-btn${activeTab === 'live' ? ' active' : ''}`}
           onClick={() => setActiveTab('live')}
         >
           <Icon name="product" size={14} />
-          Live Balances & Ledger
+          Balances
         </button>
-        <button 
-          type="button" 
-          className={`tab-btn ${activeTab === 'summary' ? 'active' : ''}`} 
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'summary'}
+          className={`tab-btn${activeTab === 'summary' ? ' active' : ''}`}
           onClick={() => setActiveTab('summary')}
         >
           <Icon name="file" size={14} />
-          Stock Group Summary
+          Group Summary
         </button>
       </div>
 
       {activeTab === 'live' ? (
-        <>
-          {/* Balances Section */}
+        <div className="stock-live-pane">
           <div className="stock-balances-container">
             <div className="stock-balances-header">
-              <div>
-                <h2 className="stock-section-title">Inventory Snapshot</h2>
-                <p className="stock-section-subtitle">Balances by metal and purity.</p>
-              </div>
-              <button className="attio-primary-btn" onClick={() => setIsModalOpen(true)}>
-                <Icon name="add" size={14} /><span>Initialize Opening Stock</span>
+              <h2 className="stock-section-title">Balances</h2>
+              <button type="button" className="attio-primary-btn" onClick={() => setIsModalOpen(true)}>
+                <Icon name="add" size={14} /><span>Opening Stock</span>
               </button>
             </div>
-            <div className="stock-summary-strip">
-              <div className="stock-summary-item primary">
-                <span>Total</span>
-                <strong>{fmtWeight(stockMetrics.totalWeight)}</strong>
+
+            {error && (
+              <div className="stock-inline-error">
+                <span>{error}</span>
+                <button type="button" className="attio-primary-btn" onClick={loadData}>Retry</button>
               </div>
-              <div className="stock-summary-item">
-                <span>Gold</span>
-                <strong>{fmtWeight(stockMetrics.goldWeight)}</strong>
-              </div>
-              <div className={`stock-summary-item ${stockMetrics.silverWeight < 0 ? 'negative' : ''}`}>
-                <span>Silver</span>
-                <strong>{fmtWeight(stockMetrics.silverWeight)}</strong>
-              </div>
-              <div className="stock-summary-item">
-                <span>Movements</span>
-                <strong>{stockMetrics.movementCount}</strong>
-              </div>
-            </div>
-            {error && <div className="attio-empty"><span>{error}</span><button className="attio-primary-btn" onClick={loadData}>Retry</button></div>}
+            )}
+
             <div className="stock-balance-panel">
               {!loading && balances.length === 0 && !error && (
                 <div className="stock-empty-card">
                   <Icon name="product" size={32} color="var(--text-tertiary)" />
-                  <p>No stock balances found.</p>
+                  <p>No stock balances yet.</p>
+                  <button type="button" className="attio-primary-btn" onClick={() => setIsModalOpen(true)}>
+                    <Icon name="add" size={14} /><span>Set opening stock</span>
+                  </button>
                 </div>
               )}
-              {loading && Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="stock-balance-skeleton"></div>
+              {loading && Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="stock-balance-skeleton" />
               ))}
               {!loading && balanceRows.length > 0 && (
                 <table className="stock-balance-table">
                   <thead>
                     <tr>
-                      <th>Metal</th>
-                      <th>Purity</th>
-                      <th>Balance</th>
-                      <th>Last Updated</th>
+                      <th>Item</th>
+                      <th className="num">Balance</th>
+                      <th className="num">Updated</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -506,10 +457,18 @@ const StockPage = () => {
                       const quantity = Number(bal.quantity || 0);
                       return (
                         <tr key={bal.id} className={quantity < 0 ? 'negative-row' : ''}>
-                          <td><span className={`metal-badge ${bal.metalType.toLowerCase()}`}>{bal.metalType}</span></td>
-                          <td><span className="purity-badge">{bal.purity}</span></td>
-                          <td className={`balance-quantity ${quantity < 0 ? 'negative' : ''}`}>{fmtWeight(quantity)}</td>
-                          <td className="balance-updated">{bal.updatedAt ? <DateDisplay date={bal.updatedAt} format="relative" size="sm" /> : '—'}</td>
+                          <td>
+                            <span className={`balance-item metal-${bal.metalType.toLowerCase()}`}>
+                              <span className="balance-metal">{bal.metalType}</span>
+                              <span className="balance-purity">{bal.purity}</span>
+                            </span>
+                          </td>
+                          <td className={`balance-quantity num${quantity < 0 ? ' negative' : ''}`}>
+                            {Number(quantity).toFixed(3)}<span className="unit"> g</span>
+                          </td>
+                          <td className="balance-updated num">
+                            {bal.updatedAt ? <DateDisplay date={bal.updatedAt} format="relative" size="sm" /> : '—'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -519,113 +478,121 @@ const StockPage = () => {
             </div>
           </div>
 
-          {/* Ledger Table Section */}
           <div className="attio-table-container stock-ledger-container">
             <div className="attio-header">
-              <div className="attio-header-left"><span className="saas-view-label">Recent Movements</span></div>
+              <div className="attio-header-left">
+                <span className="saas-view-label">Recent movements</span>
+              </div>
               <div className="attio-header-right">
-                <button className="attio-secondary-btn" onClick={loadData}>
-                  <Icon name="search" size={14} /><span>Refresh</span>
+                <button type="button" className="attio-secondary-btn" onClick={loadData} disabled={loading}>
+                  <Icon name="refresh" size={14} className={loading ? 'spin' : ''} />
+                  <span>{loading ? 'Refreshing…' : 'Refresh'}</span>
                 </button>
               </div>
             </div>
             <div className="attio-table-wrapper">
-              <table className={`attio-table ${loading ? 'attio-skeleton-table' : ''}`}>
-                <thead><tr>
-                  {table.getHeaderGroups()[0]?.headers.map(header => (
-                    <th key={header.id} className="attio-th" style={{ width: header.getSize() }}
-                      onClick={!loading && header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}>
-                      <div className="attio-th-content">
-                        <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
-                        {header.column.getIsSorted() && !loading && (
-                          <svg className="attio-sort-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            {header.column.getIsSorted() === 'asc' ? <path d="m18 15-6-6-6 6"/> : <path d="m6 9 6 6 6-6"/>}
-                          </svg>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr></thead>
+              <table className={`attio-table${loading ? ' attio-skeleton-table' : ''}`}>
+                <thead>
+                  <tr>
+                    {table.getHeaderGroups()[0]?.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        className="attio-th"
+                        style={{ width: header.getSize() }}
+                        onClick={!loading && header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+                      >
+                        <div className="attio-th-content">
+                          <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                          {header.column.getIsSorted() && !loading && (
+                            <svg className="attio-sort-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              {header.column.getIsSorted() === 'asc'
+                                ? <path d="m18 15-6-6-6 6" />
+                                : <path d="m6 9 6 6 6-6" />}
+                            </svg>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody>
-                  {loading ? <SkeletonRows cols={colCount} /> : table.getRowModel().rows.length === 0 ? (
-                    <tr><td colSpan={colCount} className="attio-empty">
-                      <Icon name="list" size={36} color="var(--text-tertiary)" />
-                      <span>No ledger entries found.</span>
-                    </td></tr>
-                  ) : table.getRowModel().rows.map(row => (
-                    <tr key={row.id}>
-                      {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="attio-td">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-                      ))}
+                  {loading ? (
+                    <SkeletonRows cols={colCount} />
+                  ) : table.getRowModel().rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={colCount} className="attio-empty">
+                        <Icon name="list" size={36} color="var(--text-tertiary)" />
+                        <span>No ledger entries yet.</span>
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    table.getRowModel().rows.map((row) => (
+                      <tr key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <td key={cell.id} className="attio-td">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-        </>
+        </div>
       ) : (
-        /* Stock Group Summary Report Tab */
         <div className="stock-summary-container">
-          <div className="report-filter-bar glass-panel">
-            <div className="form-group report-control">
-              <label>Start Date</label>
-              <input type="date" className="saas-input compact-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <div className="report-filter-bar">
+            <div className="report-filter-presets" role="group" aria-label="Period">
+              {SUMMARY_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`report-preset-btn${summaryPreset === p.id ? ' active' : ''}`}
+                  onClick={() => applySummaryPreset(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
-            <div className="form-group report-control">
-              <label>End Date</label>
-              <input type="date" className="saas-input compact-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-            </div>
-            <div className="form-group report-control presets-control">
-              <label>Quick Presets</label>
-              <select className="saas-select compact-input" defaultValue="" onChange={(e) => applyPreset(e.target.value)}>
-                <option value="" disabled>Select interval...</option>
-                <option value="this_month">This Month</option>
-                <option value="last_month">Last Month</option>
-                <option value="this_fy">This FY (Apr - Mar)</option>
-              </select>
-            </div>
-            <div className="report-actions">
-              <button className="attio-primary-btn compact-btn" onClick={generateSummary} disabled={summaryLoading}>
-                <Icon name="file" size={14} /><span>{summaryLoading ? 'Generating...' : 'Generate Report'}</span>
-              </button>
-              <button className="attio-secondary-btn compact-btn" onClick={handlePrint} disabled={summaryLoading || summaryData.length === 0}>
-                <Icon name="printer" size={14} /><span>Print Report</span>
+            <div className="report-filter-right">
+              <span className="period-chip">
+                {formatDateReadable(startDate)} → {formatDateReadable(endDate)}
+              </span>
+              <button
+                type="button"
+                className="attio-secondary-btn compact-btn"
+                onClick={() => window.print()}
+                disabled={summaryLoading || summaryData.length === 0}
+              >
+                <Icon name="printer" size={14} /><span>Print</span>
               </button>
             </div>
           </div>
 
-          <div className="print-report-container attio-table-container glass-panel">
+          <div className="print-report-container">
             <div className="print-report-header">
               <h2>Stock Group Summary</h2>
-              <p>
-                {formatDateReadable(startDate)} to {formatDateReadable(endDate)}
-              </p>
+              <p className="print-only-range">{formatDateReadable(startDate)} to {formatDateReadable(endDate)}</p>
             </div>
-            
-            <div className="attio-table-wrapper" style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-              <table className="attio-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
+
+            <div className="summary-table-shell">
+              <table className="attio-table stock-summary-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-hover)' }}>
-                    <th rowSpan="2" className="attio-th" style={{ verticalAlign: 'middle', fontWeight: '700', borderRight: '1px solid var(--border-color)' }}>Particulars</th>
-                    <th colSpan="3" className="attio-th" style={{ textAlign: 'center', fontWeight: '700', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', padding: '0.4rem' }}>Opening Balance</th>
-                    <th colSpan="3" className="attio-th" style={{ textAlign: 'center', fontWeight: '700', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', padding: '0.4rem' }}>Inwards</th>
-                    <th colSpan="3" className="attio-th" style={{ textAlign: 'center', fontWeight: '700', borderBottom: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)', padding: '0.4rem' }}>Outwards</th>
-                    <th colSpan="3" className="attio-th" style={{ textAlign: 'center', fontWeight: '700', borderBottom: '1px solid var(--border-color)', padding: '0.4rem' }}>Closing Balance</th>
+                  <tr className="summary-head-groups">
+                    <th rowSpan="2" className="attio-th sticky-col">Particulars</th>
+                    <th colSpan="3" className="attio-th group-head">Opening</th>
+                    <th colSpan="3" className="attio-th group-head">Inwards</th>
+                    <th colSpan="3" className="attio-th group-head">Outwards</th>
+                    <th colSpan="3" className="attio-th group-head last">Closing</th>
                   </tr>
-                  <tr style={{ backgroundColor: 'var(--bg-primary)' }}>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Quantity (g)</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Rate</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-color)' }}>Value</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Quantity (g)</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Rate</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-color)' }}>Value</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Quantity (g)</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Rate</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-color)' }}>Value</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Quantity (g)</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem', borderRight: '1px solid var(--border-light)' }}>Rate</th>
-                    <th className="attio-th" style={{ textAlign: 'right', padding: '0.4rem' }}>Value</th>
+                  <tr className="summary-head-sub">
+                    {Array.from({ length: 4 }).map((_, gi) => (
+                      <React.Fragment key={gi}>
+                        <th className="attio-th num">Qty (g)</th>
+                        <th className="attio-th num">Rate</th>
+                        <th className={`attio-th num${gi < 3 ? ' group-end' : ''}`}>Value</th>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -633,9 +600,9 @@ const StockPage = () => {
                     <SkeletonRows rows={6} cols={13} />
                   ) : summaryData.length === 0 ? (
                     <tr>
-                      <td colSpan="13" className="attio-empty" style={{ textAlign: 'center', padding: '3rem' }}>
+                      <td colSpan="13" className="attio-empty">
                         <Icon name="list" size={36} color="var(--text-tertiary)" />
-                        <span style={{ display: 'block', marginTop: '0.5rem' }}>No summary data matches the chosen date window.</span>
+                        <span>No movements in this period.</span>
                       </td>
                     </tr>
                   ) : (
@@ -648,64 +615,72 @@ const StockPage = () => {
         </div>
       )}
 
-      {/* Opening Balance Modal */}
       {isModalOpen && (
-        <div className="stock-modal-backdrop">
-          <div className="stock-modal-content glass-panel animate-fade-in">
+        <div
+          className="stock-modal-backdrop"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+          role="presentation"
+        >
+          <div className="stock-modal-content" role="dialog" aria-modal="true" aria-labelledby="stock-ob-title">
             <div className="stock-modal-header">
-              <h3>Initialize Opening Stock</h3>
-              <button className="stock-modal-close" onClick={() => setIsModalOpen(false)}>
+              <div>
+                <h3 id="stock-ob-title">Opening stock</h3>
+                <p className="stock-modal-sub">Sets the starting balance for a metal purity.</p>
+              </div>
+              <button type="button" className="stock-modal-close" onClick={closeModal} aria-label="Close">
                 <Icon name="close" size={18} />
               </button>
             </div>
             <form onSubmit={handleModalSubmit} className="stock-modal-form">
-              <div className="form-group">
-                <label>Metal Type</label>
-                <select name="metalType" className="saas-select" value={modalData.metalType} onChange={handleModalChange} required>
-                  <option value="GOLD">Gold</option>
-                  <option value="SILVER">Silver</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Purity</label>
-                {modalData.metalType === 'GOLD' ? (
-                  <select name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
-                    <option value="24K">24K (99.9%)</option>
-                    <option value="22K">22K (91.6%)</option>
-                    <option value="20K">20K (83.3%)</option>
-                    <option value="18K">18K (75.0%)</option>
+              <div className="form-row ob-meta-row">
+                <div className="form-group">
+                  <label htmlFor="ob-metal">Metal</label>
+                  <select id="ob-metal" name="metalType" className="saas-select" value={modalData.metalType} onChange={handleModalChange} required>
+                    <option value="GOLD">Gold</option>
+                    <option value="SILVER">Silver</option>
                   </select>
-                ) : (
-                  <select name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
-                    <option value="F">Fine (99.9% / 99.99%)</option>
-                    <option value="925">Sterling (92.5%)</option>
-                  </select>
-                )}
+                </div>
+                <div className="form-group">
+                  <label htmlFor="ob-purity">Purity</label>
+                  {modalData.metalType === 'GOLD' ? (
+                    <select id="ob-purity" name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
+                      <option value="24K">24K</option>
+                      <option value="22K">22K</option>
+                      <option value="20K">20K</option>
+                      <option value="18K">18K</option>
+                    </select>
+                  ) : (
+                    <select id="ob-purity" name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
+                      <option value="F">Fine (F)</option>
+                      <option value="925">925</option>
+                    </select>
+                  )}
+                </div>
+                <div className="form-group ob-date-group">
+                  <label htmlFor="ob-date">Date</label>
+                  <input id="ob-date" type="date" name="date" className="saas-input" value={modalData.date} onChange={handleModalChange} required />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Date</label>
-                <input type="date" name="date" className="saas-input" value={modalData.date} onChange={handleModalChange} required />
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="ob-qty">Weight (g)</label>
+                  <input id="ob-qty" type="number" step="0.001" name="quantity" className="saas-input" value={modalData.quantity} onChange={handleModalChange} placeholder="0.000" required />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="ob-rate">Rate (₹/g)</label>
+                  <input id="ob-rate" type="number" step="0.01" name="rate" className="saas-input" value={modalData.rate} onChange={handleModalChange} placeholder="0.00" required />
+                </div>
               </div>
-              <div className="form-group">
-                <label>Opening Weight Quantity (g)</label>
-                <input type="number" step="0.001" name="quantity" className="saas-input" value={modalData.quantity} onChange={handleModalChange} placeholder="0.000" required />
-              </div>
-              <div className="form-group">
-                <label>Rate (₹/g)</label>
-                <input type="number" step="0.01" name="rate" className="saas-input" value={modalData.rate} onChange={handleModalChange} placeholder="0.00" required />
-              </div>
-              <div className="form-group">
-                <label>Calculated Value (₹)</label>
-                <input type="text" className="saas-input calculated-input" value={
-                  modalData.quantity && modalData.rate 
-                    ? "₹" + (parseFloat(modalData.quantity) * parseFloat(modalData.rate)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                    : "₹0.00"
-                } disabled />
+              <div className="ob-value-preview">
+                <span>Calculated value</span>
+                <strong>
+                  ₹{modalValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </strong>
               </div>
               <div className="stock-modal-actions">
-                <button type="button" className="attio-secondary-btn" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                <button type="button" className="attio-secondary-btn" onClick={closeModal} disabled={modalLoading}>Cancel</button>
                 <button type="submit" className="attio-primary-btn" disabled={modalLoading}>
-                  {modalLoading ? 'Saving...' : 'Initialize'}
+                  {modalLoading ? 'Saving…' : 'Save opening'}
                 </button>
               </div>
             </form>

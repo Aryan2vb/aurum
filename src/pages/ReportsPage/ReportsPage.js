@@ -334,20 +334,34 @@ const RENDERERS = {
 };
 
 /* ── Date filter bar ── */
+/** Local YYYY-MM-DD — never use toISOString() (UTC shift breaks IST ranges). */
+const toDateInput = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const PRESETS = [
   { label: 'This Month', getValue: () => {
     const now = new Date();
-    return { dateFrom: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10), dateTo: now.toISOString().slice(0,10) };
+    return {
+      dateFrom: toDateInput(new Date(now.getFullYear(), now.getMonth(), 1)),
+      dateTo: toDateInput(now),
+    };
   }},
   { label: 'Last Month', getValue: () => {
     const now = new Date();
     const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const last  = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { dateFrom: first.toISOString().slice(0,10), dateTo: last.toISOString().slice(0,10) };
+    const last = new Date(now.getFullYear(), now.getMonth(), 0); // last day of previous month
+    return { dateFrom: toDateInput(first), dateTo: toDateInput(last) };
   }},
   { label: 'This Year', getValue: () => {
     const now = new Date();
-    return { dateFrom: `${now.getFullYear()}-01-01`, dateTo: now.toISOString().slice(0,10) };
+    return {
+      dateFrom: `${now.getFullYear()}-01-01`,
+      dateTo: toDateInput(now),
+    };
   }},
 ];
 
