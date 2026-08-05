@@ -107,7 +107,7 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
       label: 'Finance',
       iconName: 'book',
       items: [
-        { iconName: 'book', label: 'Cash & Bank', path: '/books', color: '#0f766e' },
+        { iconName: 'book', label: 'Cash & Bank Book', path: '/books', color: '#0f766e' },
         { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#64748b' },
       ],
     },

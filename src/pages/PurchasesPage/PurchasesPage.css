@@ -207,6 +207,7 @@
 
 .purchase-entry-grid.simple-grid {
   width: 100%;
+  min-width: 920px;
   border-collapse: collapse;
   table-layout: fixed; /* Ensures specified column structural widths are locked */
 }
@@ -674,6 +675,15 @@
   border-top: none;
   background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
   border-radius: 8px;
+}
+
+.fin-adjustment-row {
+  align-items: center;
+}
+
+.fin-adjustment-input {
+  width: 7rem;
+  max-width: 45%;
 }
 
 .fin-label-bold {
@@ -2314,7 +2324,7 @@
 /* Purchase history summary strip */
 .purchase-stats-row {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0;
   overflow: hidden;
   background: var(--bg-secondary);
@@ -2368,11 +2378,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .purchase-stats-row .purchase-stat:nth-child(2) {
+  .purchase-stats-row .purchase-stat:nth-child(2n) {
     border-right: 0;
   }
 
-  .purchase-stats-row .purchase-stat:nth-child(-n + 2) {
+  .purchase-stats-row .purchase-stat:nth-child(-n + 4) {
     border-bottom: 1px solid var(--border-light);
   }
 }

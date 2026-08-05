@@ -24,8 +24,14 @@
 .books-modal p,
 .unassigned-banner p { margin: 5px 0 0; color: var(--books-muted); font-size: 13px; }
 
-.books-actions,
-.assign-controls { display: flex; gap: 10px; }
+.books-actions {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  align-items: center;
+  padding-bottom: 2px;
+}
+.assign-controls { display: flex; gap: 10px; align-items: center; }
 .books-page button,
 .books-page select,
 .books-page input,
@@ -45,6 +51,7 @@
 
 .books-tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
   margin: 22px 0 16px;
   border-bottom: 1px solid var(--books-border);
@@ -141,20 +148,6 @@
 .link-button { color: #0f766e; }
 .empty-row { padding: 40px !important; color: var(--books-muted); text-align: center; }
 
-.books-notice {
-  display: flex;
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  justify-content: space-between;
-  border: 1px solid #a7f3d0;
-  border-radius: 7px;
-  background: #ecfdf5;
-  color: #065f46;
-  font-size: 13px;
-}
-.books-notice.error { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
-.books-notice button { border: 0; background: transparent; color: inherit; }
-
 .books-modal-backdrop {
   position: fixed;
   z-index: 1000;
@@ -214,6 +207,9 @@
 .reconcile .ledger-scroll select {
   min-width: 220px;
   max-width: 320px;
+}
+.linked-invoice {
+  font-weight: 600;
 }
 
 @media (max-width: 700px) {

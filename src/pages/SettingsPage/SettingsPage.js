@@ -12,6 +12,13 @@ import {
   upsertInvoiceSettings,
   getInvoiceSettingsPreviewUrl,
 } from '../../services/invoicesService';
+import {
+  getMetalPurities,
+  createMetalPurity,
+  updateMetalPurity,
+  hideMetalPurity,
+} from '../../services/metalPuritiesService';
+import { puritiesForMetal } from '../../utils/metalPurities';
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
@@ -28,6 +35,11 @@ const SettingsPage = () => {
   const [role, setRole] = useState('STAFF');
   const [formStatus, setFormStatus] = useState({ loading: false, error: null, success: null });
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [metalPurities, setMetalPurities] = useState([]);
+  const [metalPuritiesLoading, setMetalPuritiesLoading] = useState(false);
+  const [showHiddenPurities, setShowHiddenPurities] = useState(false);
+  const [newPurityLabel, setNewPurityLabel] = useState({ GOLD: '', SILVER: '' });
+  const [purityStatus, setPurityStatus] = useState({ loading: false, error: null, success: null });
   const [invoiceSettingsLoading, setInvoiceSettingsLoading] = useState(false);
   const [invoiceSettingsForm, setInvoiceSettingsForm] = useState({
     companyName: '',
@@ -68,14 +80,95 @@ const SettingsPage = () => {
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
+    fetchMetalPurities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (window.location.hash === '#metal-purities') {
+      const el = document.getElementById('metal-purities');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [metalPuritiesLoading]);
 
   const fetchMembers = async () => {
     setLoadingMembers(true);
     try { setMembers((await getOrganizationMembers()) || []); }
     catch (e) { console.error(e); }
     finally { setLoadingMembers(false); }
+  };
+
+  const fetchMetalPurities = async () => {
+    setMetalPuritiesLoading(true);
+    try {
+      const rows = await getMetalPurities(true);
+      setMetalPurities(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      console.error(e);
+      setPurityStatus({ loading: false, error: e.message || 'Failed to load purities', success: null });
+    } finally {
+      setMetalPuritiesLoading(false);
+    }
+  };
+
+  const handleAddPurity = async (metalType) => {
+    const label = (newPurityLabel[metalType] || '').trim();
+    if (!label) return;
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await createMetalPurity({ metalType, label });
+      setNewPurityLabel((prev) => ({ ...prev, [metalType]: '' }));
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Added ${label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to add', success: null });
+    }
+  };
+
+  const handleHidePurity = async (row) => {
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await hideMetalPurity(row.id);
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Hidden ${row.label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to hide', success: null });
+    }
+  };
+
+  const handleRestorePurity = async (row) => {
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await updateMetalPurity(row.id, { isActive: true });
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Restored ${row.label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to restore', success: null });
+    }
+  };
+
+  const handleMovePurity = async (metalType, index, direction) => {
+    const rows = puritiesForMetal(metalPurities, metalType, {
+      includeInactive: showHiddenPurities,
+    });
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= rows.length) return;
+    const a = rows[index];
+    const b = rows[swapIndex];
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await Promise.all([
+        updateMetalPurity(a.id, { sortOrder: b.sortOrder }),
+        updateMetalPurity(b.id, { sortOrder: a.sortOrder }),
+      ]);
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: null });
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to reorder', success: null });
+    }
   };
 
   const handleRoleChange = async (id, r) => {
@@ -319,6 +412,132 @@ const SettingsPage = () => {
             </div>
           </section>
         )}
+
+        {/* ────────── METALS & PURITIES ────────── */}
+        <section className="settings-section" id="metal-purities">
+          <div className="s-card">
+            <div className="s-card-header">
+              <div>
+                <div className="s-card-title">Metals &amp; Purities</div>
+                <div className="s-card-subtitle">
+                  Labels used on invoices, purchases, and stock. Hide removes from new entries only.
+                </div>
+              </div>
+              <label className="purity-show-hidden">
+                <input
+                  type="checkbox"
+                  checked={showHiddenPurities}
+                  onChange={(e) => setShowHiddenPurities(e.target.checked)}
+                />
+                Show hidden
+              </label>
+            </div>
+
+            {(purityStatus.error || purityStatus.success) && (
+              <div className={`purity-status ${purityStatus.error ? 'is-error' : 'is-ok'}`}>
+                {purityStatus.error || purityStatus.success}
+              </div>
+            )}
+
+            {metalPuritiesLoading ? (
+              <div className="m-empty">Loading purities…</div>
+            ) : (
+              <div className="purity-metal-grid">
+                {['GOLD', 'SILVER'].map((metalType) => {
+                  const rows = puritiesForMetal(metalPurities, metalType, {
+                    includeInactive: showHiddenPurities,
+                  }).filter((r) => showHiddenPurities || r.isActive !== false);
+                  return (
+                    <div key={metalType} className="purity-metal-col">
+                      <div className="purity-metal-title">{metalType}</div>
+                      <ul className="purity-list">
+                        {rows.length === 0 ? (
+                          <li className="purity-empty">No purities yet</li>
+                        ) : (
+                          rows.map((row, index) => (
+                            <li
+                              key={row.id}
+                              className={`purity-row${!row.isActive ? ' is-hidden' : ''}`}
+                            >
+                              <span className="purity-label">{row.label}</span>
+                              <div className="purity-actions">
+                                <button
+                                  type="button"
+                                  className="s-btn s-btn-ghost purity-sort-btn"
+                                  disabled={purityStatus.loading || index === 0}
+                                  onClick={() => handleMovePurity(metalType, index, -1)}
+                                  aria-label="Move up"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="s-btn s-btn-ghost purity-sort-btn"
+                                  disabled={purityStatus.loading || index === rows.length - 1}
+                                  onClick={() => handleMovePurity(metalType, index, 1)}
+                                  aria-label="Move down"
+                                >
+                                  ↓
+                                </button>
+                                {row.isActive ? (
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-ghost"
+                                    disabled={purityStatus.loading}
+                                    onClick={() => handleHidePurity(row)}
+                                  >
+                                    Hide
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-primary"
+                                    disabled={purityStatus.loading}
+                                    onClick={() => handleRestorePurity(row)}
+                                  >
+                                    Restore
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                      <div className="purity-add-row">
+                        <input
+                          type="text"
+                          className="purity-add-input"
+                          placeholder={metalType === 'GOLD' ? 'e.g. 22K' : 'e.g. fancy'}
+                          value={newPurityLabel[metalType]}
+                          onChange={(e) =>
+                            setNewPurityLabel((prev) => ({
+                              ...prev,
+                              [metalType]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPurity(metalType);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="s-btn s-btn-primary"
+                          disabled={purityStatus.loading || !(newPurityLabel[metalType] || '').trim()}
+                          onClick={() => handleAddPurity(metalType)}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* ────────── INVOICE SETTINGS ────────── */}
         {can('admin') && (

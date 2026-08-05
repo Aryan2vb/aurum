@@ -364,13 +364,15 @@ const PurchaseDetailSlideOver = ({
                       <th>Metal</th>
                       <th>Wt</th>
                       <th>Rate</th>
+                      <th className="num">HM</th>
+                      <th className="num">Other</th>
                       <th className="num">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="pds-empty">No line items</td>
+                        <td colSpan={7} className="pds-empty">No line items</td>
                       </tr>
                     ) : (
                       items.map((item) => (
@@ -382,6 +384,8 @@ const PurchaseDetailSlideOver = ({
                           <td>{item.metalType}</td>
                           <td>{fmtWeight(item.netWeight)}</td>
                           <td>{fmtAmt(item.rate)}</td>
+                          <td className="num">{num(item.hallmarkingCharge) > 0 ? fmtAmt(item.hallmarkingCharge) : '—'}</td>
+                          <td className="num">{num(item.otherCharges) > 0 ? fmtAmt(item.otherCharges) : '—'}</td>
                           <td className="num">{fmtAmt(item.totalAmount)}</td>
                         </tr>
                       ))
@@ -398,6 +402,18 @@ const PurchaseDetailSlideOver = ({
             <section className="pds-section">
               <div className="pds-section-title">Tax & totals</div>
               <div className="pds-summary">
+                {num(purchase.totalHallmarkingCharges) > 0 && (
+                  <div className="pds-sum-row">
+                    <span>Hallmarking</span>
+                    <span>{fmtAmt(purchase.totalHallmarkingCharges)}</span>
+                  </div>
+                )}
+                {num(purchase.totalOtherCharges) > 0 && (
+                  <div className="pds-sum-row">
+                    <span>Other charges</span>
+                    <span>{fmtAmt(purchase.totalOtherCharges)}</span>
+                  </div>
+                )}
                 <div className="pds-sum-row">
                   <span>Taxable</span>
                   <span>{fmtAmt(purchase.taxableAmount)}</span>
@@ -418,6 +434,12 @@ const PurchaseDetailSlideOver = ({
                   <div className="pds-sum-row">
                     <span>IGST ({purchase.igstRate}%)</span>
                     <span>{fmtAmt(purchase.igstAmount)}</span>
+                  </div>
+                )}
+                {num(purchase.adjustment) !== 0 && (
+                  <div className="pds-sum-row">
+                    <span>Adjustment</span>
+                    <span>{fmtAmt(purchase.adjustment)}</span>
                   </div>
                 )}
                 <div className="pds-sum-row total">

@@ -1,5 +1,6 @@
 import {
   bankAccounts,
+  getPaymentAccountError,
   paymentNeedsBankAccount,
   withFinancialAccount,
 } from './paymentAccounts';
@@ -27,5 +28,13 @@ describe('payment account rules', () => {
       { id: 'inactive', type: 'BANK', isActive: false },
     ];
     expect(bankAccounts(accounts).map((account) => account.id)).toEqual(['active']);
+  });
+
+  it('flags non-cash payments missing a bank account', () => {
+    expect(getPaymentAccountError([{ mode: 'CASH', amount: 100 }])).toBe('');
+    expect(getPaymentAccountError([{ mode: 'UPI', amount: 100 }])).toMatch(/bank account/i);
+    expect(
+      getPaymentAccountError([{ mode: 'UPI', amount: 100, financialAccountId: 'bank-1' }]),
+    ).toBe('');
   });
 });

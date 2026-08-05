@@ -80,6 +80,17 @@
   margin-bottom: 0.65rem;
 }
 
+.stock-balances-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.stock-balances-actions a.attio-secondary-btn {
+  text-decoration: none;
+}
+
 .stock-inline-error {
   display: flex;
   align-items: center;
@@ -159,6 +170,28 @@
 
 .stock-balance-table .negative-row {
   background: color-mix(in srgb, var(--error) 7%, transparent);
+}
+
+.stock-balance-table th.actions-col,
+.stock-balance-table td.balance-actions {
+  width: 1%;
+  padding-left: 0.35rem;
+  padding-right: 0.5rem;
+  text-align: right;
+}
+
+.stock-balance-table .balance-edit {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #0f766e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stock-balance-table .balance-edit:hover {
+  text-decoration: underline;
 }
 
 .balance-item {

@@ -9,13 +9,18 @@ import {
   getFinanceBook,
   getFinancialAccounts,
   getUnassignedMovements,
+  getMatchedBankCredits,
   getUnmatchedBankCredits,
+  getUnmatchedBankPayments,
+  deleteBankStatementLine,
   ignoreBankStatementLine,
   matchBankStatementLine,
+  unmatchBankStatementLine,
   updateFinancialAccount,
   uploadBankStatement,
 } from '../../services/financeService';
 import { clearPaymentAccountCache } from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
+import Toast from '../../components/atoms/Toast/Toast';
 import './BooksPage.css';
 
 const TYPES = ['CASH', 'BANK'];
@@ -28,7 +33,7 @@ const CREATE_ACCOUNT_FIELDS = [
   'type', 'name', 'bankName', 'accountNumber', 'ifsc', 'notes', 'openingBalance', 'openingDate',
 ];
 const UPDATE_ACCOUNT_FIELDS = [
-  'name', 'bankName', 'accountNumber', 'ifsc', 'notes',
+  'name', 'bankName', 'accountNumber', 'ifsc', 'notes', 'openingBalance', 'openingDate',
 ];
 const today = () => new Date().toISOString().slice(0, 10);
 const money = (value) =>
@@ -66,17 +71,19 @@ const BooksPage = () => {
   const [activeView, setActiveView] = useState('book');
   const [unassigned, setUnassigned] = useState([]);
   const [selectedMovementIds, setSelectedMovementIds] = useState([]);
+  const [selectedCreditIds, setSelectedCreditIds] = useState([]);
   const [assignAccountId, setAssignAccountId] = useState('');
   const [reconcileAccountId, setReconcileAccountId] = useState('');
   const [unmatchedCredits, setUnmatchedCredits] = useState([]);
+  const [unmatchedPayments, setUnmatchedPayments] = useState([]);
+  const [linkedCredits, setLinkedCredits] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState({});
   const [accountForm, setAccountForm] = useState(null);
   const [entryForm, setEntryForm] = useState(null);
   const [editingAccountId, setEditingAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
   const fileInputRef = useRef(null);
   const loadAccounts = useCallback(async () => {
     const data = await getFinancialAccounts();
@@ -99,11 +106,11 @@ const BooksPage = () => {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setToast(null);
     try {
       await Promise.all([loadAccounts(), loadBook(), loadLedger()]);
     } catch (err) {
-      setError(err.message || 'Could not load finance books');
+      setToast({ type: 'error', message: err.message || 'Could not load finance books' });
     } finally {
       setLoading(false);
     }
@@ -115,18 +122,25 @@ const BooksPage = () => {
     if (activeView !== 'unassigned') return;
     getUnassignedMovements()
       .then((data) => setUnassigned(list(data, ['movements', 'entries', 'rows'])))
-      .catch((err) => setError(err.message || 'Could not load unassigned movements'));
+      .catch((err) => setToast({ type: 'error', message: err.message || 'Could not load unassigned movements' }));
   }, [activeView]);
 
   const loadUnmatched = useCallback(async (accountId = reconcileAccountId) => {
-    const data = await getUnmatchedBankCredits(accountId || undefined);
-    const rows = list(data, ['lines', 'entries', 'rows']);
+    const id = accountId || undefined;
+    const [creditData, paymentData, linkedData] = await Promise.all([
+      getUnmatchedBankCredits(id),
+      getUnmatchedBankPayments(id),
+      getMatchedBankCredits(id),
+    ]);
+    const rows = list(creditData, ['lines', 'entries', 'rows']);
     setUnmatchedCredits(rows);
+    setUnmatchedPayments(list(paymentData, ['payments', 'entries', 'rows']));
+    setLinkedCredits(list(linkedData, ['lines', 'entries', 'rows']));
     setSelectedMatch((prev) => {
       const next = { ...prev };
       rows.forEach((row) => {
-        if (!next[row.id] && row.suggestions?.[0]?.invoiceId) {
-          next[row.id] = row.suggestions[0].invoiceId;
+        if (!next[row.id] && row.suggestions?.[0]?.paymentId) {
+          next[row.id] = row.suggestions[0].paymentId;
         }
       });
       return next;
@@ -135,7 +149,7 @@ const BooksPage = () => {
 
   useEffect(() => {
     if (activeView !== 'reconcile') return;
-    loadUnmatched().catch((err) => setError(err.message || 'Could not load unmatched credits'));
+    loadUnmatched().catch((err) => setToast({ type: 'error', message: err.message || 'Could not load reconcile inbox' }));
   }, [activeView, loadUnmatched]);
 
   const bankAccounts = useMemo(
@@ -152,7 +166,14 @@ const BooksPage = () => {
   const openAccount = (account) => {
     if (account) {
       setEditingAccountId(account.id);
-      setAccountForm({ ...emptyAccount(account.type), ...account });
+      setAccountForm({
+        ...emptyAccount(account.type),
+        ...account,
+        openingBalance: account.openingBalance ?? '',
+        openingDate: account.openingDate
+          ? String(account.openingDate).slice(0, 10)
+          : today(),
+      });
     } else {
       setEditingAccountId('');
       setAccountForm(emptyAccount(type));
@@ -162,7 +183,7 @@ const BooksPage = () => {
   const handleUploadClick = () => {
     const accountId = reconcileAccountId || selectedAccountId || bankAccounts[0]?.id;
     if (!accountId) {
-      setError('Create or select a bank account before uploading a statement');
+      setToast({ type: 'error', message: 'Create or select a bank account before uploading a statement' });
       return;
     }
     setReconcileAccountId(accountId);
@@ -175,24 +196,26 @@ const BooksPage = () => {
     if (!file) return;
     const accountId = reconcileAccountId || selectedAccountId || bankAccounts[0]?.id;
     if (!accountId) {
-      setError('Create or select a bank account before uploading a statement');
+      setToast({ type: 'error', message: 'Create or select a bank account before uploading a statement' });
       return;
     }
     setSaving(true);
-    setError('');
+    setToast(null);
     try {
       const result = await uploadBankStatement(accountId, file);
       setReconcileAccountId(accountId);
       setActiveView('reconcile');
-      setMessage(
+      setToast({
+        type: 'success',
+        message:
         `Imported ${result.imported ?? 0} new rows`
         + ` (${result.skipped ?? 0} duplicates skipped)`
         + ` — ${result.credits ?? 0} credits / ${result.debits ?? 0} debits`,
-      );
+      });
       await loadUnmatched(accountId);
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not upload statement');
+      setToast({ type: 'error', message: err.message || 'Could not upload statement' });
     } finally {
       setSaving(false);
     }
@@ -200,33 +223,91 @@ const BooksPage = () => {
 
   const ignoreCredit = async (lineId) => {
     setSaving(true);
-    setError('');
+    setToast(null);
     try {
       await ignoreBankStatementLine(lineId);
       setUnmatchedCredits((rows) => rows.filter((row) => row.id !== lineId));
-      setMessage('Credit ignored');
+      setToast({ type: 'success', message: 'Credit ignored' });
     } catch (err) {
-      setError(err.message || 'Could not ignore line');
+      setToast({ type: 'error', message: err.message || 'Could not ignore line' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteCredit = async (lineId) => {
+    if (!window.confirm('Delete this statement line? This cannot be undone.')) return;
+    setSaving(true);
+    setToast(null);
+    try {
+      await deleteBankStatementLine(lineId);
+      setUnmatchedCredits((rows) => rows.filter((row) => row.id !== lineId));
+      setSelectedCreditIds((ids) => ids.filter((id) => id !== lineId));
+      setToast({ type: 'success', message: 'Statement line deleted' });
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not delete line' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteSelectedCredits = async () => {
+    const ids = selectedCreditIds;
+    if (!ids.length) return;
+    const label = `${ids.length} statement line${ids.length === 1 ? '' : 's'}`;
+    if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return;
+    setSaving(true);
+    setToast(null);
+    try {
+      await Promise.all(ids.map((id) => deleteBankStatementLine(id)));
+      setUnmatchedCredits((rows) => rows.filter((row) => !ids.includes(row.id)));
+      setSelectedCreditIds([]);
+      setToast({ type: 'success', message: `Deleted ${ids.length} statement line${ids.length === 1 ? '' : 's'}` });
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not delete selected lines' });
+      await loadUnmatched();
+      setSelectedCreditIds([]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const unlinkCredit = async (lineId) => {
+    if (!window.confirm('Unlink this matched credit? The payment will show as unmatched again.')) return;
+    setSaving(true);
+    setToast(null);
+    try {
+      await unmatchBankStatementLine(lineId);
+      setLinkedCredits((rows) => rows.filter((row) => row.id !== lineId));
+      setToast({ type: 'success', message: 'Credit unlinked' });
+      await loadUnmatched();
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not unlink credit' });
     } finally {
       setSaving(false);
     }
   };
 
   const confirmCredit = async (line) => {
-    const invoiceId = selectedMatch[line.id] || line.suggestions?.[0]?.invoiceId;
-    if (!invoiceId) {
-      setError('Pick an invoice suggestion before confirming');
+    const paymentId = selectedMatch[line.id] || line.suggestions?.[0]?.paymentId;
+    if (!paymentId) {
+      setToast({ type: 'error', message: 'Pick a booked payment before confirming' });
       return;
     }
     setSaving(true);
-    setError('');
+    setToast(null);
     try {
-      await matchBankStatementLine(line.id, invoiceId);
+      const result =       await matchBankStatementLine(line.id, paymentId);
       setUnmatchedCredits((rows) => rows.filter((row) => row.id !== line.id));
-      setMessage(`Matched ${money(line.credit)} to invoice`);
+      setUnmatchedPayments((rows) => rows.filter((row) => row.paymentId !== paymentId));
+      setToast({
+        type: 'success',
+        message: `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'} (no new payment created)`,
+      });
+      await loadUnmatched();
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not match payment');
+      setToast({ type: 'error', message: err.message || 'Could not link payment' });
     } finally {
       setSaving(false);
     }
@@ -235,11 +316,11 @@ const BooksPage = () => {
   const saveAccount = async (event) => {
     event.preventDefault();
     setSaving(true);
-    setError('');
+    setToast(null);
     try {
       const fields = editingAccountId ? UPDATE_ACCOUNT_FIELDS : CREATE_ACCOUNT_FIELDS;
       const payload = Object.fromEntries(fields
-        .filter((key) => accountForm[key] !== '')
+        .filter((key) => accountForm[key] !== '' && accountForm[key] != null)
         .map((key) => [
           key,
           key === 'openingBalance' ? Number(accountForm[key]) : accountForm[key],
@@ -248,10 +329,10 @@ const BooksPage = () => {
       else await createFinancialAccount(payload);
       clearPaymentAccountCache();
       setAccountForm(null);
-      setMessage(editingAccountId ? 'Account updated' : 'Account created');
+      setToast({ type: 'success', message: editingAccountId ? 'Account updated' : 'Account created' });
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not save account');
+      setToast({ type: 'error', message: err.message || 'Could not save account' });
     } finally {
       setSaving(false);
     }
@@ -293,14 +374,14 @@ const BooksPage = () => {
     event.preventDefault();
     if (!Number(entryForm.amount)) return;
     setSaving(true);
-    setError('');
+    setToast(null);
     try {
       await createFinanceTransaction(entryPayload());
       setEntryForm(null);
-      setMessage('Entry recorded');
+      setToast({ type: 'success', message: 'Entry recorded' });
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not record entry');
+      setToast({ type: 'error', message: err.message || 'Could not record entry' });
     } finally {
       setSaving(false);
     }
@@ -312,7 +393,7 @@ const BooksPage = () => {
       await deleteFinanceTransaction(row.transactionId || row.id);
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not delete entry');
+      setToast({ type: 'error', message: err.message || 'Could not delete entry' });
     }
   };
 
@@ -323,10 +404,10 @@ const BooksPage = () => {
       await assignUnassignedMovements(ids, assignAccountId);
       setUnassigned((current) => current.filter((row) => !ids.includes(row.id)));
       setSelectedMovementIds([]);
-      setMessage(`${ids.length} movement${ids.length === 1 ? '' : 's'} assigned`);
+      setToast({ type: 'success', message: `${ids.length} movement${ids.length === 1 ? '' : 's'} assigned` });
       await refresh();
     } catch (err) {
-      setError(err.message || 'Could not assign movements');
+      setToast({ type: 'error', message: err.message || 'Could not assign movements' });
     } finally {
       setSaving(false);
     }
@@ -338,34 +419,8 @@ const BooksPage = () => {
 
   return (
     <DashboardTemplate headerTitle="Cash & Bank" headerTabs={[]}>
+      {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
       <main className="books-page">
-        {(message || error) && (
-          <div className={`books-notice ${error ? 'error' : ''}`}>
-            {error || message}
-            <button onClick={() => { setError(''); setMessage(''); }} aria-label="Dismiss">×</button>
-          </div>
-        )}
-
-        <header className="books-toolbar">
-          <div>
-            <h1>Cash & bank</h1>
-            <p>Balances and movements across your cash and bank accounts.</p>
-          </div>
-          <div className="books-actions">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".txt,text/plain"
-              hidden
-              onChange={handleStatementFile}
-            />
-            <button className="secondary" type="button" onClick={handleUploadClick} disabled={saving}>
-              Upload statement
-            </button>
-            <button className="secondary" onClick={() => openAccount()}>Manage accounts</button>
-            <button className="primary" onClick={() => setEntryForm(emptyEntry())}>+ New entry</button>
-          </div>
-        </header>
 
         <nav className="books-tabs" aria-label="Finance views">
           {TYPES.map((item) => (
@@ -386,6 +441,20 @@ const BooksPage = () => {
           <button className={activeView === 'unassigned' ? 'active' : ''} onClick={() => setActiveView('unassigned')}>
             Unassigned{unassigned.length ? ` (${unassigned.length})` : ''}
           </button>
+          <div className="books-actions">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,text/plain"
+              hidden
+              onChange={handleStatementFile}
+            />
+            <button className="secondary" type="button" onClick={handleUploadClick} disabled={saving}>
+              Upload statement
+            </button>
+            <button className="secondary" onClick={() => openAccount()}>Manage accounts</button>
+            <button className="primary" onClick={() => setEntryForm(emptyEntry())}>+ New entry</button>
+          </div>
         </nav>
 
         {activeView === 'book' ? (
@@ -453,19 +522,33 @@ const BooksPage = () => {
           <section className="books-ledger reconcile">
             <div className="unassigned-banner">
               <div>
-                <h2>Unmatched bank credits</h2>
-                <p>Upload HDFC Delimited (.txt) daily, then confirm invoice matches. Debits are stored but not matched here.</p>
+                <h2>Month-end bank check</h2>
+                <p>
+                  Link statement credits to payments already booked on invoices (UPI / bank / card).
+                  Confirm only links — it never creates a second payment. Debits are stored but not matched here.
+                </p>
               </div>
               <div className="assign-controls">
                 <select
                   value={reconcileAccountId}
-                  onChange={(e) => setReconcileAccountId(e.target.value)}
+                  onChange={(e) => {
+                    setReconcileAccountId(e.target.value);
+                    setSelectedCreditIds([]);
+                  }}
                 >
                   <option value="">All bank accounts</option>
                   {bankAccounts.map((account) => (
                     <option key={account.id} value={account.id}>{accountName(account)}</option>
                   ))}
                 </select>
+                <button
+                  className="link-button delete-entry"
+                  type="button"
+                  disabled={!selectedCreditIds.length || saving}
+                  onClick={deleteSelectedCredits}
+                >
+                  Delete selected
+                </button>
                 <button className="secondary" type="button" onClick={handleUploadClick} disabled={saving}>
                   Upload statement
                 </button>
@@ -475,17 +558,35 @@ const BooksPage = () => {
               <table>
                 <thead>
                   <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={unmatchedCredits.length > 0 && selectedCreditIds.length === unmatchedCredits.length}
+                        onChange={(e) => setSelectedCreditIds(
+                          e.target.checked ? unmatchedCredits.map((row) => row.id) : [],
+                        )}
+                      />
+                    </th>
                     <th>Date</th>
                     <th>Narration</th>
                     <th>Ref</th>
                     <th className="amount">Credit</th>
-                    <th>Suggested invoice</th>
+                    <th>Booked payment</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
                   {unmatchedCredits.map((row) => (
                     <tr key={row.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedCreditIds.includes(row.id)}
+                          onChange={(e) => setSelectedCreditIds((ids) => (
+                            e.target.checked ? [...ids, row.id] : ids.filter((id) => id !== row.id)
+                          ))}
+                        />
+                      </td>
                       <td>{String(row.txnDate || '').slice(0, 10)}</td>
                       <td className="narration-cell">{row.narration || '—'}</td>
                       <td>{row.refNumber || '—'}</td>
@@ -495,14 +596,19 @@ const BooksPage = () => {
                           value={selectedMatch[row.id] || ''}
                           onChange={(e) => setSelectedMatch((m) => ({ ...m, [row.id]: e.target.value }))}
                         >
-                          <option value="">Select invoice…</option>
+                          <option value="">Select payment…</option>
                           {(row.suggestions || []).map((suggestion) => (
-                            <option key={suggestion.invoiceId} value={suggestion.invoiceId}>
+                            <option key={suggestion.paymentId} value={suggestion.paymentId}>
                               {suggestion.invoiceNumber}
                               {' · '}
                               {suggestion.customerName}
                               {' · '}
-                              {money(suggestion.remainingBalance)}
+                              {suggestion.mode}
+                              {' · '}
+                              {money(suggestion.amount)}
+                              {' · '}
+                              {String(suggestion.paidAt || '').slice(0, 10)}
+                              {suggestion.invoiceStatus ? ` · ${suggestion.invoiceStatus}` : ''}
                             </option>
                           ))}
                         </select>
@@ -511,21 +617,119 @@ const BooksPage = () => {
                         <button
                           className="primary"
                           type="button"
-                          disabled={saving || !(selectedMatch[row.id] || row.suggestions?.[0]?.invoiceId)}
+                          disabled={saving || !(selectedMatch[row.id] || row.suggestions?.[0]?.paymentId)}
                           onClick={() => confirmCredit(row)}
                         >
-                          Confirm
+                          Link
                         </button>
                         <button className="link-button" type="button" disabled={saving} onClick={() => ignoreCredit(row.id)}>
                           Ignore
+                        </button>
+                        <button className="link-button delete-entry" type="button" disabled={saving} onClick={() => deleteCredit(row.id)}>
+                          Delete
                         </button>
                       </td>
                     </tr>
                   ))}
                   {!unmatchedCredits.length && (
                     <tr>
-                      <td colSpan="6" className="empty-row">
-                        No unmatched credits. Upload an HDFC delimited statement to begin.
+                      <td colSpan="7" className="empty-row">
+                        No unmatched bank credits. Upload an HDFC delimited statement to begin.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="unassigned-banner" style={{ marginTop: 24 }}>
+              <div>
+                <h2>Booked payments not on statement yet</h2>
+                <p>Non-cash payments in Aurum that still need a bank credit link (last 120 days).</p>
+              </div>
+            </div>
+            <div className="ledger-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Paid</th>
+                    <th>Invoice</th>
+                    <th>Customer</th>
+                    <th>Mode</th>
+                    <th>Ref</th>
+                    <th className="amount">Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unmatchedPayments.map((row) => (
+                    <tr key={row.paymentId}>
+                      <td>{String(row.paidAt || '').slice(0, 10)}</td>
+                      <td>{row.invoiceNumber || '—'}</td>
+                      <td>{row.customerName || '—'}</td>
+                      <td>{row.mode || '—'}</td>
+                      <td>{row.reference || '—'}</td>
+                      <td className="amount">{money(row.amount)}</td>
+                      <td>{row.invoiceStatus || '—'}</td>
+                    </tr>
+                  ))}
+                  {!unmatchedPayments.length && (
+                    <tr>
+                      <td colSpan="7" className="empty-row">
+                        All recent non-cash payments are linked, or none exist yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="unassigned-banner" style={{ marginTop: 24 }}>
+              <div>
+                <h2>Linked{linkedCredits.length ? ` (${linkedCredits.length})` : ''}</h2>
+                <p>Statement credits already matched to booked invoice payments.</p>
+              </div>
+            </div>
+            <div className="ledger-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Bank date</th>
+                    <th>Narration</th>
+                    <th>Bank ref</th>
+                    <th className="amount">Credit</th>
+                    <th>Invoice</th>
+                    <th>Customer</th>
+                    <th>Mode</th>
+                    <th>Paid</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedCredits.map((row) => (
+                    <tr key={row.id}>
+                      <td>{String(row.txnDate || '').slice(0, 10)}</td>
+                      <td className="narration-cell">{row.narration || '—'}</td>
+                      <td>{row.refNumber || '—'}</td>
+                      <td className="amount in">{money(row.credit)}</td>
+                      <td>
+                        <span className="linked-invoice">{row.invoiceNumber || '—'}</span>
+                        {row.invoiceStatus ? <small className="automatic">{row.invoiceStatus}</small> : null}
+                      </td>
+                      <td>{row.customerName || '—'}</td>
+                      <td>{row.mode || '—'}</td>
+                      <td>{String(row.paidAt || '').slice(0, 10) || '—'}</td>
+                      <td className="reconcile-actions">
+                        <button className="link-button delete-entry" type="button" disabled={saving} onClick={() => unlinkCredit(row.id)}>
+                          Unlink
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!linkedCredits.length && (
+                    <tr>
+                      <td colSpan="9" className="empty-row">
+                        No linked credits yet. Link a bank credit above to see it here.
                       </td>
                     </tr>
                   )}
@@ -579,7 +783,7 @@ const BooksPage = () => {
                   <label>IFSC<input value={accountForm.ifsc} onChange={(e) => setAccountForm((f) => ({ ...f, ifsc: e.target.value.toUpperCase() }))} /></label>
                 </>}
                 <label>Opening balance<input type="number" step="0.01" value={accountForm.openingBalance} onChange={(e) => setAccountForm((f) => ({ ...f, openingBalance: e.target.value }))} /></label>
-                {!editingAccountId && <label>Opened on<input type="date" value={accountForm.openingDate} onChange={(e) => setAccountForm((f) => ({ ...f, openingDate: e.target.value }))} /></label>}
+                <label>Opened on<input type="date" value={accountForm.openingDate} onChange={(e) => setAccountForm((f) => ({ ...f, openingDate: e.target.value }))} /></label>
                 <label className="wide">Notes<textarea value={accountForm.notes} onChange={(e) => setAccountForm((f) => ({ ...f, notes: e.target.value }))} /></label>
               </div>
               <footer><button type="button" className="secondary" onClick={() => setAccountForm(null)}>Cancel</button><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save account'}</button></footer>

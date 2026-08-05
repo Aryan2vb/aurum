@@ -5,6 +5,11 @@ import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
 import { buildExportFilename } from '../../../utils/exportFilename';
 import { flattenInvoiceDataByPayment } from '../../../utils/exportUtils';
+import {
+  appendInvoicePeriodSummaryPage,
+  fetchInvoicePeriodSummary,
+  stampPdfPageFooters,
+} from '../../../utils/invoicePeriodSummary';
 import './ImportExportMenu.css';
 
 const MM_TO_PT = 72 / 25.4;
@@ -407,6 +412,7 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat, resourc
  * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
+ * @param {object} props.periodSummaryFilters - dateFrom/dateTo/customerId for invoice PDF summary page
  */
 const ImportExportMenu = ({ 
   data = [], 
@@ -420,7 +426,8 @@ const ImportExportMenu = ({
   billBookLabel = 'Bill Book PDF',
   isLoading = false,
   selectedCount = 0,
-  resourceName = 'items'
+  resourceName = 'items',
+  periodSummaryFilters = null,
 }) => {
   const hasSelection = selectedCount > 0;
 
@@ -451,13 +458,13 @@ const ImportExportMenu = ({
     if (onExportTrigger) {
       const fetchedData = await onExportTrigger();
       if (!fetchedData || (Array.isArray(fetchedData) && fetchedData.length === 0)) {
-        return [];
+        return { flattened: [], sourceRows: [] };
       }
       dataToExport = fetchedData;
     }
 
     if (!flattenRow) {
-      return dataToExport;
+      return { flattened: dataToExport, sourceRows: dataToExport };
     }
 
     // Determine whether to use payment-aware flattening
@@ -511,7 +518,7 @@ const ImportExportMenu = ({
       flattened.push(totals);
     }
 
-    return flattened;
+    return { flattened, sourceRows: dataToExport };
   };
 
   // ── Shared: prepare data then open column picker ──────────────────────────
@@ -717,7 +724,7 @@ const ImportExportMenu = ({
   }, [filename, filenameQualifier, sheetName, resourceName]);
 
   // ── PDF export after column selection ─────────────────────────────────────
-  const doExportPDF = useCallback((flattenedData, selectedCols) => {
+  const doExportPDF = useCallback((flattenedData, selectedCols, periodSummary = null) => {
     const isInvoice = resourceName === 'invoices';
     let dataRows = flattenedData;
     let totalsRow = null;
@@ -752,6 +759,20 @@ const ImportExportMenu = ({
         const firstInGroup = colKeys.findIndex(c => group.cols.includes(c));
         return colIdx === firstInGroup ? group.label : '';
       });
+
+    const writePageFooter = (data) => {
+      // Final stamp after period summary rewrites all footers for invoices.
+      if (isInvoice && periodSummary) return;
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(80);
+      doc.text(
+        `Page ${data.pageNumber} of ${pageCount}`,
+        pageW / 2,
+        doc.internal.pageSize.getHeight() - 12,
+        { align: 'center' }
+      );
+    };
 
     if (isInvoice) {
       const ALL_COLS = [
@@ -853,18 +874,13 @@ const ImportExportMenu = ({
             data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
           }
         },
-        didDrawPage: (data) => {
-          const pageCount = doc.internal.getNumberOfPages();
-          doc.setFontSize(8);
-          doc.setTextColor(80);
-          doc.text(
-            `Page ${data.pageNumber} of ${pageCount}`,
-            pageW / 2,
-            doc.internal.pageSize.getHeight() - 12,
-            { align: 'center' }
-          );
-        },
+        didDrawPage: writePageFooter,
       });
+
+      if (periodSummary) {
+        appendInvoicePeriodSummaryPage(doc, periodSummary);
+        stampPdfPageFooters(doc);
+      }
 
     } else if (resourceName === 'purchases') {
       const ALL_COLS = [
@@ -988,7 +1004,7 @@ const ImportExportMenu = ({
     setColPicker(null);
 
     // Now fetch data using the correct flattener (payment-aware if needed)
-    const flattenedData = await getFlattenedData(selectedCols);
+    const { flattened: flattenedData, sourceRows } = await getFlattenedData(selectedCols);
     if (!flattenedData || flattenedData.length === 0) return;
 
     if (format === 'csv') {
@@ -996,10 +1012,21 @@ const ImportExportMenu = ({
     } else if (format === 'xlsx') {
       doExportExcel(flattenedData, selectedCols);
     } else if (format === 'pdf') {
-      doExportPDF(flattenedData, selectedCols);
+      let periodSummary = null;
+      if (resourceName === 'invoices') {
+        try {
+          periodSummary = await fetchInvoicePeriodSummary(
+            periodSummaryFilters || {},
+            sourceRows || [],
+          );
+        } catch (err) {
+          console.error('Period summary fetch failed', err);
+        }
+      }
+      doExportPDF(flattenedData, selectedCols, periodSummary);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colPicker, doExportCSV, doExportExcel, doExportPDF]);
+  }, [colPicker, doExportCSV, doExportExcel, doExportPDF, periodSummaryFilters, resourceName]);
 
   const handleColPickerCancel = useCallback(() => {
     setColPicker(null);

@@ -39,6 +39,8 @@ import {
   paymentNeedsBankAccount,
   withFinancialAccount,
 } from "../../utils/paymentAccounts";
+import { getMetalPurities } from "../../services/metalPuritiesService";
+import { purityLabelsForMetal, withOrphanPurityOption } from "../../utils/metalPurities";
 import styles from "./CreateInvoicePage.module.css";
 
 const fmt = (n) =>
@@ -107,8 +109,9 @@ const makingOptions = [
   { value: "PERCENTAGE_ON_METAL", label: "%" },
 ];
 
-const paymentModes = PAYMENT_MODES;
-const purityOptions = ["None", "916/22k", "833/20k", "75/18k", "F"];
+const paymentModes = PAYMENT_MODES.filter(
+  (mode) => !['OLD_GOLD', 'CREDIT', 'OTHER'].includes(mode),
+);
 
 const formatRelativeName = (fullName = '', relativeName = '', relationType = '', gender = '') => {
   const fName = (fullName || '').trim();
@@ -192,6 +195,7 @@ const CreateInvoicePage = () => {
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(toDateInputValue());
   const [showAdvanced, setShowAdvanced] = useState(true);
+  const [metalPurities, setMetalPurities] = useState([]);
   const [confirmation, setConfirmation] = useState({
     isOpen: false,
     title: "",
@@ -225,6 +229,12 @@ const CreateInvoicePage = () => {
   const [previewHtml, setPreviewHtml] = useState("");
   const canEditSequence =
     !id || (invoiceData.status === "DRAFT" && Boolean(selectedCustomerId));
+
+  useEffect(() => {
+    getMetalPurities(false)
+      .then((rows) => setMetalPurities(Array.isArray(rows) ? rows : []))
+      .catch(() => setMetalPurities([]));
+  }, []);
 
   // Fetch settings or existing invoice
   useEffect(() => {
@@ -667,9 +677,13 @@ const CreateInvoicePage = () => {
     if (field === "metalType" && value === "SILVER") {
       updatedItem.makingChargesType = "PER_GRAM"; // Common for Silver
       updatedItem.hsnSac = "711311";
+      const labels = purityLabelsForMetal(metalPurities, "SILVER");
+      updatedItem.purity = labels[0] || "None";
     } else if (field === "metalType" && value === "GOLD") {
       updatedItem.makingChargesType = "PER_GRAM";
       updatedItem.hsnSac = "711319";
+      const labels = purityLabelsForMetal(metalPurities, "GOLD");
+      updatedItem.purity = labels[0] || "None";
     }
 
     newItems[idx] = updatedItem;
@@ -1331,14 +1345,15 @@ const CreateInvoicePage = () => {
                           updateItem(idx, "purity", e.target.value)
                         }
                       >
-                        {purityOptions.map((p) => (
+                        <option value="None">None</option>
+                        {withOrphanPurityOption(
+                          purityLabelsForMetal(metalPurities, item.metalType || "GOLD"),
+                          item.purity && item.purity !== "None" ? item.purity : "",
+                        ).map((p) => (
                           <option key={p} value={p}>
                             {p}
                           </option>
                         ))}
-                        {!purityOptions.includes(item.purity) && (
-                          <option value={item.purity}>{item.purity}</option>
-                        )}
                       </select>
                     </div>
                     <div className={styles.fieldGroup}>

@@ -28,3 +28,14 @@ export const withFinancialAccount = (payment) => {
     ? { ...rest, accountId: financialAccountId }
     : rest;
 };
+
+export const getPaymentAccountError = (payments = []) => {
+  const missing = payments.filter(
+    (payment) =>
+      Number(payment.amount) > 0 &&
+      paymentNeedsBankAccount(payment.mode || payment.paymentMethod) &&
+      !(payment.financialAccountId || payment.accountId),
+  );
+  if (!missing.length) return '';
+  return 'Select a bank account for UPI, card, cheque, and other non-cash payments';
+};

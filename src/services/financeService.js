@@ -70,13 +70,29 @@ export const uploadBankStatement = async (accountId, file) => {
 export const getUnmatchedBankCredits = (accountId) =>
   request(withQuery('/finance/bank-statements/unmatched', { accountId }));
 
+export const getUnmatchedBankPayments = (accountId) =>
+  request(withQuery('/finance/bank-statements/unmatched-payments', { accountId }));
+
+export const getMatchedBankCredits = (accountId) =>
+  request(withQuery('/finance/bank-statements/matched', { accountId }));
+
 export const ignoreBankStatementLine = (lineId) =>
   request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/ignore`, {
     method: 'POST',
   });
 
-export const matchBankStatementLine = (lineId, invoiceId) =>
+export const unmatchBankStatementLine = (lineId) =>
+  request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/unmatch`, {
+    method: 'POST',
+  });
+
+export const deleteBankStatementLine = (lineId) =>
+  request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}`, {
+    method: 'DELETE',
+  });
+
+export const matchBankStatementLine = (lineId, paymentId) =>
   request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/match`, {
     method: 'POST',
-    body: JSON.stringify({ invoiceId }),
+    body: JSON.stringify({ paymentId }),
   });

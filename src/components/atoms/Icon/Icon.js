@@ -38,9 +38,7 @@ import {
   FiList,
   FiGrid,
   FiCheck,
-  FiCheckCircle,
   FiFileText,
-  FiPaperclip,
   FiEdit,
   FiCreditCard,
   FiCircle,
@@ -48,16 +46,18 @@ import {
   FiMapPin,
   FiUser,
   FiSidebar,
-  FiDatabase,
-  FiPrinter,
+  FiBook,
+  FiRefreshCcw,
   FiTrash2,
-  FiRefreshCw,
-  FiAlertTriangle,
+  FiPaperclip,
+  FiPrinter,
+  FiCheckSquare,
   FiBookOpen,
 } from 'react-icons/fi';
 import { MdExpandMore } from 'react-icons/md';
 import { IoMdSettings } from 'react-icons/io';
 import './Icon.css';
+
 
 const Icon = ({ name, size = 20, color, className = '', ...props }) => {
   const iconMap = {
@@ -107,9 +107,8 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     list: FiList,
     grid: FiGrid,
     check: FiCheck,
-    checkCircle: FiCheckCircle,
+    checkCircle: FiCheckSquare,
     file: FiFileText,
-    clip: FiPaperclip,
     edit: FiEdit,
     workspace: FiGrid,
     udhar: FiCreditCard,
@@ -123,12 +122,13 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     sidebar: FiSidebar,
     invoice: FiFileText,
     payment: FiCreditCard,
-    advance: FiDatabase,
-    printer: FiPrinter,
+    book: FiBook,
+    advance:FiBookOpen,
+    refresh: FiRefreshCcw,
     delete: FiTrash2,
-    refresh: FiRefreshCw,
-    warning: FiAlertTriangle,
-    book: FiBookOpen,
+    clip: FiPaperclip,
+    printer: FiPrinter
+
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;

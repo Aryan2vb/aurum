@@ -465,6 +465,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                         <th>Date</th>
                         <th>Method</th>
                         <th>Reference</th>
+                        <th>Bank</th>
                         <th className="amount-header">Amount</th>
                       </tr>
                     </thead>
@@ -474,6 +475,24 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td>{formatDate(p.paidAt || p.createdAt)}</td>
                           <td><span className="payment-mode-tag">{p.mode}</span></td>
                           <td>{p.reference || '—'}</td>
+                          <td>
+                            {p.bankMatched ? (
+                              <span
+                                className="bank-matched-badge"
+                                title={
+                                  p.bankMatch
+                                    ? `Matched ${String(p.bankMatch.txnDate || '').slice(0, 10)}`
+                                      + (p.bankMatch.refNumber ? ` · ${p.bankMatch.refNumber}` : '')
+                                      + (p.bankMatch.narration ? ` · ${p.bankMatch.narration}` : '')
+                                    : 'Matched to bank statement'
+                                }
+                              >
+                                Bank matched
+                              </span>
+                            ) : (
+                              <span className="bank-unmatched-label">—</span>
+                            )}
+                          </td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>
                         </tr>
                       ))}

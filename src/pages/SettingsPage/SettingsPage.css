@@ -797,3 +797,132 @@
   font-weight: 700;
   color: var(--text-primary);
 }
+
+/* ── Metals & Purities ── */
+.purity-show-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.purity-status {
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.purity-status.is-error {
+  color: var(--error, #b42318);
+  background: color-mix(in srgb, var(--error, #b42318) 8%, transparent);
+}
+
+.purity-status.is-ok {
+  color: var(--success, #067647);
+  background: color-mix(in srgb, var(--success, #067647) 8%, transparent);
+}
+
+.purity-metal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.purity-metal-col {
+  padding: 14px 16px 16px;
+  border-right: 1px solid var(--border-color);
+}
+
+.purity-metal-col:last-child {
+  border-right: 0;
+}
+
+.purity-metal-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+
+.purity-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.purity-empty {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  padding: 8px 0;
+}
+
+.purity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+}
+
+.purity-row.is-hidden {
+  opacity: 0.55;
+}
+
+.purity-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.purity-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.purity-sort-btn {
+  padding: 2px 6px !important;
+  min-width: 28px;
+}
+
+.purity-add-row {
+  display: flex;
+  gap: 6px;
+}
+
+.purity-add-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+@media (max-width: 560px) {
+  .purity-metal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .purity-metal-col {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .purity-metal-col:last-child {
+    border-bottom: 0;
+  }
+}
+

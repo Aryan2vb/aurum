@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   useReactTable,
   getCoreRowModel,
@@ -11,6 +12,8 @@ import Icon from '../../components/atoms/Icon/Icon';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import Toast from '../../components/atoms/Toast/Toast';
 import { getStockBalances, getStockLedger, initializeOpeningBalance, getStockGroupSummary } from '../../services/stockService';
+import { getMetalPurities } from '../../services/metalPuritiesService';
+import { purityLabelsForMetal, withOrphanPurityOption } from '../../utils/metalPurities';
 import './StockPage.css';
 
 const columnHelper = createColumnHelper();
@@ -33,7 +36,9 @@ const SkeletonRows = ({ rows = 5, cols = 8 }) => (
 );
 
 const fmtAmt = (n) => n == null || parseFloat(n) === 0 ? '—' : '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const getPurityRank = (purity) => ({ '24K': 1, '22K': 2, '20K': 3, '18K': 4, F: 1, 925: 2 }[purity] || 99);
+const FALLBACK_PURITY_RANK = { '24K': 1, '22K': 2, '20K': 3, '18K': 4, F: 1, 925: 2 };
+const getPurityRank = (purity, rankMap) =>
+  (rankMap && rankMap[purity]) || FALLBACK_PURITY_RANK[purity] || 99;
 
 /** Indian FY starts 1 Apr. Returns YYYY-MM-DD. */
 const toDateInput = (d = new Date()) => {
@@ -46,6 +51,8 @@ const currentFyStartDate = (d = new Date()) => {
   const fyStartYear = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
   return `${fyStartYear}-04-01`;
 };
+const openingKey = (metalType, purity) => `${metalType}:${purity}`;
+
 const emptyOpeningBalanceModal = () => ({
   metalType: 'GOLD',
   purity: '22K',
@@ -152,20 +159,86 @@ const StockPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [modalData, setModalData] = useState(() => emptyOpeningBalanceModal());
+  const [editingOpeningKey, setEditingOpeningKey] = useState(null);
+  const [metalPurities, setMetalPurities] = useState([]);
+
+  const goldPurityLabels = useMemo(
+    () => purityLabelsForMetal(metalPurities, 'GOLD'),
+    [metalPurities],
+  );
+  const silverPurityLabels = useMemo(
+    () => purityLabelsForMetal(metalPurities, 'SILVER'),
+    [metalPurities],
+  );
+  const modalPurityOptions = useMemo(() => {
+    const base =
+      modalData.metalType === 'SILVER' ? silverPurityLabels : goldPurityLabels;
+    return withOrphanPurityOption(base, modalData.purity);
+  }, [modalData.metalType, modalData.purity, goldPurityLabels, silverPurityLabels]);
+
+  const purityRankMap = useMemo(() => {
+    const map = {};
+    metalPurities.forEach((row) => {
+      map[row.label] = (row.sortOrder ?? 0) + 1;
+    });
+    return map;
+  }, [metalPurities]);
+
+  const openingByKey = useMemo(() => {
+    const map = new Map();
+    ledger.forEach((entry) => {
+      if (entry.transactionType !== 'OPENING_BALANCE') return;
+      map.set(openingKey(entry.metalType, entry.purity), entry);
+    });
+    return map;
+  }, [ledger]);
 
   const closeModal = useCallback(() => {
     if (modalLoading) return;
     setIsModalOpen(false);
+    setEditingOpeningKey(null);
     setModalData(emptyOpeningBalanceModal());
   }, [modalLoading]);
+
+  const openOpeningModal = useCallback((balance) => {
+    if (balance) {
+      const key = openingKey(balance.metalType, balance.purity);
+      const existing = openingByKey.get(key);
+      setEditingOpeningKey(key);
+      setModalData({
+        metalType: balance.metalType,
+        purity: balance.purity,
+        quantity: existing?.quantityIn != null ? String(existing.quantityIn) : '',
+        rate: existing?.rate != null ? String(existing.rate) : '',
+        date: existing?.date
+          ? String(existing.date).slice(0, 10)
+          : currentFyStartDate(),
+      });
+    } else {
+      setEditingOpeningKey(null);
+      const defaultMetal = 'GOLD';
+      const labels = purityLabelsForMetal(metalPurities, defaultMetal);
+      setModalData({
+        ...emptyOpeningBalanceModal(),
+        metalType: defaultMetal,
+        purity: labels[0] || '22K',
+      });
+    }
+    setIsModalOpen(true);
+  }, [openingByKey, metalPurities]);
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const [balRes, ledRes] = await Promise.all([getStockBalances(), getStockLedger()]);
+      const [balRes, ledRes, purityRes] = await Promise.all([
+        getStockBalances(),
+        getStockLedger(),
+        getMetalPurities(false).catch(() => []),
+      ]);
       setBalances(balRes || []);
       setLedger(ledRes || []);
+      setMetalPurities(Array.isArray(purityRes) ? purityRes : []);
     } catch (err) {
       setError(err.message || 'Failed to load stock data');
     } finally {
@@ -202,7 +275,10 @@ const StockPage = () => {
     const { name, value } = e.target;
     setModalData((prev) => {
       const updated = { ...prev, [name]: value };
-      if (name === 'metalType') updated.purity = value === 'GOLD' ? '22K' : 'F';
+      if (name === 'metalType') {
+        const labels = purityLabelsForMetal(metalPurities, value);
+        updated.purity = labels[0] || (value === 'GOLD' ? '22K' : 'F');
+      }
       return updated;
     });
   };
@@ -231,8 +307,9 @@ const StockPage = () => {
         rate: parseFloat(modalData.rate),
         date: modalData.date,
       });
-      setToast({ type: 'success', message: 'Opening balance saved' });
+      setToast({ type: 'success', message: editingOpeningKey ? 'Opening stock updated' : 'Opening stock saved' });
       setIsModalOpen(false);
+      setEditingOpeningKey(null);
       setModalData(emptyOpeningBalanceModal());
       loadData();
       if (activeTab === 'summary') generateSummary();
@@ -253,38 +330,28 @@ const StockPage = () => {
     summaryData.forEach((item) => {
       if (groups[item.metalType]) groups[item.metalType].push(item);
     });
-    const sortFn = (a, b) => getPurityRank(a.purity) - getPurityRank(b.purity);
+    const sortFn = (a, b) => getPurityRank(a.purity, purityRankMap) - getPurityRank(b.purity, purityRankMap);
     groups.GOLD.sort(sortFn);
     groups.SILVER.sort(sortFn);
     return groups;
-  }, [summaryData]);
+  }, [summaryData, purityRankMap]);
 
   const calculatedTotals = useMemo(() => {
     const totals = {
       GOLD: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
       SILVER: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
-      GRAND: { opQty: 0, opVal: 0, inQty: 0, inVal: 0, outQty: 0, outVal: 0, clQty: 0, clVal: 0 },
     };
     summaryData.forEach((item) => {
       const g = item.metalType;
-      if (totals[g]) {
-        totals[g].opQty += item.opening.quantity;
-        totals[g].opVal += item.opening.value;
-        totals[g].inQty += item.inwards.quantity;
-        totals[g].inVal += item.inwards.value;
-        totals[g].outQty += item.outwards.quantity;
-        totals[g].outVal += item.outwards.value;
-        totals[g].clQty += item.closing.quantity;
-        totals[g].clVal += item.closing.value;
-      }
-      totals.GRAND.opQty += item.opening.quantity;
-      totals.GRAND.opVal += item.opening.value;
-      totals.GRAND.inQty += item.inwards.quantity;
-      totals.GRAND.inVal += item.inwards.value;
-      totals.GRAND.outQty += item.outwards.quantity;
-      totals.GRAND.outVal += item.outwards.value;
-      totals.GRAND.clQty += item.closing.quantity;
-      totals.GRAND.clVal += item.closing.value;
+      if (!totals[g]) return;
+      totals[g].opQty += item.opening.quantity;
+      totals[g].opVal += item.opening.value;
+      totals[g].inQty += item.inwards.quantity;
+      totals[g].inVal += item.inwards.value;
+      totals[g].outQty += item.outwards.quantity;
+      totals[g].outVal += item.outwards.value;
+      totals[g].clQty += item.closing.quantity;
+      totals[g].clVal += item.closing.value;
     });
     return totals;
   }, [summaryData]);
@@ -304,27 +371,10 @@ const StockPage = () => {
 
     const pushMetalBlock = (metal, items, tot) => {
       if (!items.length) return;
-      rows.push(
-        <tr key={`${metal}-header`} className="summary-group-row">
-          <td className="attio-td">{metal}</td>
-          <td className="attio-td num">{fmtQty(tot.opQty)}</td>
-          <td className="attio-td num">{fmtRate(tot.opQty, tot.opVal)}</td>
-          <td className="attio-td num">{fmtVal(tot.opVal)}</td>
-          <td className="attio-td num">{fmtQty(tot.inQty)}</td>
-          <td className="attio-td num">{fmtRate(tot.inQty, tot.inVal)}</td>
-          <td className="attio-td num">{fmtVal(tot.inVal)}</td>
-          <td className="attio-td num">{fmtQty(tot.outQty)}</td>
-          <td className="attio-td num">{fmtRate(tot.outQty, tot.outVal)}</td>
-          <td className="attio-td num">{fmtVal(tot.outVal)}</td>
-          <td className="attio-td num">{fmtQty(tot.clQty)}</td>
-          <td className="attio-td num">{fmtRate(tot.clQty, tot.clVal)}</td>
-          <td className="attio-td num">{fmtVal(tot.clVal)}</td>
-        </tr>,
-      );
       items.forEach((item) => {
         rows.push(
           <tr key={`${metal}-${item.purity}`} className="summary-purity-row">
-            <td className="attio-td purity-cell">{item.purity}</td>
+            <td className="attio-td purity-cell">{metal} · {item.purity}</td>
             <td className="attio-td num">{fmtQty(item.opening.quantity)}</td>
             <td className="attio-td num">{fmtItemRate(item.opening.rate, item.opening.quantity)}</td>
             <td className="attio-td num">{fmtVal(item.opening.value)}</td>
@@ -340,29 +390,27 @@ const StockPage = () => {
           </tr>,
         );
       });
+      rows.push(
+        <tr key={`${metal}-total`} className="summary-grand-row">
+          <td className="attio-td">{metal} Total</td>
+          <td className="attio-td num">{fmtQty(tot.opQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.opQty, tot.opVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.opVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.inQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.inQty, tot.inVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.inVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.outQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.outQty, tot.outVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.outVal)}</td>
+          <td className="attio-td num">{fmtQty(tot.clQty)}</td>
+          <td className="attio-td num">{fmtRate(tot.clQty, tot.clVal)}</td>
+          <td className="attio-td num">{fmtVal(tot.clVal)}</td>
+        </tr>,
+      );
     };
 
     pushMetalBlock('GOLD', groupedSummary.GOLD, calculatedTotals.GOLD);
     pushMetalBlock('SILVER', groupedSummary.SILVER, calculatedTotals.SILVER);
-
-    const grand = calculatedTotals.GRAND;
-    rows.push(
-      <tr key="grand-total" className="summary-grand-row">
-        <td className="attio-td">Grand Total</td>
-        <td className="attio-td num">{fmtQty(grand.opQty)}</td>
-        <td className="attio-td num">{fmtRate(grand.opQty, grand.opVal)}</td>
-        <td className="attio-td num">{fmtVal(grand.opVal)}</td>
-        <td className="attio-td num">{fmtQty(grand.inQty)}</td>
-        <td className="attio-td num">{fmtRate(grand.inQty, grand.inVal)}</td>
-        <td className="attio-td num">{fmtVal(grand.inVal)}</td>
-        <td className="attio-td num">{fmtQty(grand.outQty)}</td>
-        <td className="attio-td num">{fmtRate(grand.outQty, grand.outVal)}</td>
-        <td className="attio-td num">{fmtVal(grand.outVal)}</td>
-        <td className="attio-td num">{fmtQty(grand.clQty)}</td>
-        <td className="attio-td num">{fmtRate(grand.clQty, grand.clVal)}</td>
-        <td className="attio-td num">{fmtVal(grand.clVal)}</td>
-      </tr>,
-    );
     return rows;
   };
 
@@ -379,8 +427,8 @@ const StockPage = () => {
   const colCount = columns.length;
   const balanceRows = useMemo(() => [...balances].sort((a, b) => {
     if (a.metalType !== b.metalType) return a.metalType.localeCompare(b.metalType);
-    return getPurityRank(a.purity) - getPurityRank(b.purity);
-  }), [balances]);
+    return getPurityRank(a.purity, purityRankMap) - getPurityRank(b.purity, purityRankMap);
+  }), [balances, purityRankMap]);
 
   const modalValue = modalData.quantity && modalData.rate
     ? parseFloat(modalData.quantity) * parseFloat(modalData.rate)
@@ -418,9 +466,14 @@ const StockPage = () => {
           <div className="stock-balances-container">
             <div className="stock-balances-header">
               <h2 className="stock-section-title">Balances</h2>
-              <button type="button" className="attio-primary-btn" onClick={() => setIsModalOpen(true)}>
-                <Icon name="add" size={14} /><span>Opening Stock</span>
-              </button>
+              <div className="stock-balances-actions">
+                <Link to="/settings#metal-purities" className="attio-secondary-btn">
+                  Manage purities
+                </Link>
+                <button type="button" className="attio-primary-btn" onClick={() => openOpeningModal()}>
+                  <Icon name="add" size={14} /><span>Opening Stock</span>
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -435,7 +488,7 @@ const StockPage = () => {
                 <div className="stock-empty-card">
                   <Icon name="product" size={32} color="var(--text-tertiary)" />
                   <p>No stock balances yet.</p>
-                  <button type="button" className="attio-primary-btn" onClick={() => setIsModalOpen(true)}>
+                  <button type="button" className="attio-primary-btn" onClick={() => openOpeningModal()}>
                     <Icon name="add" size={14} /><span>Set opening stock</span>
                   </button>
                 </div>
@@ -450,11 +503,13 @@ const StockPage = () => {
                       <th>Item</th>
                       <th className="num">Balance</th>
                       <th className="num">Updated</th>
+                      <th className="actions-col" aria-label="Actions" />
                     </tr>
                   </thead>
                   <tbody>
                     {balanceRows.map((bal) => {
                       const quantity = Number(bal.quantity || 0);
+                      const hasOpening = openingByKey.has(openingKey(bal.metalType, bal.purity));
                       return (
                         <tr key={bal.id} className={quantity < 0 ? 'negative-row' : ''}>
                           <td>
@@ -468,6 +523,15 @@ const StockPage = () => {
                           </td>
                           <td className="balance-updated num">
                             {bal.updatedAt ? <DateDisplay date={bal.updatedAt} format="relative" size="sm" /> : '—'}
+                          </td>
+                          <td className="balance-actions">
+                            <button
+                              type="button"
+                              className="balance-edit"
+                              onClick={() => openOpeningModal(bal)}
+                            >
+                              {hasOpening ? 'Edit' : 'Set opening'}
+                            </button>
                           </td>
                         </tr>
                       );
@@ -624,8 +688,12 @@ const StockPage = () => {
           <div className="stock-modal-content" role="dialog" aria-modal="true" aria-labelledby="stock-ob-title">
             <div className="stock-modal-header">
               <div>
-                <h3 id="stock-ob-title">Opening stock</h3>
-                <p className="stock-modal-sub">Sets the starting balance for a metal purity.</p>
+                <h3 id="stock-ob-title">{editingOpeningKey ? 'Edit opening stock' : 'Opening stock'}</h3>
+                <p className="stock-modal-sub">
+                  {editingOpeningKey
+                    ? 'Update the starting balance for this metal purity.'
+                    : 'Sets the starting balance for a metal purity.'}
+                </p>
               </div>
               <button type="button" className="stock-modal-close" onClick={closeModal} aria-label="Close">
                 <Icon name="close" size={18} />
@@ -635,26 +703,28 @@ const StockPage = () => {
               <div className="form-row ob-meta-row">
                 <div className="form-group">
                   <label htmlFor="ob-metal">Metal</label>
-                  <select id="ob-metal" name="metalType" className="saas-select" value={modalData.metalType} onChange={handleModalChange} required>
+                  <select id="ob-metal" name="metalType" className="saas-select" value={modalData.metalType} onChange={handleModalChange} required disabled={Boolean(editingOpeningKey)}>
                     <option value="GOLD">Gold</option>
                     <option value="SILVER">Silver</option>
                   </select>
                 </div>
                 <div className="form-group">
                   <label htmlFor="ob-purity">Purity</label>
-                  {modalData.metalType === 'GOLD' ? (
-                    <select id="ob-purity" name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
-                      <option value="24K">24K</option>
-                      <option value="22K">22K</option>
-                      <option value="20K">20K</option>
-                      <option value="18K">18K</option>
-                    </select>
-                  ) : (
-                    <select id="ob-purity" name="purity" className="saas-select" value={modalData.purity} onChange={handleModalChange} required>
-                      <option value="F">Fine (F)</option>
-                      <option value="925">925</option>
-                    </select>
-                  )}
+                  <select
+                    id="ob-purity"
+                    name="purity"
+                    className="saas-select"
+                    value={modalData.purity}
+                    onChange={handleModalChange}
+                    required
+                    disabled={Boolean(editingOpeningKey)}
+                  >
+                    {modalPurityOptions.map((label) => (
+                      <option key={label} value={label}>
+                        {label === 'F' ? 'Fine (F)' : label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="form-group ob-date-group">
                   <label htmlFor="ob-date">Date</label>
@@ -680,7 +750,7 @@ const StockPage = () => {
               <div className="stock-modal-actions">
                 <button type="button" className="attio-secondary-btn" onClick={closeModal} disabled={modalLoading}>Cancel</button>
                 <button type="submit" className="attio-primary-btn" disabled={modalLoading}>
-                  {modalLoading ? 'Saving…' : 'Save opening'}
+                  {modalLoading ? 'Saving…' : (editingOpeningKey ? 'Save changes' : 'Save opening')}
                 </button>
               </div>
             </form>

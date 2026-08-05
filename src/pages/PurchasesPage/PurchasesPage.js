@@ -25,6 +25,8 @@ import PurchaseDetailSlideOver from '../../components/molecules/PurchaseDetailSl
 import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { PAYMENT_MODES, paymentNeedsBankAccount, withFinancialAccount } from '../../utils/paymentAccounts';
 import { buildPurchaseBillBookRequest } from '../../utils/billBookExport';
+import { getMetalPurities } from '../../services/metalPuritiesService';
+import { purityLabelsForMetal, withOrphanPurityOption } from '../../utils/metalPurities';
 import './PurchasesPage.css';
 
 const columnHelper = createColumnHelper();
@@ -34,6 +36,18 @@ const fmtWeight = (n) => `${Number(n || 0).toFixed(3)} g`;
 const num = (value) => Number.isFinite(Number(value)) ? Number(value) : 0;
 const round2 = (value) => Math.round((value + Number.EPSILON) * 100) / 100;
 const round3 = (value) => Math.round((value + Number.EPSILON) * 1000) / 1000;
+const purchaseGoldWeight = (p) =>
+  num(p.totalGoldWeight || (p.metalType === 'GOLD' ? p.totalWeight : 0));
+const purchaseSilverWeight = (p) =>
+  num(p.totalSilverWeight || (p.metalType === 'SILVER' ? p.totalWeight : 0));
+const fmtMetalWeights = (p) => {
+  const gold = purchaseGoldWeight(p);
+  const silver = purchaseSilverWeight(p);
+  const parts = [];
+  if (gold > 0) parts.push(`Au ${fmtWeight(gold)}`);
+  if (silver > 0) parts.push(`Ag ${fmtWeight(silver)}`);
+  return parts.length ? parts.join(' · ') : fmtWeight(0);
+};
 const todayInput = () => new Date().toISOString().slice(0, 10);
 const statusLabel = (status) => ({
   UNPAID: 'Unpaid',
@@ -48,6 +62,8 @@ const emptyItem = () => ({
   purity: '22K',
   netWeight: '',
   rate: '',
+  hallmarkCharge: '',
+  otherCharges: '',
 });
 
 const emptyPayment = (paidAt = todayInput()) => ({
@@ -90,13 +106,13 @@ const buildColumns = () => [
     size: 100,
     cell: info => <span className={`purchase-status-badge status-${String(info.getValue()).toLowerCase()}`}>{statusLabel(info.getValue())}</span>,
   }),
-  columnHelper.accessor(row => row.totalGoldWeight || (row.metalType === 'GOLD' ? row.totalWeight : 0), {
+  columnHelper.accessor(row => purchaseGoldWeight(row), {
     id: 'goldWeight',
     header: 'Gold',
     size: 95,
     cell: info => fmtWeight(info.getValue()),
   }),
-  columnHelper.accessor(row => row.totalSilverWeight || (row.metalType === 'SILVER' ? row.totalWeight : 0), {
+  columnHelper.accessor(row => purchaseSilverWeight(row), {
     id: 'silverWeight',
     header: 'Silver',
     size: 95,
@@ -159,12 +175,14 @@ const PurchasesPage = () => {
     invoiceNumber: '',
     purchaseDate: new Date().toISOString().slice(0, 10),
     taxType: 'CGST_SGST',
+    adjustment: '',
     notes: '',
   });
   const [items, setItems] = useState([emptyItem()]);
   const [payments, setPayments] = useState([]);
   const [financialAccounts, setFinancialAccounts] = useState([]);
   const [financialAccountsLoaded, setFinancialAccountsLoaded] = useState(false);
+  const [metalPurities, setMetalPurities] = useState([]);
   const [editingPurchaseId, setEditingPurchaseId] = useState(null);
   const [detailPurchase, setDetailPurchase] = useState(null);
   const [historyQuery, setHistoryQuery] = useState('');
@@ -193,8 +211,10 @@ const PurchasesPage = () => {
     const netWeight = num(item.netWeight);
     const rate = num(item.rate);
     const metalAmount = round2(netWeight * rate);
-    const totalAmount = metalAmount;
-    return { ...item, netWeight, metalAmount, totalAmount };
+    const hallmarkCharge = num(item.hallmarkCharge);
+    const otherCharges = num(item.otherCharges);
+    const totalAmount = round2(metalAmount + hallmarkCharge + otherCharges);
+    return { ...item, netWeight, metalAmount, hallmarkCharge, otherCharges, totalAmount };
   }), [items]);
 
   const totals = useMemo(() => {
@@ -207,18 +227,23 @@ const PurchasesPage = () => {
     const cgstAmount = isCgst ? round2(taxableAmount * 1.5 / 100) : 0;
     const sgstAmount = isCgst ? round2(taxableAmount * 1.5 / 100) : 0;
     const igstAmount = isIgst ? round2(taxableAmount * 3.0 / 100) : 0;
-    
+    const adjustment = num(formData.adjustment);
+    const baseTotal = hasTax ? round2(subtotal + cgstAmount + sgstAmount + igstAmount) : subtotal;
+
     return {
       totalGoldWeight: round3(calculatedItems.filter((item) => item.metalType === 'GOLD').reduce((sum, item) => sum + item.netWeight, 0)),
       totalSilverWeight: round3(calculatedItems.filter((item) => item.metalType === 'SILVER').reduce((sum, item) => sum + item.netWeight, 0)),
       totalMetal: round2(calculatedItems.reduce((sum, item) => sum + item.metalAmount, 0)),
+      totalHallmarking: round2(calculatedItems.reduce((sum, item) => sum + item.hallmarkCharge, 0)),
+      totalOther: round2(calculatedItems.reduce((sum, item) => sum + item.otherCharges, 0)),
       taxableAmount,
       cgstAmount,
       sgstAmount,
       igstAmount,
-      grandTotal: hasTax ? round2(subtotal + cgstAmount + sgstAmount + igstAmount) : subtotal,
+      adjustment,
+      grandTotal: round2(baseTotal + adjustment),
     };
-  }, [calculatedItems, formData.taxType]);
+  }, [calculatedItems, formData.taxType, formData.adjustment]);
 
   const paidTotal = useMemo(
     () => round2(payments.reduce((sum, p) => sum + num(p.amount), 0)),
@@ -301,11 +326,21 @@ const PurchasesPage = () => {
     }
   }, []);
 
+  const loadMetalPurities = useCallback(async () => {
+    try {
+      const rows = await getMetalPurities(false);
+      setMetalPurities(Array.isArray(rows) ? rows : []);
+    } catch {
+      setMetalPurities([]);
+    }
+  }, []);
+
   useEffect(() => {
     loadPurchases();
     loadVendors();
     loadFinancialAccounts();
-  }, [loadFinancialAccounts, loadPurchases, loadVendors]);
+    loadMetalPurities();
+  }, [loadFinancialAccounts, loadMetalPurities, loadPurchases, loadVendors]);
 
   const handleHeaderChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -317,7 +352,8 @@ const PurchasesPage = () => {
       if (itemIndex !== index) return item;
       const updated = { ...item, [field]: value };
       if (field === 'metalType') {
-        updated.purity = value === 'GOLD' ? '22K' : 'F';
+        const labels = purityLabelsForMetal(metalPurities, value);
+        updated.purity = labels[0] || (value === 'GOLD' ? '22K' : 'F');
       }
       return updated;
     }));
@@ -413,6 +449,7 @@ const PurchasesPage = () => {
       invoiceNumber: '',
       purchaseDate: todayInput(),
       taxType: 'CGST_SGST',
+      adjustment: '',
       notes: '',
     });
     setItems([emptyItem()]);
@@ -430,6 +467,7 @@ const PurchasesPage = () => {
       taxType: purchase.addGst === false
         ? 'NONE'
         : (purchase.taxType === 'CGST_SGST' ? 'CGST_SGST' : purchase.taxType === 'IGST' ? 'IGST' : 'NONE'),
+      adjustment: purchase.adjustment != null ? String(purchase.adjustment) : '',
       notes: purchase.notes || '',
     });
     const nextItems = (purchase.items?.length ? purchase.items : []).map((item) => ({
@@ -438,6 +476,8 @@ const PurchasesPage = () => {
       purity: item.purity || (item.metalType === 'SILVER' ? 'F' : '22K'),
       netWeight: item.netWeight != null ? String(item.netWeight) : '',
       rate: item.rate != null ? String(item.rate) : '',
+      hallmarkCharge: item.hallmarkingCharge != null ? String(item.hallmarkingCharge) : '',
+      otherCharges: item.otherCharges != null ? String(item.otherCharges) : '',
     }));
     setItems(nextItems.length ? nextItems : [emptyItem()]);
     setPayments((purchase.payments || []).map((p) => ({
@@ -567,11 +607,11 @@ const PurchasesPage = () => {
 
   const vendorStats = useMemo(() => {
     const totalAmount = vendorPurchases.reduce((sum, p) => sum + num(p.grandTotal || p.totalAmount), 0);
-    const totalWeight = vendorPurchases.reduce((sum, p) => sum + num(p.totalWeight), 0);
     return {
       count: vendorPurchases.length,
       totalAmount,
-      totalWeight,
+      goldWeight: vendorPurchases.reduce((sum, p) => sum + purchaseGoldWeight(p), 0),
+      silverWeight: vendorPurchases.reduce((sum, p) => sum + purchaseSilverWeight(p), 0),
     };
   }, [vendorPurchases]);
 
@@ -626,6 +666,7 @@ const PurchasesPage = () => {
       totalWeight: validItems.reduce((sum, item) => sum + item.netWeight, 0),
       rate: validItems[0].rate ? parseFloat(validItems[0].rate) : 0,
       totalAmount: totals.grandTotal,
+      adjustment: num(formData.adjustment),
       notes: formData.notes?.trim() || undefined,
       items: validItems.map((item) => ({
         itemName: item.itemName || undefined,
@@ -634,6 +675,8 @@ const PurchasesPage = () => {
         grossWeight: num(item.netWeight),
         netWeight: item.netWeight,
         rate: num(item.rate),
+        hallmarkingCharge: num(item.hallmarkCharge),
+        otherCharges: num(item.otherCharges),
       })),
       payments: validPayments,
     };
@@ -745,13 +788,14 @@ const PurchasesPage = () => {
   const purchaseStats = useMemo(() => purchases.reduce((acc, purchase) => {
     const total = Number(purchase.grandTotal || purchase.totalAmount || 0);
     const paid = Number(purchase.paidAmount || 0);
-    acc.totalWeight += Number(purchase.totalWeight || 0);
+    acc.goldWeight += purchaseGoldWeight(purchase);
+    acc.silverWeight += purchaseSilverWeight(purchase);
     acc.totalAmount += total;
     acc.paidAmount += paid;
     acc.dueAmount += Math.max(0, total - paid);
     acc.todayCount += purchase.purchaseDate?.slice(0, 10) === todayInput() ? 1 : 0;
     return acc;
-  }, { totalWeight: 0, totalAmount: 0, paidAmount: 0, dueAmount: 0, todayCount: 0 }), [purchases]);
+  }, { goldWeight: 0, silverWeight: 0, totalAmount: 0, paidAmount: 0, dueAmount: 0, todayCount: 0 }), [purchases]);
 
   return (
     <DashboardTemplate headerTitle="Purchases (Inward)" headerTabs={[]}>
@@ -847,12 +891,14 @@ const PurchasesPage = () => {
                 <div className="purchase-grid-wrap">
                   <table className="purchase-entry-grid simple-grid">
                     <colgroup>
-                      <col style={{ width: '35%' }} />
-                      <col style={{ width: '15%' }} />
-                      <col style={{ width: '15%' }} />
-                      <col style={{ width: '15%' }} />
+                      <col style={{ width: '24%' }} />
                       <col style={{ width: '10%' }} />
                       <col style={{ width: '10%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '9%' }} />
+                      <col style={{ width: '11%' }} />
                       <col style={{ width: '40px' }} />
                     </colgroup>
                     <thead>
@@ -862,6 +908,8 @@ const PurchasesPage = () => {
                         <th>Purity</th>
                         <th className="num-col">Quantity (GMS)</th>
                         <th className="num-col">Rate</th>
+                        <th className="num-col">HM Charge ₹</th>
+                        <th className="num-col">Other ₹</th>
                         <th className="num-col">Amount</th>
                         <th></th>
                       </tr>
@@ -878,11 +926,18 @@ const PurchasesPage = () => {
                           </td>
                           <td className="px-2">
                             <select value={item.purity} className="inline-input cursor-pointer" onChange={(e) => handleItemChange(index, 'purity', e.target.value)}>
-                              {item.metalType === 'GOLD' ? <><option value="24K">24K</option><option value="22K">22K</option><option value="20K">20K</option><option value="18K">18K</option><option value="75">75</option></> : <><option value="F">F</option><option value="925">925</option><option value="22">22</option></>}
+                              {withOrphanPurityOption(
+                                purityLabelsForMetal(metalPurities, item.metalType || 'GOLD'),
+                                item.purity,
+                              ).map((label) => (
+                                <option key={label} value={label}>{label}</option>
+                              ))}
                             </select>
                           </td>
                           <td className="num-col px-2"><input type="number" step="0.001" className="inline-input text-right" placeholder="0.000" value={item.netWeight === 0 ? '' : item.netWeight} onChange={(e) => handleItemChange(index, 'netWeight', e.target.value)} /></td>
                           <td className="num-col px-2"><input type="number" step="0.01" className="inline-input text-right" placeholder="0.00" value={item.rate} onChange={(e) => handleItemChange(index, 'rate', e.target.value)} /></td>
+                          <td className="num-col px-2"><input type="number" step="0.01" className="inline-input text-right" placeholder="0.00" value={item.hallmarkCharge} onChange={(e) => handleItemChange(index, 'hallmarkCharge', e.target.value)} /></td>
+                          <td className="num-col px-2"><input type="number" step="0.01" className="inline-input text-right" placeholder="0.00" value={item.otherCharges} onChange={(e) => handleItemChange(index, 'otherCharges', e.target.value)} /></td>
                           <td className={`computed-cell total-cell num-col pl-2 ${item.totalAmount ? '' : 'is-zero'}`}>{fmtAmt(item.totalAmount)}</td>
                           <td className="center-col">
                             <button type="button" className="grid-remove-btn hover-show" onClick={() => removeItem(index)} disabled={items.length === 1} title="Remove Item"><Icon name="delete" size={16} /></button>
@@ -895,6 +950,8 @@ const PurchasesPage = () => {
                         <td colSpan="3"><button type="button" className="grid-add-btn attio-secondary-btn" style={{ padding: '0.4rem 0.8rem', minHeight: 'auto', marginTop: '0.5rem' }} onClick={addItem}>+ Add Item</button></td>
                         <td className="num-col">{calculatedItems.reduce((sum, item) => sum + item.netWeight, 0).toFixed(3)} GMS</td>
                         <td></td>
+                        <td className="num-col">{totals.totalHallmarking ? fmtAmt(totals.totalHallmarking) : '—'}</td>
+                        <td className="num-col">{totals.totalOther ? fmtAmt(totals.totalOther) : '—'}</td>
                         <td className="num-col">{fmtAmt(totals.taxableAmount)}</td>
                         <td></td>
                       </tr>
@@ -1020,18 +1077,39 @@ const PurchasesPage = () => {
                           <option value="IGST">Interstate (IGST)</option>
                           <option value="NONE">No GST</option>
                         </select>
-                        <span className="fin-tax-rate">
-                          {formData.taxType === 'IGST' ? '3%' : formData.taxType === 'CGST_SGST' ? '3%' : '—'}
-                        </span>
-                        <span className="fin-val">
-                          {fmtAmt(
-                            formData.taxType === 'IGST'
-                              ? totals.igstAmount
-                              : formData.taxType === 'CGST_SGST'
-                                ? totals.cgstAmount + totals.sgstAmount
-                                : 0,
-                          )}
-                        </span>
+                      </div>
+
+                      {formData.taxType === 'CGST_SGST' && (
+                        <>
+                          <div className="fin-row">
+                            <span>CGST (1.5%)</span>
+                            <span className="fin-val">{fmtAmt(totals.cgstAmount)}</span>
+                          </div>
+                          <div className="fin-row">
+                            <span>SGST (1.5%)</span>
+                            <span className="fin-val">{fmtAmt(totals.sgstAmount)}</span>
+                          </div>
+                        </>
+                      )}
+
+                      {formData.taxType === 'IGST' && (
+                        <div className="fin-row">
+                          <span>IGST (3%)</span>
+                          <span className="fin-val">{fmtAmt(totals.igstAmount)}</span>
+                        </div>
+                      )}
+
+                      <div className="fin-row fin-adjustment-row">
+                        <span>Adjustment (Less − / Add +)</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          name="adjustment"
+                          className="inline-input text-right fin-adjustment-input"
+                          placeholder="0.00"
+                          value={formData.adjustment}
+                          onChange={handleHeaderChange}
+                        />
                       </div>
 
                       <div className="fin-row grand-row">
@@ -1054,7 +1132,8 @@ const PurchasesPage = () => {
 
         <div className="purchases-history-panel">
           <div className="purchase-stats-row">
-            <div className="purchase-stat"><span>Total inward</span><strong>{fmtWeight(purchaseStats.totalWeight)}</strong></div>
+            <div className="purchase-stat"><span>Gold inward</span><strong>{fmtWeight(purchaseStats.goldWeight)}</strong></div>
+            <div className="purchase-stat"><span>Silver inward</span><strong>{fmtWeight(purchaseStats.silverWeight)}</strong></div>
             <div className="purchase-stat"><span>Purchase value</span><strong>{fmtAmt(purchaseStats.totalAmount)}</strong></div>
             <div className="purchase-stat"><span>Paid</span><strong>{fmtAmt(purchaseStats.paidAmount)}</strong></div>
             <div className="purchase-stat due-stat"><span>Outstanding</span><strong>{fmtAmt(purchaseStats.dueAmount)}</strong></div>
@@ -1261,8 +1340,12 @@ const PurchasesPage = () => {
                         <strong>{vendorStats.count}</strong>
                       </div>
                       <div className="vendor-stat-mini">
-                        <span>Total Weight</span>
-                        <strong>{fmtWeight(vendorStats.totalWeight)}</strong>
+                        <span>Gold</span>
+                        <strong>{fmtWeight(vendorStats.goldWeight)}</strong>
+                      </div>
+                      <div className="vendor-stat-mini">
+                        <span>Silver</span>
+                        <strong>{fmtWeight(vendorStats.silverWeight)}</strong>
                       </div>
                       <div className="vendor-stat-mini">
                         <span>Total Value</span>
@@ -1290,7 +1373,7 @@ const PurchasesPage = () => {
                                 <td>{p.invoiceNumber || p.id.slice(0, 8)}</td>
                                 <td>{p.purchaseDate ? new Date(p.purchaseDate).toLocaleDateString('en-GB') : '-'}</td>
                                 <td>{p.items?.length || 1}</td>
-                                <td>{fmtWeight(p.totalWeight)}</td>
+                                <td>{fmtMetalWeights(p)}</td>
                                 <td className="text-right">{fmtAmt(p.grandTotal || p.totalAmount)}</td>
                               </tr>
                             ))}

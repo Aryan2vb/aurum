@@ -372,8 +372,6 @@ const CreateInvoicePageMobile = () => {
     setInvoiceData({ ...invoiceData, items: newItems });
   };
 
-  const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
-
   const buildPayload = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
     const mode = invoiceData.metadata.modeOfPayment;
@@ -402,7 +400,7 @@ const CreateInvoicePageMobile = () => {
       buyerAddress: invoiceData.buyer.address || '',
       buyerState: invoiceData.buyer.state || '',
       buyerStateCode: invoiceData.buyer.stateCode || '',
-      autoCreateUdhar: isCredit ? true : autoCreateUdhar,
+      autoCreateUdhar: autoCreateUdhar,
       paidAmount: amount,
       notes: invoiceData.declaration,
       deliveryNote: '',
@@ -679,7 +677,7 @@ const CreateInvoicePageMobile = () => {
             <div className={styles.formField}>
               <label>Payment Mode</label>
               <div className={styles.paymentModes}>
-                {['CASH', 'CREDIT', 'UPI'].map(mode => (
+                {['CASH', 'UPI', 'CARD', 'BANK_TRANSFER'].map(mode => (
                   <button
                     key={mode}
                     className={`${styles.paymentMode} ${invoiceData.metadata.modeOfPayment === mode ? styles.active : ''}`}
@@ -829,8 +827,7 @@ const CreateInvoicePageMobile = () => {
         </div>
 
         {/* Payment Section */}
-        {!isCredit && (
-          <div className={styles.section}>
+        <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Payment</h2>
             <div className={styles.paymentSection}>
               <div className={styles.paymentField}>
@@ -861,7 +858,6 @@ const CreateInvoicePageMobile = () => {
               )}
             </div>
           </div>
-        )}
 
         {/* Notes */}
         <div className={styles.section}>
