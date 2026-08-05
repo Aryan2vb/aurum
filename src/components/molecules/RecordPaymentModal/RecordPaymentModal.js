@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import Icon from '../../atoms/Icon/Icon';
 import PaymentAccountSelect from '../PaymentAccountSelect/PaymentAccountSelect';
 import { recordPayment } from '../../../services/invoicesService';
-import { PAYMENT_MODES, withFinancialAccount } from '../../../utils/paymentAccounts';
+import { PAYMENT_MODES, getPaymentAccountError, withFinancialAccount } from '../../../utils/paymentAccounts';
 import styles from './RecordPaymentModal.module.css';
 
 const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
@@ -31,6 +31,11 @@ const RecordPaymentModal = ({ isOpen, onClose, invoice, onRefresh }) => {
     }
     if (amount > invoice.remainingBalance) {
       alert('Amount cannot exceed remaining balance');
+      return;
+    }
+    const accountError = getPaymentAccountError([{ mode, amount, financialAccountId }]);
+    if (accountError) {
+      alert(accountError);
       return;
     }
 

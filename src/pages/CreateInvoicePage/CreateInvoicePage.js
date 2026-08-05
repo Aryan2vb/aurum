@@ -36,6 +36,8 @@ import ConfirmationModal from "../../components/atoms/ConfirmationModal/Confirma
 import PaymentAccountSelect from "../../components/molecules/PaymentAccountSelect/PaymentAccountSelect";
 import {
   PAYMENT_MODES,
+  financialAccountIdFrom,
+  getPaymentAccountError,
   paymentNeedsBankAccount,
   withFinancialAccount,
 } from "../../utils/paymentAccounts";
@@ -281,7 +283,7 @@ const CreateInvoicePage = () => {
                 mode: p.mode,
                 amount: p.amount,
                 reference: p.reference || "",
-                financialAccountId: p.financialAccountId || "",
+                financialAccountId: financialAccountIdFrom(p),
                 paidAt: toDateInputValue(p.paidAt || p.createdAt),
                 originalPaidAt: toDateInputValue(p.paidAt || p.createdAt),
               })),
@@ -291,7 +293,7 @@ const CreateInvoicePage = () => {
               {
                 mode: inv.modeOfPayment || "UPI",
                 amount: inv.paidAmount || 0,
-                financialAccountId: inv.financialAccountId || "",
+                financialAccountId: financialAccountIdFrom(inv),
                 paidAt: toDateInputValue(inv.invoiceDate),
               },
             ]);
@@ -850,6 +852,11 @@ const CreateInvoicePage = () => {
       alert(paymentDateError);
       return;
     }
+    const accountError = getPaymentAccountError(payments);
+    if (accountError) {
+      alert(accountError);
+      return;
+    }
 
     const total = calcInvoiceTotals(
       invoiceData.items,
@@ -857,6 +864,16 @@ const CreateInvoicePage = () => {
       invoiceData.taxes.sgstRate,
       paidAmount,
     ).total;
+
+    // Cap advance to remaining after cash payments so save matches the footer Bal.
+    const advanceToApply = Math.min(
+      Math.max(0, Number(advanceApplied) || 0),
+      Math.max(0, Number(calc.outstanding) || 0),
+      Math.max(0, Number(advanceBalance) || 0),
+    );
+    if (advanceApplied > 0 && advanceToApply !== advanceApplied) {
+      setAdvanceApplied(advanceToApply);
+    }
 
     const kycError = await getInvoiceKycError(total);
     if (kycError) {
@@ -880,10 +897,10 @@ const CreateInvoicePage = () => {
           return;
         }
         // Apply advance immediately if the user specified an amount
-        if (advanceApplied > 0) {
+        if (advanceToApply > 0) {
           try {
             await applyAdvanceToInvoice(res.id, {
-              amount: advanceApplied,
+              amount: advanceToApply,
               paidAt: advanceDate || undefined,
               notes: 'Advance payment',
             });
@@ -1653,13 +1670,20 @@ const CreateInvoicePage = () => {
                               id="advance-payment-amount"
                               type="number"
                               min="0"
-                              max={advanceBalance}
+                              max={Math.min(
+                                Number(advanceBalance) || 0,
+                                Math.max(0, Number(calc.outstanding) || 0),
+                              )}
                               step="0.01"
                               value={advanceApplied || ''}
                               placeholder="0.00"
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value) || 0;
-                                setAdvanceApplied(Math.min(val, advanceBalance));
+                                const maxApply = Math.min(
+                                  Number(advanceBalance) || 0,
+                                  Math.max(0, Number(calc.outstanding) || 0),
+                                );
+                                setAdvanceApplied(Math.min(val, maxApply));
                               }}
                             />
                           </div>

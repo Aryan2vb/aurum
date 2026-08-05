@@ -39,7 +39,7 @@ const PaymentEditPanel = ({
       setFormData({
         amount: payment.amount || '',
         paymentMethod: payment.paymentMethod || 'CASH',
-        financialAccountId: payment.financialAccountId || '',
+        financialAccountId: payment.accountId || payment.financialAccountId || '',
         transactionDate: formatDateForInput(payment.transactionDate),
         referenceNumber: payment.referenceNumber || '',
         collectedBy: payment.collectedBy || '',

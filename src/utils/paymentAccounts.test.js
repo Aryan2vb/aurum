@@ -1,5 +1,6 @@
 import {
   bankAccounts,
+  financialAccountIdFrom,
   getPaymentAccountError,
   paymentNeedsBankAccount,
   withFinancialAccount,
@@ -12,6 +13,12 @@ describe('payment account rules', () => {
     expect(paymentNeedsBankAccount('CASH')).toBe(false);
     expect(paymentNeedsBankAccount('CREDIT')).toBe(false);
     expect(paymentNeedsBankAccount('OLD_GOLD')).toBe(false);
+  });
+
+  it('hydrates UI account id from API accountId', () => {
+    expect(financialAccountIdFrom({ accountId: 'bank-1' })).toBe('bank-1');
+    expect(financialAccountIdFrom({ financialAccountId: 'legacy' })).toBe('legacy');
+    expect(financialAccountIdFrom({ accountId: 'bank-1', financialAccountId: 'legacy' })).toBe('bank-1');
   });
 
   it('maps the selected finance account to the backend accountId', () => {

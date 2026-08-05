@@ -22,6 +22,10 @@ export const paymentAllowsAccount = (mode) => paymentNeedsBankAccount(mode);
 export const bankAccounts = (accounts = []) =>
   accounts.filter((account) => account.type === 'BANK' && account.isActive !== false);
 
+/** Hydrate UI field from API `accountId` (or legacy `financialAccountId`). */
+export const financialAccountIdFrom = (payment = {}) =>
+  payment.accountId || payment.financialAccountId || '';
+
 export const withFinancialAccount = (payment) => {
   const { financialAccountId, ...rest } = payment;
   return paymentAllowsAccount(payment.mode || payment.paymentMethod || payment.modeOfPayment) && financialAccountId

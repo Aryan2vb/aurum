@@ -389,12 +389,16 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 </div>
                 <div className="summary-row paid">
                   <span>Paid Amount:</span>
-                  <span>{formatCurrency(invoice.paidAmount)}</span>
+                  <span>
+                    {formatCurrency(
+                      Number(invoice.paidAmount || 0) - Number(invoice.advanceAdjustedAmount || 0),
+                    )}
+                  </span>
                 </div>
                 {Number(invoice.advanceAdjustedAmount) > 0 && (
                   <div className="summary-row" style={{ color: 'var(--color-status-paid)' }}>
                     <span>Advance Applied:</span>
-                    <span>- {formatCurrency(invoice.advanceAdjustedAmount)}</span>
+                    <span>{formatCurrency(invoice.advanceAdjustedAmount)}</span>
                   </div>
                 )}
                 <div className="summary-row balance">

@@ -65,7 +65,7 @@ const EditPaymentPage = () => {
       setFormData({
         amount: foundPayment.amount || '',
         paymentMethod: foundPayment.paymentMethod || 'CASH',
-        financialAccountId: foundPayment.financialAccountId || '',
+        financialAccountId: foundPayment.accountId || foundPayment.financialAccountId || '',
         transactionDate: formatDateForInput(foundPayment.transactionDate),
         referenceNumber: foundPayment.referenceNumber || '',
         collectedBy: foundPayment.collectedBy || '',

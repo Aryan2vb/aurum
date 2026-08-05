@@ -23,7 +23,7 @@ import { getFinancialAccounts } from '../../services/financeService';
 import ImportExportMenu from '../../components/molecules/ImportExportMenu/ImportExportMenu';
 import PurchaseDetailSlideOver from '../../components/molecules/PurchaseDetailSlideOver/PurchaseDetailSlideOver';
 import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
-import { PAYMENT_MODES, paymentNeedsBankAccount, withFinancialAccount } from '../../utils/paymentAccounts';
+import { PAYMENT_MODES, financialAccountIdFrom, paymentNeedsBankAccount, withFinancialAccount } from '../../utils/paymentAccounts';
 import { buildPurchaseBillBookRequest } from '../../utils/billBookExport';
 import { getMetalPurities } from '../../services/metalPuritiesService';
 import { purityLabelsForMetal, withOrphanPurityOption } from '../../utils/metalPurities';
@@ -484,7 +484,7 @@ const PurchasesPage = () => {
       mode: p.mode || 'UPI',
       amount: p.amount != null ? String(p.amount) : '',
       paidAt: (p.paidAt || purchase.purchaseDate || '').slice(0, 10) || todayInput(),
-      financialAccountId: p.financialAccountId || '',
+      financialAccountId: financialAccountIdFrom(p),
     })));
     setPendingFile(null);
     setPendingPreviewUrl((prev) => {

@@ -38,6 +38,15 @@ const UPDATE_ACCOUNT_FIELDS = [
 const today = () => new Date().toISOString().slice(0, 10);
 const money = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+/** Suggestions first, then other unmatched payments (deduped by paymentId). */
+const bankMatchOptions = (suggestions = [], unmatchedPayments = []) => {
+  const suggestionIds = new Set(suggestions.map((s) => s.paymentId));
+  return [
+    ...suggestions,
+    ...unmatchedPayments.filter((p) => !suggestionIds.has(p.paymentId)),
+  ];
+};
 const list = (data, keys = []) => {
   if (Array.isArray(data)) return data;
   for (const key of keys) if (Array.isArray(data?.[key])) return data[key];
@@ -597,18 +606,18 @@ const BooksPage = () => {
                           onChange={(e) => setSelectedMatch((m) => ({ ...m, [row.id]: e.target.value }))}
                         >
                           <option value="">Select payment…</option>
-                          {(row.suggestions || []).map((suggestion) => (
-                            <option key={suggestion.paymentId} value={suggestion.paymentId}>
-                              {suggestion.invoiceNumber}
+                          {bankMatchOptions(row.suggestions, unmatchedPayments).map((option) => (
+                            <option key={option.paymentId} value={option.paymentId}>
+                              {option.invoiceNumber}
                               {' · '}
-                              {suggestion.customerName}
+                              {option.customerName}
                               {' · '}
-                              {suggestion.mode}
+                              {option.mode}
                               {' · '}
-                              {money(suggestion.amount)}
+                              {money(option.amount)}
                               {' · '}
-                              {String(suggestion.paidAt || '').slice(0, 10)}
-                              {suggestion.invoiceStatus ? ` · ${suggestion.invoiceStatus}` : ''}
+                              {String(option.paidAt || '').slice(0, 10)}
+                              {option.invoiceStatus ? ` · ${option.invoiceStatus}` : ''}
                             </option>
                           ))}
                         </select>
