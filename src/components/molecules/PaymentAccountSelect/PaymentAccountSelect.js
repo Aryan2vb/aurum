@@ -21,7 +21,7 @@ export const clearPaymentAccountCache = () => {
 const PaymentAccountSelect = ({
   mode,
   value = '',
-  onChange,
+  onChange = () => {},
   className = '',
   label = 'Bank account',
 }) => {
@@ -32,18 +32,20 @@ const PaymentAccountSelect = ({
   useEffect(() => {
     if (!required) return undefined;
     let active = true;
+    setError('');
     loadAccounts()
       .then((data) => {
-        if (active) setAccounts(bankAccounts(data?.data || data?.accounts || data || []));
+        if (!active) return;
+        setAccounts(bankAccounts(data?.data || data?.accounts || data || []));
       })
       .catch(() => {
         if (active) setError('Could not load bank accounts');
       });
     return () => { active = false; };
-  }, [required]);
+  }, [required, mode]);
 
   useEffect(() => {
-    if (!required && value && onChange) onChange('');
+    if (!required && value) onChange('');
   }, [required, value, onChange]);
 
   if (!required) return null;

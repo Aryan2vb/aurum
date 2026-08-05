@@ -41,5 +41,5 @@ export const getPaymentAccountError = (payments = []) => {
       !(payment.financialAccountId || payment.accountId),
   );
   if (!missing.length) return '';
-  return 'Select a bank account for UPI, card, cheque, and other non-cash payments';
+  return 'Select a bank account for non-cash payments';
 };
