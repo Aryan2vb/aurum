@@ -13,6 +13,7 @@ export const clearSession = () => {
   localStorage.removeItem('userRole');
   localStorage.removeItem('organizationName');
   localStorage.removeItem('organizationId');
+  localStorage.removeItem('accessModules');
   clearFirmIdentitySettingsCache({ notify: true });
 };
 
@@ -26,16 +27,22 @@ export const parseResponse = async (response) => {
   }
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    const code =
+      payload?.code ||
+      (payload?.message && typeof payload.message === 'object' ? payload.message.code : null);
+    // Module denials must not wipe the session; window lock / auth failures should.
+    if (response.status === 401 || (response.status === 403 && code === 'ACCESS_WINDOW_CLOSED')) {
       clearSession();
     }
     const message =
-      payload?.message ||
+      (typeof payload?.message === 'string' && payload.message) ||
+      (payload?.message && typeof payload.message === 'object' && payload.message.message) ||
       payload?.error ||
       `Request failed with status ${response.status}`;
 
     const error = new Error(message);
     error.status = response.status;
+    error.code = code;
     error.payload = payload;
     throw error;
   }

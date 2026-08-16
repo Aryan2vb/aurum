@@ -1,4 +1,5 @@
-import { React, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme, LIGHT_THEMES, THEME_LABELS, THEME_SWATCHES } from '../../contexts/ThemeContext';
 import { usePermission } from '../../hooks/usePermission';
 import {
@@ -6,7 +7,10 @@ import {
   getOrganizationMembers,
   updateOrganizationMemberRole,
   removeOrganizationMember,
+  getAccessPolicy,
+  updateAccessPolicy,
 } from '../../services/organizationService';
+import { useAccessPolicy } from '../../contexts/AccessPolicyContext';
 import {
   getInvoiceSettings,
   upsertInvoiceSettings,
@@ -24,8 +28,88 @@ import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
+const MODULE_LABELS = [
+  { key: 'customers', label: 'Customers' },
+  { key: 'credits', label: 'Udhar' },
+  { key: 'advance', label: 'Advance' },
+  { key: 'invoices', label: 'Invoices' },
+  { key: 'stock', label: 'Stock' },
+  { key: 'purchases', label: 'Purchases' },
+  { key: 'books', label: 'Cash & Bank Book' },
+  { key: 'reports', label: 'Reports' },
+];
+
+const DELEGATED_ROLES = ['ADMIN', 'STAFF', 'VIEWER'];
+
+/** Friendly timezone picker — value is still IANA for the API. */
+const TIMEZONE_OPTIONS = [
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'America/New_York', label: 'New York (ET)' },
+  { value: 'America/Chicago', label: 'Chicago (CT)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (PT)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AET)' },
+  { value: 'UTC', label: 'UTC' },
+];
+
+const defaultModuleAccess = () =>
+  Object.fromEntries(MODULE_LABELS.map(({ key }) => [key, [...DELEGATED_ROLES]]));
+
+const SECTION_FROM_HASH = {
+  workspace: 'workspace',
+  team: 'workspace',
+  inventory: 'inventory',
+  'metal-purities': 'inventory',
+  invoicing: 'invoicing',
+  invoice: 'invoicing',
+  preferences: 'preferences',
+  appearance: 'preferences',
+  account: 'preferences',
+};
+
+/** Canonical hash written when picking a section (keeps Stock → Manage purities working). */
+const HASH_FOR_SECTION = {
+  workspace: 'workspace',
+  inventory: 'metal-purities',
+  invoicing: 'invoicing',
+  preferences: 'preferences',
+};
+
+const resolveSection = (hash, isAdmin) => {
+  const key = String(hash || '').replace(/^#/, '');
+  let section = SECTION_FROM_HASH[key];
+  if (!section) section = isAdmin ? 'workspace' : 'inventory';
+  if (!isAdmin && (section === 'workspace' || section === 'invoicing')) {
+    section = 'inventory';
+  }
+  return section;
+};
+
 const SettingsPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { can } = usePermission();
+  const isAdmin = can('admin');
+  const isOwner = can('manage-roles');
+  const { setFromWhoami } = useAccessPolicy();
+
+  const navItems = useMemo(() => {
+    const items = [];
+    if (isAdmin) items.push({ id: 'workspace', label: 'Workspace', hint: 'Team & access' });
+    items.push({ id: 'inventory', label: 'Inventory', hint: 'Metals & purities' });
+    if (isAdmin) items.push({ id: 'invoicing', label: 'Invoicing', hint: 'Bill template' });
+    items.push({ id: 'preferences', label: 'Preferences', hint: 'Theme & account' });
+    return items;
+  }, [isAdmin]);
+
+  const [activeSection, setActiveSection] = useState(() =>
+    resolveSection(window.location.hash, isAdmin),
+  );
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,19 +161,93 @@ const SettingsPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [accessPolicy, setAccessPolicy] = useState({
+    accessWindowEnabled: false,
+    accessWindowStart: '09:00',
+    accessWindowEnd: '20:00',
+    timezone: 'Asia/Kolkata',
+    moduleAccess: defaultModuleAccess(),
+  });
+  const [accessStatus, setAccessStatus] = useState({ loading: false, error: null, success: null });
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
+    if (isOwner) fetchAccessPolicy();
     fetchMetalPurities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (window.location.hash === '#metal-purities') {
-      const el = document.getElementById('metal-purities');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveSection(resolveSection(location.hash, isAdmin));
+  }, [location.hash, isAdmin]);
+
+  const goToSection = (sectionId) => {
+    const next = resolveSection(`#${HASH_FOR_SECTION[sectionId] || sectionId}`, isAdmin);
+    setActiveSection(next);
+    navigate({ pathname: '/settings', hash: HASH_FOR_SECTION[next] }, { replace: true });
+  };
+
+  const fetchAccessPolicy = async () => {
+    setAccessStatus((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const policy = await getAccessPolicy();
+      setAccessPolicy({
+        accessWindowEnabled: !!policy.accessWindowEnabled,
+        accessWindowStart: policy.accessWindowStart || '09:00',
+        accessWindowEnd: policy.accessWindowEnd || '20:00',
+        timezone: policy.timezone || 'Asia/Kolkata',
+        moduleAccess: { ...defaultModuleAccess(), ...(policy.moduleAccess || {}) },
+      });
+      setAccessStatus({ loading: false, error: null, success: null });
+    } catch (e) {
+      setAccessStatus({ loading: false, error: e.message || 'Failed to load access policy', success: null });
     }
-  }, [metalPuritiesLoading]);
+  };
+
+  const saveAccessPolicy = async () => {
+    setAccessStatus({ loading: true, error: null, success: null });
+    try {
+      const saved = await updateAccessPolicy({
+        accessWindowEnabled: accessPolicy.accessWindowEnabled,
+        accessWindowStart: String(accessPolicy.accessWindowStart || '').slice(0, 5),
+        accessWindowEnd: String(accessPolicy.accessWindowEnd || '').slice(0, 5),
+        timezone: accessPolicy.timezone,
+        moduleAccess: accessPolicy.moduleAccess,
+      });
+      setAccessPolicy({
+        accessWindowEnabled: !!saved.accessWindowEnabled,
+        accessWindowStart: saved.accessWindowStart,
+        accessWindowEnd: saved.accessWindowEnd,
+        timezone: saved.timezone,
+        moduleAccess: { ...defaultModuleAccess(), ...(saved.moduleAccess || {}) },
+      });
+      // Refresh effective modules for current session (owner → all true anyway)
+      setFromWhoami({
+        accessPolicy: {
+          modules: saved.modulesForRole,
+        },
+      });
+      setAccessStatus({ loading: false, error: null, success: 'Access settings saved' });
+      setTimeout(() => setAccessStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setAccessStatus({ loading: false, error: e.message || 'Failed to save', success: null });
+    }
+  };
+
+  const toggleModuleRole = (moduleKey, role) => {
+    setAccessPolicy((prev) => {
+      const current = new Set(prev.moduleAccess[moduleKey] || []);
+      if (current.has(role)) current.delete(role);
+      else current.add(role);
+      return {
+        ...prev,
+        moduleAccess: {
+          ...prev.moduleAccess,
+          [moduleKey]: DELEGATED_ROLES.filter((r) => current.has(r)),
+        },
+      };
+    });
+  };
 
   const fetchMembers = async () => {
     setLoadingMembers(true);
@@ -336,9 +494,26 @@ const SettingsPage = () => {
   return (
     <DashboardTemplate headerTitle="Settings" headerTabs={[]}>
       <div className="settings-page">
+        <div className="settings-shell">
+          <nav className="settings-nav" aria-label="Settings sections">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`settings-nav-item${activeSection === item.id ? ' is-active' : ''}`}
+                onClick={() => goToSection(item.id)}
+                aria-current={activeSection === item.id ? 'page' : undefined}
+              >
+                <span className="settings-nav-label">{item.label}</span>
+                <span className="settings-nav-hint">{item.hint}</span>
+              </button>
+            ))}
+          </nav>
 
-        {/* ────────── TEAM ────────── */}
-        {can('admin') && (
+          <div className="settings-content">
+
+        {/* ────────── WORKSPACE ────────── */}
+        {activeSection === 'workspace' && can('admin') && (
           <section className="settings-section">
             <div className="s-card">
               {/* Card header = title + action anchored together */}
@@ -410,10 +585,137 @@ const SettingsPage = () => {
                 ))
               )}
             </div>
+
+            {isOwner && (
+              <div className="s-card access-card">
+                <div className="s-card-header">
+                  <div>
+                    <div className="s-card-title">Access controls</div>
+                    <div className="s-card-subtitle">Non-owner hours &amp; module visibility</div>
+                  </div>
+                  <button
+                    className="s-btn s-btn-primary"
+                    type="button"
+                    disabled={accessStatus.loading}
+                    onClick={saveAccessPolicy}
+                  >
+                    {accessStatus.loading ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+
+                <div className="access-body">
+                  {(accessStatus.error || accessStatus.success) && (
+                    <div className={accessStatus.error ? 's-feedback-err' : 's-feedback-ok'}>
+                      {accessStatus.error || accessStatus.success}
+                    </div>
+                  )}
+
+                  <div className={`access-hours${accessPolicy.accessWindowEnabled ? ' is-on' : ''}`}>
+                    <div className="access-hours-controls">
+                      <input
+                        id="access-from"
+                        type="time"
+                        className="access-time"
+                        aria-label="From"
+                        value={accessPolicy.accessWindowStart}
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, accessWindowStart: e.target.value }))
+                        }
+                      />
+                      <span className="access-hours-sep">→</span>
+                      <input
+                        id="access-to"
+                        type="time"
+                        className="access-time"
+                        aria-label="To"
+                        value={accessPolicy.accessWindowEnd}
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, accessWindowEnd: e.target.value }))
+                        }
+                      />
+                      <select
+                        id="access-tz"
+                        className="access-tz"
+                        aria-label="Timezone"
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        value={
+                          TIMEZONE_OPTIONS.some((o) => o.value === accessPolicy.timezone)
+                            ? accessPolicy.timezone
+                            : accessPolicy.timezone || 'Asia/Kolkata'
+                        }
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, timezone: e.target.value }))
+                        }
+                      >
+                        {!TIMEZONE_OPTIONS.some((o) => o.value === accessPolicy.timezone) &&
+                          accessPolicy.timezone && (
+                            <option value={accessPolicy.timezone}>{accessPolicy.timezone}</option>
+                          )}
+                        {TIMEZONE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`access-enforce-btn${accessPolicy.accessWindowEnabled ? ' is-on' : ''}`}
+                      aria-pressed={accessPolicy.accessWindowEnabled}
+                      onClick={() =>
+                        setAccessPolicy((p) => ({
+                          ...p,
+                          accessWindowEnabled: !p.accessWindowEnabled,
+                        }))
+                      }
+                    >
+                      {accessPolicy.accessWindowEnabled ? 'Login enforced' : 'Login not enforced'}
+                    </button>
+                  </div>
+
+                  <div className="access-modules">
+                    <div className="access-modules-head">
+                      <span className="access-modules-title">Modules</span>
+                      <div className="access-role-legend" aria-hidden="true">
+                        {DELEGATED_ROLES.map((role) => (
+                          <span key={role} className="access-role-tag">
+                            {role === 'ADMIN' ? 'Admin' : role === 'STAFF' ? 'Staff' : 'Viewer'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="access-module-list" role="table" aria-label="Module visibility by role">
+                      {MODULE_LABELS.map(({ key, label }) => (
+                        <div key={key} className="access-module-item" role="row">
+                          <span className="access-module-name" role="cell">{label}</span>
+                          <div className="access-module-roles" role="cell">
+                            {DELEGATED_ROLES.map((role) => (
+                              <label key={role} className="access-module-check">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`${label} for ${role.toLowerCase()}`}
+                                  checked={(accessPolicy.moduleAccess[key] || []).includes(role)}
+                                  onChange={() => toggleModuleRole(key, role)}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
-        {/* ────────── METALS & PURITIES ────────── */}
+        {/* ────────── INVENTORY ────────── */}
+        {activeSection === 'inventory' && (
         <section className="settings-section" id="metal-purities">
           <div className="s-card">
             <div className="s-card-header">
@@ -538,9 +840,10 @@ const SettingsPage = () => {
             )}
           </div>
         </section>
+        )}
 
-        {/* ────────── INVOICE SETTINGS ────────── */}
-        {can('admin') && (
+        {/* ────────── INVOICING ────────── */}
+        {activeSection === 'invoicing' && can('admin') && (
           <section className="settings-section">
             <div className="s-card">
               <div className="s-card-header">
@@ -903,7 +1206,9 @@ const SettingsPage = () => {
           </section>
         )}
 
-        {/* ────────── APPEARANCE ────────── */}
+        {/* ────────── PREFERENCES ────────── */}
+        {activeSection === 'preferences' && (
+          <>
         <section className="settings-section">
           <div className="s-card">
             <div className="s-card-header">
@@ -941,7 +1246,11 @@ const SettingsPage = () => {
             </div>
           </div>
         </section>
+          </>
+        )}
 
+          </div>
+        </div>
       </div>
 
       {/* ────────── ADD MEMBER MODAL ────────── */}

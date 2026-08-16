@@ -30,6 +30,18 @@ describe('role visibility permissions', () => {
     const appSource = fs.readFileSync(path.join(__dirname, 'App.js'), 'utf8');
 
     expect(appSource).toContain("<ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>");
+    expect(appSource).toMatch(/path="\/invoices\/new"[\s\S]*?allowedRoles=\{\['OWNER', 'ADMIN', 'STAFF'\]\}/);
+  });
+
+  it('allows viewers to open advance, stock, purchases, and books routes', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, 'App.js'), 'utf8');
+
+    for (const pathName of ['/advance', '/stock', '/purchases', '/books']) {
+      const blocked = new RegExp(
+        `path="${pathName}"[\\s\\S]*?allowedRoles=\\{\\['OWNER', 'ADMIN', 'STAFF'\\]\\}`,
+      );
+      expect(appSource).not.toMatch(blocked);
+    }
   });
 
   it('hides invoice write controls from read-only users', () => {

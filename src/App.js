@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AccessPolicyProvider } from './contexts/AccessPolicyContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import LoginPage from './pages/LoginPage/LoginPage';
 import SignupPage from './pages/SignupPage/SignupPage';
@@ -32,6 +33,7 @@ function App() {
 
   return (
     <ThemeProvider>
+      <AccessPolicyProvider>
       <ErrorBoundary>
         <Router>
           <div className="App">
@@ -186,7 +188,7 @@ function App() {
             <Route
               path="/advance"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                <ProtectedRoute>
                   <AdvancePage />
                 </ProtectedRoute>
               }
@@ -194,7 +196,7 @@ function App() {
             <Route
               path="/stock"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                <ProtectedRoute>
                   <StockPage />
                 </ProtectedRoute>
               }
@@ -202,7 +204,7 @@ function App() {
             <Route
               path="/purchases"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                <ProtectedRoute>
                   <PurchasesPage />
                 </ProtectedRoute>
               }
@@ -210,7 +212,7 @@ function App() {
             <Route
               path="/books"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                <ProtectedRoute>
                   <BooksPage />
                 </ProtectedRoute>
               }
@@ -220,6 +222,7 @@ function App() {
           </div>
         </Router>
       </ErrorBoundary>
+      </AccessPolicyProvider>
     </ThemeProvider>
   );
 }

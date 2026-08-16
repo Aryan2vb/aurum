@@ -7,7 +7,7 @@
 **Roles used in cases**
 | Role | Can use Stock / Purchases / Cash & Bank |
 |------|----------------------------------------|
-| OWNER, ADMIN, STAFF | Yes |
+
 | VIEWER | No (should be blocked) |
 
 **Suggested test shop setup**

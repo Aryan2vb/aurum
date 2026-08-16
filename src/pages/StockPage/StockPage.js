@@ -325,6 +325,19 @@ const StockPage = () => {
     setSummaryRange(summaryRange(preset));
   };
 
+  const handleSummaryDateChange = (field, value) => {
+    if (!value) return;
+    setSummaryPreset('custom');
+    setSummaryRange((prev) => {
+      const next = { ...prev, [field]: value };
+      if (next.startDate && next.endDate && next.startDate > next.endDate) {
+        if (field === 'startDate') next.endDate = value;
+        else next.startDate = value;
+      }
+      return next;
+    });
+  };
+
   const groupedSummary = useMemo(() => {
     const groups = { GOLD: [], SILVER: [] };
     summaryData.forEach((item) => {
@@ -619,9 +632,27 @@ const StockPage = () => {
               ))}
             </div>
             <div className="report-filter-right">
-              <span className="period-chip">
-                {formatDateReadable(startDate)} → {formatDateReadable(endDate)}
-              </span>
+              <label className="summary-date-field">
+                <span>From</span>
+                <input
+                  type="date"
+                  className="summary-date-input"
+                  value={startDate}
+                  max={endDate || toDateInput()}
+                  onChange={(e) => handleSummaryDateChange('startDate', e.target.value)}
+                />
+              </label>
+              <label className="summary-date-field">
+                <span>To</span>
+                <input
+                  type="date"
+                  className="summary-date-input"
+                  value={endDate}
+                  min={startDate || undefined}
+                  max={toDateInput()}
+                  onChange={(e) => handleSummaryDateChange('endDate', e.target.value)}
+                />
+              </label>
               <button
                 type="button"
                 className="attio-secondary-btn compact-btn"
