@@ -34,6 +34,43 @@ const formatDate = (dateString) => {
   }
 };
 
+const bankMatchLines = (payment) => {
+  if (Array.isArray(payment?.bankMatches) && payment.bankMatches.length) return payment.bankMatches;
+  return payment?.bankMatch ? [payment.bankMatch] : [];
+};
+
+const BankMatchedBadge = ({ payment }) => {
+  const lines = bankMatchLines(payment);
+  if (!lines.length) return <span className="bank-unmatched-label">—</span>;
+  const total = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+  return (
+    <span className="bank-matched" tabIndex={0}>
+      <span className="bank-matched-badge">
+        Bank matched{lines.length > 1 ? ` (${lines.length})` : ''}
+      </span>
+      <span className="bank-matched-pop" role="tooltip">
+        <span className="bank-matched-pop-title">Statement credit{lines.length > 1 ? 's' : ''}</span>
+        {lines.map((line, index) => (
+          <span key={line.refNumber || index} className="bank-matched-pop-row">
+            <span className="bank-matched-pop-meta">
+              {formatDate(line.txnDate)}
+              {line.refNumber ? ` · ${line.refNumber}` : ''}
+            </span>
+            <span className="bank-matched-pop-amt">{formatCurrency(line.credit)}</span>
+            {line.narration ? <span className="bank-matched-pop-narration">{line.narration}</span> : null}
+          </span>
+        ))}
+        {lines.length > 1 ? (
+          <span className="bank-matched-pop-total">
+            <span>Linked</span>
+            <span>{formatCurrency(total)} / {formatCurrency(payment.amount)}</span>
+          </span>
+        ) : null}
+      </span>
+    </span>
+  );
+};
+
 const formatCustomerAddress = (location) => {
   if (!location) return '';
   return [
@@ -480,22 +517,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td><span className="payment-mode-tag">{p.mode}</span></td>
                           <td>{p.reference || '—'}</td>
                           <td>
-                            {p.bankMatched ? (
-                              <span
-                                className="bank-matched-badge"
-                                title={
-                                  p.bankMatch
-                                    ? `Matched ${String(p.bankMatch.txnDate || '').slice(0, 10)}`
-                                      + (p.bankMatch.refNumber ? ` · ${p.bankMatch.refNumber}` : '')
-                                      + (p.bankMatch.narration ? ` · ${p.bankMatch.narration}` : '')
-                                    : 'Matched to bank statement'
-                                }
-                              >
-                                Bank matched
-                              </span>
-                            ) : (
-                              <span className="bank-unmatched-label">—</span>
-                            )}
+                            <BankMatchedBadge payment={p} />
                           </td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>
                         </tr>

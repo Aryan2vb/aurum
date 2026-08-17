@@ -67,6 +67,9 @@ export const uploadBankStatement = async (accountId, file) => {
   return parseResponse(response);
 };
 
+export const getBankStatementInbox = (accountId) =>
+  request(withQuery('/finance/bank-statements/inbox', { accountId }));
+
 export const getUnmatchedBankCredits = (accountId) =>
   request(withQuery('/finance/bank-statements/unmatched', { accountId }));
 
@@ -91,8 +94,20 @@ export const deleteBankStatementLine = (lineId) =>
     method: 'DELETE',
   });
 
+export const deleteBankStatementLinesBulk = (lineIds) =>
+  request('/finance/bank-statements/delete-bulk', {
+    method: 'POST',
+    body: JSON.stringify({ lineIds }),
+  });
+
 export const matchBankStatementLine = (lineId, paymentId) =>
   request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/match`, {
     method: 'POST',
     body: JSON.stringify({ paymentId }),
+  });
+
+export const matchBankStatementLinesBulk = (lineIds, paymentId) =>
+  request('/finance/bank-statements/match-bulk', {
+    method: 'POST',
+    body: JSON.stringify({ lineIds, paymentId }),
   });

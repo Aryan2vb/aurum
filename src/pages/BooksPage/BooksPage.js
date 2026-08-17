@@ -9,18 +9,32 @@ import {
   getFinanceBook,
   getFinancialAccounts,
   getUnassignedMovements,
-  getMatchedBankCredits,
-  getUnmatchedBankCredits,
-  getUnmatchedBankPayments,
+  getBankStatementInbox,
   deleteBankStatementLine,
+  deleteBankStatementLinesBulk,
   ignoreBankStatementLine,
   matchBankStatementLine,
+  matchBankStatementLinesBulk,
   unmatchBankStatementLine,
   updateFinancialAccount,
   uploadBankStatement,
 } from '../../services/financeService';
 import { clearPaymentAccountCache } from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import Toast from '../../components/atoms/Toast/Toast';
+import { FiCornerUpLeft, FiEyeOff, FiLink, FiTrash2, FiUpload } from 'react-icons/fi';
+import {
+  bankMatchOptions,
+  bulkMatchOptions,
+  dayKey,
+  dayLabel,
+  groupByDay,
+  indexByDay,
+  inPeriod,
+  matchFitTag,
+  paymentFillPct,
+  paymentOptionLabel,
+} from './reconcileHelpers';
+import ReconciliationTimeline from './ReconciliationTimeline';
 import './BooksPage.css';
 
 const TYPES = ['CASH', 'BANK'];
@@ -39,13 +53,21 @@ const today = () => new Date().toISOString().slice(0, 10);
 const money = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Suggestions first, then other unmatched payments (deduped by paymentId). */
-const bankMatchOptions = (suggestions = [], unmatchedPayments = []) => {
-  const suggestionIds = new Set(suggestions.map((s) => s.paymentId));
-  return [
-    ...suggestions,
-    ...unmatchedPayments.filter((p) => !suggestionIds.has(p.paymentId)),
-  ];
+const paymentFill = (amount, remaining) => {
+  const { linked, amount: amt, pct } = paymentFillPct(amount, remaining);
+  return (
+    <div className="payment-fill">
+      <div className="payment-fill-bar" aria-hidden="true">
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <span className="payment-fill-label">{money(linked)} / {money(amt)}</span>
+    </div>
+  );
+};
+
+const fitBadge = (tag) => {
+  if (!tag) return null;
+  return <span className={`fit-badge fit-badge--${tag.toLowerCase()}`}>{tag}</span>;
 };
 const list = (data, keys = []) => {
   if (Array.isArray(data)) return data;
@@ -87,6 +109,10 @@ const BooksPage = () => {
   const [unmatchedPayments, setUnmatchedPayments] = useState([]);
   const [linkedCredits, setLinkedCredits] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState({});
+  const [bulkMatchPaymentId, setBulkMatchPaymentId] = useState('');
+  const [selectedDayFilter, setSelectedDayFilter] = useState(null);
+  const [timelineGrain, setTimelineGrain] = useState('day');
+  const [timelineMonth, setTimelineMonth] = useState(() => today().slice(0, 7));
   const [accountForm, setAccountForm] = useState(null);
   const [entryForm, setEntryForm] = useState(null);
   const [editingAccountId, setEditingAccountId] = useState('');
@@ -113,6 +139,10 @@ const BooksPage = () => {
     setLedgerRows(list(data, ['entries', 'rows', 'transactions']));
   }, [selectedAccountId, dates]);
 
+  const loadBooksQuiet = useCallback(async () => {
+    await Promise.all([loadBook(), loadLedger()]);
+  }, [loadBook, loadLedger]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     setToast(null);
@@ -136,21 +166,24 @@ const BooksPage = () => {
 
   const loadUnmatched = useCallback(async (accountId = reconcileAccountId) => {
     const id = accountId || undefined;
-    const [creditData, paymentData, linkedData] = await Promise.all([
-      getUnmatchedBankCredits(id),
-      getUnmatchedBankPayments(id),
-      getMatchedBankCredits(id),
-    ]);
-    const rows = list(creditData, ['lines', 'entries', 'rows']);
+    const data = await getBankStatementInbox(id);
+    const rows = list(data, ['unmatched']);
+    const payments = list(data, ['payments']);
     setUnmatchedCredits(rows);
-    setUnmatchedPayments(list(paymentData, ['payments', 'entries', 'rows']));
-    setLinkedCredits(list(linkedData, ['lines', 'entries', 'rows']));
+    setUnmatchedPayments(payments);
+    setLinkedCredits(list(data, ['matched']));
+    const byDay = indexByDay(payments, 'paidAt');
     setSelectedMatch((prev) => {
       const next = { ...prev };
       rows.forEach((row) => {
-        if (!next[row.id] && row.suggestions?.[0]?.paymentId) {
-          next[row.id] = row.suggestions[0].paymentId;
-        }
+        if (next[row.id]) return;
+        const options = bankMatchOptions(
+          row.txnDate,
+          row.credit,
+          row.suggestions,
+          byDay.get(dayKey(row.txnDate)) || [],
+        );
+        if (options[0]?.paymentId) next[row.id] = options[0].paymentId;
       });
       return next;
     });
@@ -165,6 +198,86 @@ const BooksPage = () => {
     () => accounts.filter((account) => account.type === 'BANK' && account.isActive !== false),
     [accounts],
   );
+
+  const creditsByDay = useMemo(() => groupByDay(unmatchedCredits, 'txnDate'), [unmatchedCredits]);
+  const paymentsByDay = useMemo(() => groupByDay(unmatchedPayments, 'paidAt'), [unmatchedPayments]);
+  const linkedByDay = useMemo(() => groupByDay(linkedCredits, 'txnDate'), [linkedCredits]);
+  const paymentsIndexByDay = useMemo(() => indexByDay(unmatchedPayments, 'paidAt'), [unmatchedPayments]);
+  const selectedCreditIdSet = useMemo(() => new Set(selectedCreditIds), [selectedCreditIds]);
+  const matchOptionsByCreditId = useMemo(() => {
+    const map = {};
+    for (const row of unmatchedCredits) {
+      map[row.id] = bankMatchOptions(
+        row.txnDate,
+        row.credit,
+        row.suggestions,
+        paymentsIndexByDay.get(dayKey(row.txnDate)) || [],
+      );
+    }
+    return map;
+  }, [unmatchedCredits, paymentsIndexByDay]);
+  const visibleCreditsByDay = useMemo(
+    () => (selectedDayFilter ? creditsByDay.filter((block) => inPeriod(block.dayKey, selectedDayFilter)) : creditsByDay),
+    [creditsByDay, selectedDayFilter],
+  );
+  const visiblePaymentsByDay = useMemo(
+    () => (selectedDayFilter ? paymentsByDay.filter((block) => inPeriod(block.dayKey, selectedDayFilter)) : paymentsByDay),
+    [paymentsByDay, selectedDayFilter],
+  );
+  const visibleLinkedByDay = useMemo(
+    () => (selectedDayFilter ? linkedByDay.filter((block) => inPeriod(block.dayKey, selectedDayFilter)) : linkedByDay),
+    [linkedByDay, selectedDayFilter],
+  );
+  const visibleUnmatchedCredits = useMemo(
+    () => (selectedDayFilter ? unmatchedCredits.filter((row) => inPeriod(row.txnDate, selectedDayFilter)) : unmatchedCredits),
+    [unmatchedCredits, selectedDayFilter],
+  );
+  const periodLabel = selectedDayFilter?.label
+    || (selectedDayFilter?.start === selectedDayFilter?.end
+      ? dayLabel(selectedDayFilter?.start)
+      : `${dayLabel(selectedDayFilter?.start)} – ${dayLabel(selectedDayFilter?.end)}`);
+
+  const setDayFilter = (period) => {
+    setSelectedDayFilter(period);
+    if (period?.start) setTimelineMonth(period.start.slice(0, 7));
+    setSelectedCreditIds((ids) => {
+      if (!period) return ids;
+      const keep = new Set(unmatchedCredits.filter((row) => inPeriod(row.txnDate, period)).map((row) => row.id));
+      return ids.filter((id) => keep.has(id));
+    });
+  };
+
+  const setGrain = (grain) => {
+    setTimelineGrain(grain);
+    setSelectedDayFilter(null);
+  };
+
+  const bulkSelection = useMemo(() => {
+    if (selectedCreditIds.length < 2) return null;
+    const selected = unmatchedCredits.filter((row) => selectedCreditIdSet.has(row.id));
+    if (selected.length < 2) return null;
+    const day = dayKey(selected[0].txnDate);
+    if (selected.some((row) => dayKey(row.txnDate) !== day)) {
+      return { mixedDay: true, selected, sum: 0, candidates: [], preferredId: '' };
+    }
+    const sum = selected.reduce((total, row) => total + Number(row.credit || 0), 0);
+    const candidates = bulkMatchOptions(
+      paymentsIndexByDay.get(day) || [],
+      sum,
+      selected[0].txnDate,
+    );
+    const preferredId = candidates.find((row) => row.completes)?.paymentId || candidates[0]?.paymentId || '';
+    return { mixedDay: false, selected, sum, candidates, preferredId };
+  }, [selectedCreditIds, selectedCreditIdSet, unmatchedCredits, paymentsIndexByDay]);
+
+  const bulkSelectedId = bulkSelection?.candidates.some((row) => row.paymentId === bulkMatchPaymentId)
+    ? bulkMatchPaymentId
+    : (bulkSelection?.preferredId || '');
+  const bulkSelectedPayment = bulkSelection?.candidates.find((row) => row.paymentId === bulkSelectedId);
+
+  useEffect(() => {
+    setBulkMatchPaymentId(bulkSelection?.preferredId || '');
+  }, [bulkSelection?.preferredId, selectedCreditIds]);
 
   const visibleAccounts = useMemo(
     () => accounts.filter((account) => account.type === type && account.isActive !== false),
@@ -222,7 +335,6 @@ const BooksPage = () => {
         + ` — ${result.credits ?? 0} credits / ${result.debits ?? 0} debits`,
       });
       await loadUnmatched(accountId);
-      await refresh();
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not upload statement' });
     } finally {
@@ -268,7 +380,7 @@ const BooksPage = () => {
     setSaving(true);
     setToast(null);
     try {
-      await Promise.all(ids.map((id) => deleteBankStatementLine(id)));
+      await deleteBankStatementLinesBulk(ids);
       setUnmatchedCredits((rows) => rows.filter((row) => !ids.includes(row.id)));
       setSelectedCreditIds([]);
       setToast({ type: 'success', message: `Deleted ${ids.length} statement line${ids.length === 1 ? '' : 's'}` });
@@ -298,25 +410,76 @@ const BooksPage = () => {
   };
 
   const confirmCredit = async (line) => {
-    const paymentId = selectedMatch[line.id] || line.suggestions?.[0]?.paymentId;
+    const options = matchOptionsByCreditId[line.id] || [];
+    const paymentId = selectedMatch[line.id] || options[0]?.paymentId;
     if (!paymentId) {
-      setToast({ type: 'error', message: 'Pick a booked payment before confirming' });
+      setToast({
+        type: 'error',
+        message: 'Pick a same-day booked payment before confirming',
+      });
       return;
     }
     setSaving(true);
     setToast(null);
     try {
-      const result =       await matchBankStatementLine(line.id, paymentId);
-      setUnmatchedCredits((rows) => rows.filter((row) => row.id !== line.id));
-      setUnmatchedPayments((rows) => rows.filter((row) => row.paymentId !== paymentId));
+      const result = await matchBankStatementLine(line.id, paymentId);
+      const remaining = Number(result?.payment?.remaining ?? 0);
       setToast({
         type: 'success',
-        message: `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'} (no new payment created)`,
+        message: remaining > 1
+          ? `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'} (${money(remaining)} still open on payment)`
+          : `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'}`,
       });
-      await loadUnmatched();
-      await refresh();
+      setSelectedCreditIds((ids) => ids.filter((id) => id !== line.id));
+      await Promise.all([loadUnmatched(), loadBooksQuiet()]);
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not link payment' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const linkSelectedCredits = async () => {
+    const ids = selectedCreditIds;
+    const selected = unmatchedCredits.filter((row) => selectedCreditIdSet.has(row.id));
+    if (selected.length < 2) {
+      setToast({ type: 'error', message: 'Select at least two credits to link as a split' });
+      return;
+    }
+    const day = dayKey(selected[0].txnDate);
+    if (selected.some((row) => dayKey(row.txnDate) !== day)) {
+      setToast({ type: 'error', message: 'Selected credits must be on the same day' });
+      return;
+    }
+    const sum = selected.reduce((total, row) => total + Number(row.credit || 0), 0);
+    const candidates = bulkSelection?.candidates?.length
+      ? bulkSelection.candidates
+      : bulkMatchOptions(unmatchedPayments, sum, selected[0].txnDate);
+    if (!candidates.length) {
+      setToast({
+        type: 'error',
+        message: `No same-day payment with enough remaining for ${money(sum)}`,
+      });
+      return;
+    }
+    const paymentId = bulkMatchPaymentId || bulkSelection?.preferredId || candidates[0].paymentId;
+    if (!candidates.some((c) => c.paymentId === paymentId)) {
+      setToast({ type: 'error', message: 'Pick a same-day payment that can absorb the selected credits' });
+      return;
+    }
+    setSaving(true);
+    setToast(null);
+    try {
+      const result = await matchBankStatementLinesBulk(ids, paymentId);
+      setSelectedCreditIds([]);
+      setBulkMatchPaymentId('');
+      setToast({
+        type: 'success',
+        message: `Linked ${selected.length} credits (${money(sum)}) → ${result?.payment?.invoiceNumber || 'payment'}`,
+      });
+      await Promise.all([loadUnmatched(), loadBooksQuiet()]);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not link selected credits' });
     } finally {
       setSaving(false);
     }
@@ -458,9 +621,6 @@ const BooksPage = () => {
               hidden
               onChange={handleStatementFile}
             />
-            <button className="secondary" type="button" onClick={handleUploadClick} disabled={saving}>
-              Upload statement
-            </button>
             <button className="secondary" onClick={() => openAccount()}>Manage accounts</button>
             <button className="primary" onClick={() => setEntryForm(emptyEntry())}>+ New entry</button>
           </div>
@@ -532,37 +692,87 @@ const BooksPage = () => {
             <div className="unassigned-banner">
               <div>
                 <h2>Month-end bank check</h2>
-                <p>
-                  Link statement credits to payments already booked on invoices (UPI / bank / card).
-                  Confirm only links — it never creates a second payment. Debits are stored but not matched here.
-                </p>
               </div>
-              <div className="assign-controls">
-                <select
-                  value={reconcileAccountId}
-                  onChange={(e) => {
-                    setReconcileAccountId(e.target.value);
-                    setSelectedCreditIds([]);
-                  }}
-                >
-                  <option value="">All bank accounts</option>
-                  {bankAccounts.map((account) => (
-                    <option key={account.id} value={account.id}>{accountName(account)}</option>
-                  ))}
-                </select>
-                <button
-                  className="link-button delete-entry"
-                  type="button"
-                  disabled={!selectedCreditIds.length || saving}
-                  onClick={deleteSelectedCredits}
-                >
-                  Delete selected
-                </button>
-                <button className="secondary" type="button" onClick={handleUploadClick} disabled={saving}>
-                  Upload statement
-                </button>
+              <div className="reconcile-toolbar">
+                <div className="reconcile-toolbar-filters">
+                  <select
+                    className="reconcile-select"
+                    value={reconcileAccountId}
+                    onChange={(e) => {
+                      setReconcileAccountId(e.target.value);
+                      setSelectedCreditIds([]);
+                      setBulkMatchPaymentId('');
+                    }}
+                  >
+                    <option value="">All bank accounts</option>
+                    {bankAccounts.map((account) => (
+                      <option key={account.id} value={account.id}>{accountName(account)}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    className="reconcile-btn reconcile-btn--delete"
+                    type="button"
+                    disabled={!selectedCreditIds.length || saving}
+                    onClick={deleteSelectedCredits}
+                    title="Delete selected credits"
+                  >
+                    <FiTrash2 size={15} aria-hidden />
+                    {selectedCreditIds.length ? `Delete (${selectedCreditIds.length})` : 'Delete'}
+                  </button>
+                  <button
+                    className="reconcile-btn reconcile-btn--upload"
+                    type="button"
+                    onClick={handleUploadClick}
+                    disabled={saving}
+                  >
+                    <FiUpload size={15} aria-hidden />
+                    Upload Bank Statement
+                  </button>
+                  {bulkSelection && !bulkSelection.mixedDay && (
+                      <div className="reconcile-bulk">
+                        <div className="reconcile-pick">
+                          <select
+                            className="reconcile-select reconcile-select--wide"
+                            value={bulkSelectedId}
+                            onChange={(e) => setBulkMatchPaymentId(e.target.value)}
+                            disabled={!bulkSelection.candidates.length}
+                          >
+                            {!bulkSelection.candidates.length && (
+                              <option value="">No payment with remaining ≥ {money(bulkSelection.sum)}</option>
+                            )}
+                            {bulkSelection.candidates.map((option) => (
+                              <option key={option.paymentId} value={option.paymentId}>
+                                {paymentOptionLabel(option, bulkSelection.sum)}
+                              </option>
+                            ))}
+                          </select>
+                          {fitBadge(bulkSelectedPayment?.fit)}
+                        </div>
+                        <button
+                          className="reconcile-btn reconcile-btn--link"
+                          type="button"
+                          disabled={saving || !bulkSelection.candidates.length}
+                          onClick={linkSelectedCredits}
+                        >
+                          <FiLink size={15} aria-hidden />
+                          Link {money(bulkSelection.sum)}
+                        </button>
+                      </div>
+                  )}
+                </div>
               </div>
             </div>
+            <ReconciliationTimeline
+              grain={timelineGrain}
+              onGrainChange={setGrain}
+              anchor={timelineMonth}
+              onAnchorChange={setTimelineMonth}
+              selectedPeriod={selectedDayFilter}
+              onSelectPeriod={setDayFilter}
+              unmatchedCredits={unmatchedCredits}
+              linkedCredits={linkedCredits}
+            />
             <div className="ledger-scroll">
               <table>
                 <thead>
@@ -570,13 +780,12 @@ const BooksPage = () => {
                     <th>
                       <input
                         type="checkbox"
-                        checked={unmatchedCredits.length > 0 && selectedCreditIds.length === unmatchedCredits.length}
+                        checked={visibleUnmatchedCredits.length > 0 && selectedCreditIds.length === visibleUnmatchedCredits.length}
                         onChange={(e) => setSelectedCreditIds(
-                          e.target.checked ? unmatchedCredits.map((row) => row.id) : [],
+                          e.target.checked ? visibleUnmatchedCredits.map((row) => row.id) : [],
                         )}
                       />
                     </th>
-                    <th>Date</th>
                     <th>Narration</th>
                     <th>Ref</th>
                     <th className="amount">Credit</th>
@@ -585,65 +794,87 @@ const BooksPage = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {unmatchedCredits.map((row) => (
-                    <tr key={row.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedCreditIds.includes(row.id)}
-                          onChange={(e) => setSelectedCreditIds((ids) => (
-                            e.target.checked ? [...ids, row.id] : ids.filter((id) => id !== row.id)
-                          ))}
-                        />
-                      </td>
-                      <td>{String(row.txnDate || '').slice(0, 10)}</td>
-                      <td className="narration-cell">{row.narration || '—'}</td>
-                      <td>{row.refNumber || '—'}</td>
-                      <td className="amount in">{money(row.credit)}</td>
-                      <td>
-                        <select
-                          value={selectedMatch[row.id] || ''}
-                          onChange={(e) => setSelectedMatch((m) => ({ ...m, [row.id]: e.target.value }))}
-                        >
-                          <option value="">Select payment…</option>
-                          {bankMatchOptions(row.suggestions, unmatchedPayments).map((option) => (
-                            <option key={option.paymentId} value={option.paymentId}>
-                              {option.invoiceNumber}
-                              {' · '}
-                              {option.customerName}
-                              {' · '}
-                              {option.mode}
-                              {' · '}
-                              {money(option.amount)}
-                              {' · '}
-                              {String(option.paidAt || '').slice(0, 10)}
-                              {option.invoiceStatus ? ` · ${option.invoiceStatus}` : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="reconcile-actions">
-                        <button
-                          className="primary"
-                          type="button"
-                          disabled={saving || !(selectedMatch[row.id] || row.suggestions?.[0]?.paymentId)}
-                          onClick={() => confirmCredit(row)}
-                        >
-                          Link
-                        </button>
-                        <button className="link-button" type="button" disabled={saving} onClick={() => ignoreCredit(row.id)}>
-                          Ignore
-                        </button>
-                        <button className="link-button delete-entry" type="button" disabled={saving} onClick={() => deleteCredit(row.id)}>
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
+                  {visibleCreditsByDay.map((block) => (
+                    <React.Fragment key={block.dayKey}>
+                      <tr className="day-block">
+                        <td colSpan={6}>{block.label}</td>
+                      </tr>
+                      {block.rows.map((row) => {
+                        const options = matchOptionsByCreditId[row.id] || [];
+                        const defaultPaymentId = selectedMatch[row.id] || options[0]?.paymentId || '';
+                        const selectedOption = options.find((option) => option.paymentId === defaultPaymentId);
+                        return (
+                          <tr key={row.id}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedCreditIdSet.has(row.id)}
+                                onChange={(e) => setSelectedCreditIds((ids) => (
+                                  e.target.checked ? [...ids, row.id] : ids.filter((id) => id !== row.id)
+                                ))}
+                              />
+                            </td>
+                            <td className="narration-cell">{row.narration || '—'}</td>
+                            <td>{row.refNumber || '—'}</td>
+                            <td className="amount in">{money(row.credit)}</td>
+                            <td>
+                              <div className="reconcile-pick">
+                                <select
+                                  value={defaultPaymentId}
+                                  onChange={(e) => setSelectedMatch((m) => ({ ...m, [row.id]: e.target.value }))}
+                                >
+                                  <option value="">
+                                    {options.length ? 'Select payment…' : 'No same-day payment'}
+                                  </option>
+                                  {options.map((option) => (
+                                    <option key={option.paymentId} value={option.paymentId}>
+                                      {paymentOptionLabel(option, row.credit)}
+                                    </option>
+                                  ))}
+                                </select>
+                                {fitBadge(selectedOption?.fit || matchFitTag(row.credit, selectedOption))}
+                              </div>
+                            </td>
+                            <td className="reconcile-actions">
+                              <button
+                                className="reconcile-btn reconcile-btn--sm reconcile-btn--link"
+                                type="button"
+                                disabled={saving || !defaultPaymentId}
+                                onClick={() => confirmCredit(row)}
+                              >
+                                <FiLink size={13} aria-hidden />
+                                Link
+                              </button>
+                              <button
+                                className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost"
+                                type="button"
+                                disabled={saving}
+                                onClick={() => ignoreCredit(row.id)}
+                              >
+                                <FiEyeOff size={13} aria-hidden />
+                                Ignore
+                              </button>
+                              <button
+                                className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost-danger"
+                                type="button"
+                                disabled={saving}
+                                onClick={() => deleteCredit(row.id)}
+                                title="Delete line"
+                              >
+                                <FiTrash2 size={13} aria-hidden />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
                   ))}
-                  {!unmatchedCredits.length && (
+                  {!visibleCreditsByDay.length && (
                     <tr>
-                      <td colSpan="7" className="empty-row">
-                        No unmatched bank credits. Upload an HDFC delimited statement to begin.
+                      <td colSpan="6" className="empty-row">
+                        {selectedDayFilter
+                          ? `No unmatched bank credits on ${periodLabel}.`
+                          : 'No unmatched bank credits. Upload an HDFC delimited statement to begin.'}
                       </td>
                     </tr>
                   )}
@@ -653,39 +884,51 @@ const BooksPage = () => {
 
             <div className="unassigned-banner" style={{ marginTop: 24 }}>
               <div>
-                <h2>Booked payments not on statement yet</h2>
-                <p>Non-cash payments in Aurum that still need a bank credit link (last 120 days).</p>
+                <h2>Booked payments not fully on statement yet</h2>
+                <p>
+                  Non-cash payments with remaining amount to link. Same-day bank credits can fill
+                  a larger payment in pieces (splits).
+                </p>
               </div>
             </div>
             <div className="ledger-scroll">
               <table>
                 <thead>
                   <tr>
-                    <th>Paid</th>
                     <th>Invoice</th>
                     <th>Customer</th>
                     <th>Mode</th>
                     <th>Ref</th>
                     <th className="amount">Amount</th>
+                    <th>Progress</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {unmatchedPayments.map((row) => (
-                    <tr key={row.paymentId}>
-                      <td>{String(row.paidAt || '').slice(0, 10)}</td>
-                      <td>{row.invoiceNumber || '—'}</td>
-                      <td>{row.customerName || '—'}</td>
-                      <td>{row.mode || '—'}</td>
-                      <td>{row.reference || '—'}</td>
-                      <td className="amount">{money(row.amount)}</td>
-                      <td>{row.invoiceStatus || '—'}</td>
-                    </tr>
+                  {visiblePaymentsByDay.map((block) => (
+                    <React.Fragment key={block.dayKey}>
+                      <tr className="day-block">
+                        <td colSpan={7}>{block.label}</td>
+                      </tr>
+                      {block.rows.map((row) => (
+                        <tr key={row.paymentId}>
+                          <td>{row.invoiceNumber || '—'}</td>
+                          <td>{row.customerName || '—'}</td>
+                          <td>{row.mode || '—'}</td>
+                          <td>{row.reference || '—'}</td>
+                          <td className="amount">{money(row.amount)}</td>
+                          <td>{paymentFill(row.amount, row.remaining)}</td>
+                          <td>{row.invoiceStatus || '—'}</td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
-                  {!unmatchedPayments.length && (
+                  {!visiblePaymentsByDay.length && (
                     <tr>
                       <td colSpan="7" className="empty-row">
-                        All recent non-cash payments are linked, or none exist yet.
+                        {selectedDayFilter
+                          ? `No open booked payments on ${periodLabel}.`
+                          : 'All recent non-cash payments are fully linked, or none exist yet.'}
                       </td>
                     </tr>
                   )}
@@ -695,7 +938,7 @@ const BooksPage = () => {
 
             <div className="unassigned-banner" style={{ marginTop: 24 }}>
               <div>
-                <h2>Linked{linkedCredits.length ? ` (${linkedCredits.length})` : ''}</h2>
+                <h2>Linked{visibleLinkedByDay.reduce((n, block) => n + block.rows.length, 0) ? ` (${visibleLinkedByDay.reduce((n, block) => n + block.rows.length, 0)})` : ''}</h2>
                 <p>Statement credits already matched to booked invoice payments.</p>
               </div>
             </div>
@@ -703,42 +946,53 @@ const BooksPage = () => {
               <table>
                 <thead>
                   <tr>
-                    <th>Bank date</th>
                     <th>Narration</th>
                     <th>Bank ref</th>
                     <th className="amount">Credit</th>
                     <th>Invoice</th>
                     <th>Customer</th>
                     <th>Mode</th>
-                    <th>Paid</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {linkedCredits.map((row) => (
-                    <tr key={row.id}>
-                      <td>{String(row.txnDate || '').slice(0, 10)}</td>
-                      <td className="narration-cell">{row.narration || '—'}</td>
-                      <td>{row.refNumber || '—'}</td>
-                      <td className="amount in">{money(row.credit)}</td>
-                      <td>
-                        <span className="linked-invoice">{row.invoiceNumber || '—'}</span>
-                        {row.invoiceStatus ? <small className="automatic">{row.invoiceStatus}</small> : null}
-                      </td>
-                      <td>{row.customerName || '—'}</td>
-                      <td>{row.mode || '—'}</td>
-                      <td>{String(row.paidAt || '').slice(0, 10) || '—'}</td>
-                      <td className="reconcile-actions">
-                        <button className="link-button delete-entry" type="button" disabled={saving} onClick={() => unlinkCredit(row.id)}>
-                          Unlink
-                        </button>
-                      </td>
-                    </tr>
+                  {visibleLinkedByDay.map((block) => (
+                    <React.Fragment key={block.dayKey}>
+                      <tr className="day-block">
+                        <td colSpan={7}>{block.label}</td>
+                      </tr>
+                      {block.rows.map((row) => (
+                        <tr key={row.id}>
+                          <td className="narration-cell">{row.narration || '—'}</td>
+                          <td>{row.refNumber || '—'}</td>
+                          <td className="amount in">{money(row.credit)}</td>
+                          <td>
+                            <span className="linked-invoice">{row.invoiceNumber || '—'}</span>
+                            {row.invoiceStatus ? <small className="automatic">{row.invoiceStatus}</small> : null}
+                          </td>
+                          <td>{row.customerName || '—'}</td>
+                          <td>{row.mode || '—'}</td>
+                          <td className="reconcile-actions">
+                            <button
+                              className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost"
+                              type="button"
+                              disabled={saving}
+                              onClick={() => unlinkCredit(row.id)}
+                            >
+                              <FiCornerUpLeft size={13} aria-hidden />
+                              Unlink
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
-                  {!linkedCredits.length && (
+                  {!visibleLinkedByDay.length && (
                     <tr>
-                      <td colSpan="9" className="empty-row">
-                        No linked credits yet. Link a bank credit above to see it here.
+                      <td colSpan="7" className="empty-row">
+                        {selectedDayFilter
+                          ? `No linked credits on ${periodLabel}.`
+                          : 'No linked credits yet. Link a bank credit above to see it here.'}
                       </td>
                     </tr>
                   )}
