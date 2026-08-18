@@ -120,6 +120,7 @@ const BooksPage = () => {
   const [editingAccountId, setEditingAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [busyLineIds, setBusyLineIds] = useState(() => new Set());
   const [backfilling, setBackfilling] = useState(false);
   const [toast, setToast] = useState(null);
   const { can } = usePermission();
@@ -346,8 +347,18 @@ const BooksPage = () => {
     }
   };
 
+  const setLineBusy = (lineId, busy) => {
+    setBusyLineIds((prev) => {
+      const next = new Set(prev);
+      if (busy) next.add(lineId);
+      else next.delete(lineId);
+      return next;
+    });
+  };
+
   const ignoreCredit = async (lineId) => {
-    setSaving(true);
+    if (busyLineIds.has(lineId)) return;
+    setLineBusy(lineId, true);
     setToast(null);
     try {
       await ignoreBankStatementLine(lineId);
@@ -356,13 +367,14 @@ const BooksPage = () => {
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not ignore line' });
     } finally {
-      setSaving(false);
+      setLineBusy(lineId, false);
     }
   };
 
   const deleteCredit = async (lineId) => {
+    if (busyLineIds.has(lineId)) return;
     if (!window.confirm('Delete this statement line? This cannot be undone.')) return;
-    setSaving(true);
+    setLineBusy(lineId, true);
     setToast(null);
     try {
       await deleteBankStatementLine(lineId);
@@ -372,7 +384,7 @@ const BooksPage = () => {
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not delete line' });
     } finally {
-      setSaving(false);
+      setLineBusy(lineId, false);
     }
   };
 
@@ -423,23 +435,35 @@ const BooksPage = () => {
       });
       return;
     }
-    setSaving(true);
+    if (busyLineIds.has(line.id)) return;
+    setLineBusy(line.id, true);
     setToast(null);
+    setUnmatchedCredits((rows) => rows.filter((row) => row.id !== line.id));
+    setSelectedCreditIds((ids) => ids.filter((id) => id !== line.id));
     try {
       const result = await matchBankStatementLine(line.id, paymentId);
       const remaining = Number(result?.payment?.remaining ?? 0);
+      if (result?.payment) {
+        setUnmatchedPayments((rows) =>
+          rows
+            .map((row) => (row.id === result.payment.id ? { ...row, remaining } : row))
+            .filter((row) => Number(row.remaining) > 1),
+        );
+      }
       setToast({
         type: 'success',
         message: remaining > 1
           ? `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'} (${money(remaining)} still open on payment)`
           : `Linked ${money(line.credit)} → ${result?.payment?.invoiceNumber || 'payment'}`,
       });
-      setSelectedCreditIds((ids) => ids.filter((id) => id !== line.id));
-      await Promise.all([loadUnmatched(), loadBooksQuiet()]);
+      loadBooksQuiet();
     } catch (err) {
+      setUnmatchedCredits((rows) =>
+        rows.some((row) => row.id === line.id) ? rows : [...rows, line],
+      );
       setToast({ type: 'error', message: err.message || 'Could not link payment' });
     } finally {
-      setSaving(false);
+      setLineBusy(line.id, false);
     }
   };
 
@@ -877,16 +901,16 @@ const BooksPage = () => {
                               <button
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--link"
                                 type="button"
-                                disabled={saving || !defaultPaymentId}
+                                disabled={busyLineIds.has(row.id) || !defaultPaymentId}
                                 onClick={() => confirmCredit(row)}
                               >
                                 <FiLink size={13} aria-hidden />
-                                Link
+                                {busyLineIds.has(row.id) ? 'Linking…' : 'Link'}
                               </button>
                               <button
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost"
                                 type="button"
-                                disabled={saving}
+                                disabled={busyLineIds.has(row.id)}
                                 onClick={() => ignoreCredit(row.id)}
                               >
                                 <FiEyeOff size={13} aria-hidden />
@@ -895,7 +919,7 @@ const BooksPage = () => {
                               <button
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost-danger"
                                 type="button"
-                                disabled={saving}
+                                disabled={busyLineIds.has(row.id)}
                                 onClick={() => deleteCredit(row.id)}
                                 title="Delete line"
                               >

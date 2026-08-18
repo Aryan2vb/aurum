@@ -299,6 +299,10 @@ const CreateInvoicePage = () => {
             ]);
           }
           setInvoiceDate(inv.invoiceDate?.slice(0, 10));
+          if (inv.templateType) {
+            const t = inv.templateType;
+            setTheme(t === "modern" || t === "jewellery" ? t : "classic");
+          }
           setInvoiceData((prev) => ({
             ...prev,
             items: inv.items.map((i) => ({
