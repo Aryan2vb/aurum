@@ -462,7 +462,7 @@ const BooksPage = () => {
       });
       return;
     }
-    const paymentId = bulkMatchPaymentId || bulkSelection?.preferredId || candidates[0].paymentId;
+    const paymentId = bulkSelectedId || candidates[0].paymentId;
     if (!candidates.some((c) => c.paymentId === paymentId)) {
       setToast({ type: 'error', message: 'Pick a same-day payment that can absorb the selected credits' });
       return;

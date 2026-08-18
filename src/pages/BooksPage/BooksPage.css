@@ -15,6 +15,7 @@
   --reconcile-icon-muted: #94a3b8;
   --reconcile-track: #e2e8f0;
   --reconcile-success: #15803d;
+
   color: var(--text-primary, #172033);
 }
 

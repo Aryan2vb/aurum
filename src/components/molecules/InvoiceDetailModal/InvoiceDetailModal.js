@@ -68,7 +68,7 @@ const BankMatchedBadge = ({ payment }) => {
         <span className="bank-matched-pop" role="tooltip">
           <span className="bank-matched-pop-title">Statement credit{lines.length > 1 ? 's' : ''}</span>
           {lines.map((line, index) => (
-            <span key={line.refNumber || index} className="bank-matched-pop-row">
+            <span key={line.id || index} className="bank-matched-pop-row">
               <span className="bank-matched-pop-meta">
                 {formatDate(line.txnDate)}
                 {line.refNumber ? ` · ${line.refNumber}` : ''}
