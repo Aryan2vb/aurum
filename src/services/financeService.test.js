@@ -1,5 +1,6 @@
 import {
   assignUnassignedMovements,
+  backfillFinanceBooks,
   createFinanceTransaction,
   getAccountLedger,
   getFinanceBook,
@@ -40,5 +41,11 @@ describe('finance service', () => {
         { movementId: 'two', accountId: 'bank' },
       ],
     });
+  });
+
+  it('posts backfill to the logged-in organization', async () => {
+    await backfillFinanceBooks();
+    expect(global.fetch.mock.calls[0][0]).toContain('/finance/backfill');
+    expect(global.fetch.mock.calls[0][1].method).toBe('POST');
   });
 });

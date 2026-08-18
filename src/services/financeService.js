@@ -45,6 +45,9 @@ export const deleteFinanceTransaction = (id) =>
 
 export const getUnassignedMovements = () => request('/finance/unassigned');
 
+export const backfillFinanceBooks = () =>
+  request('/finance/backfill', { method: 'POST' });
+
 export const assignUnassignedMovements = (movementIds, accountId) =>
   request('/finance/movements/assign-bulk', {
     method: 'POST',

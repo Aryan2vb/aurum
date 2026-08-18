@@ -9,6 +9,7 @@ import {
   getFinanceBook,
   getFinancialAccounts,
   getUnassignedMovements,
+  backfillFinanceBooks,
   getBankStatementInbox,
   deleteBankStatementLine,
   deleteBankStatementLinesBulk,
@@ -20,6 +21,7 @@ import {
   uploadBankStatement,
 } from '../../services/financeService';
 import { clearPaymentAccountCache } from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
+import { usePermission } from '../../hooks/usePermission';
 import Toast from '../../components/atoms/Toast/Toast';
 import { FiCornerUpLeft, FiEyeOff, FiLink, FiTrash2, FiUpload } from 'react-icons/fi';
 import {
@@ -118,7 +120,9 @@ const BooksPage = () => {
   const [editingAccountId, setEditingAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [toast, setToast] = useState(null);
+  const { can } = usePermission();
   const fileInputRef = useRef(null);
   const loadAccounts = useCallback(async () => {
     const data = await getFinancialAccounts();
@@ -585,6 +589,35 @@ const BooksPage = () => {
     }
   };
 
+  const runBackfill = async () => {
+    if (backfilling) return;
+    const ok = window.confirm(
+      'Post existing invoice, purchase, advance, and udhar payments into this shop’s Cash & Bank book? Safe to run more than once.',
+    );
+    if (!ok) return;
+    setBackfilling(true);
+    setToast(null);
+    try {
+      const result = await backfillFinanceBooks();
+      const total =
+        Number(result?.invoicePayments || 0) +
+        Number(result?.purchasePayments || 0) +
+        Number(result?.advanceEntries || 0) +
+        Number(result?.udharPayments || 0);
+      setToast({
+        type: 'success',
+        message: total
+          ? `Books updated from ${total} existing payments`
+          : 'No payments found to post into Cash & Bank',
+      });
+      await refresh();
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not backfill Cash & Bank' });
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const renderAccountOptions = (filter) => accounts
     .filter((account) => account.isActive !== false && isCashOrBank(account) && (!filter || filter(account)))
     .map((account) => <option key={account.id} value={account.id}>{accountName(account)}</option>);
@@ -622,6 +655,11 @@ const BooksPage = () => {
               onChange={handleStatementFile}
             />
             <button className="secondary" onClick={() => openAccount()}>Manage accounts</button>
+            {can('admin') && (
+              <button className="secondary" disabled={backfilling} onClick={runBackfill}>
+                {backfilling ? 'Updating books…' : 'Load past payments'}
+              </button>
+            )}
             <button className="primary" onClick={() => setEntryForm(emptyEntry())}>+ New entry</button>
           </div>
         </nav>
