@@ -335,17 +335,44 @@
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.01em;
-  color: #065f46;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
   white-space: nowrap;
   cursor: help;
 }
 
-[data-theme='dark'] .bank-matched-badge {
+.bank-matched-badge--full {
+  color: #065f46;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.bank-matched-badge--partial {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+
+.bank-matched-badge--none {
+  color: #4b5563;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+}
+
+[data-theme='dark'] .bank-matched-badge--full {
   color: var(--success, #10b981);
   background: color-mix(in srgb, var(--success, #10b981) 16%, var(--bg-secondary));
   border-color: color-mix(in srgb, var(--success, #10b981) 35%, var(--border-color));
+}
+
+[data-theme='dark'] .bank-matched-badge--partial {
+  color: #fbbf24;
+  background: color-mix(in srgb, #fbbf24 16%, var(--bg-secondary));
+  border-color: color-mix(in srgb, #fbbf24 35%, var(--border-color));
+}
+
+[data-theme='dark'] .bank-matched-badge--none {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
 }
 
 .bank-matched-pop {

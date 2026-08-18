@@ -39,34 +39,50 @@ const bankMatchLines = (payment) => {
   return payment?.bankMatch ? [payment.bankMatch] : [];
 };
 
+const BANK_RECONCILE_LABELS = {
+  full: 'Matched',
+  partial: 'Partial',
+  none: 'Unmatched',
+};
+
+const paymentBankReconcile = (payment) => {
+  if (payment?.bankReconcile) return payment.bankReconcile;
+  const lines = bankMatchLines(payment);
+  if (!lines.length) return null;
+  const linked = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+  return Number(payment.amount || 0) - linked <= 1 ? 'full' : 'partial';
+};
+
 const BankMatchedBadge = ({ payment }) => {
   const lines = bankMatchLines(payment);
-  if (!lines.length) return <span className="bank-unmatched-label">—</span>;
+  const status = paymentBankReconcile(payment);
+  if (!status) return <span className="bank-unmatched-label">—</span>;
   const total = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
   return (
     <span className="bank-matched" tabIndex={0}>
-      <span className="bank-matched-badge">
-        Bank matched{lines.length > 1 ? ` (${lines.length})` : ''}
+      <span className={`bank-matched-badge bank-matched-badge--${status}`}>
+        {BANK_RECONCILE_LABELS[status] || status}
+        {lines.length > 1 ? ` (${lines.length})` : ''}
       </span>
-      <span className="bank-matched-pop" role="tooltip">
-        <span className="bank-matched-pop-title">Statement credit{lines.length > 1 ? 's' : ''}</span>
-        {lines.map((line, index) => (
-          <span key={line.refNumber || index} className="bank-matched-pop-row">
-            <span className="bank-matched-pop-meta">
-              {formatDate(line.txnDate)}
-              {line.refNumber ? ` · ${line.refNumber}` : ''}
+      {lines.length ? (
+        <span className="bank-matched-pop" role="tooltip">
+          <span className="bank-matched-pop-title">Statement credit{lines.length > 1 ? 's' : ''}</span>
+          {lines.map((line, index) => (
+            <span key={line.refNumber || index} className="bank-matched-pop-row">
+              <span className="bank-matched-pop-meta">
+                {formatDate(line.txnDate)}
+                {line.refNumber ? ` · ${line.refNumber}` : ''}
+              </span>
+              <span className="bank-matched-pop-amt">{formatCurrency(line.credit)}</span>
+              {line.narration ? <span className="bank-matched-pop-narration">{line.narration}</span> : null}
             </span>
-            <span className="bank-matched-pop-amt">{formatCurrency(line.credit)}</span>
-            {line.narration ? <span className="bank-matched-pop-narration">{line.narration}</span> : null}
-          </span>
-        ))}
-        {lines.length > 1 ? (
+          ))}
           <span className="bank-matched-pop-total">
             <span>Linked</span>
             <span>{formatCurrency(total)} / {formatCurrency(payment.amount)}</span>
           </span>
-        ) : null}
-      </span>
+        </span>
+      ) : null}
     </span>
   );
 };
