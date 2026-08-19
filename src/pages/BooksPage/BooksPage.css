@@ -449,9 +449,9 @@
   align-items: center;
   gap: 8px;
   min-height: 40px;
-  padding: 0 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--border-light, var(--books-border));
-  background: var(--bg-secondary, var(--books-bg));
+  background: var(--books-bg);
 }
 .reconcile-grain {
   display: flex;
@@ -562,10 +562,348 @@
   color: var(--accent);
 }
 
+.books-page .reconcile-header {
+  border-bottom: 1px solid var(--books-border);
+  background: var(--books-surface);
+}
+
+.books-page .reconcile-header-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 14px 16px;
+}
+
+.books-page .reconcile-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px 12px;
+  margin-left: auto;
+}
+
+.books-page .reconcile-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.books-page .reconcile-field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.books-page .reconcile-field--inline .reconcile-field-label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.books-page .reconcile-header-bulk {
+  padding: 0 16px 12px;
+  border-top: 1px solid var(--books-border);
+  background: var(--books-bg);
+}
+
+.books-page .reconcile-header-bulk .reconcile-bulk {
+  padding-top: 10px;
+}
+
+.books-page .reconcile-header-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.books-page .reconcile-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.books-page .reconcile-header-stat-sep {
+  opacity: 0.45;
+}
+
+.books-page .reconcile-segment {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid var(--books-border);
+  background: var(--books-bg);
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.books-page .reconcile-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.books-page .reconcile-segment-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.books-page .reconcile-segment-btn:hover:not(.is-active) {
+  background: var(--bg-tertiary, rgba(0, 0, 0, 0.04));
+  color: var(--text-primary);
+}
+
+.books-page .reconcile-segment-btn.is-active {
+  background: var(--books-bg);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.books-page .reconcile-segment-btn--credit.is-active {
+  color: var(--reconcile-success);
+}
+
+.books-page .reconcile-segment-btn--credit.is-active .reconcile-segment-icon {
+  opacity: 1;
+}
+
+.books-page .reconcile-segment-btn--debit.is-active {
+  color: var(--reconcile-danger);
+}
+
+.books-page .reconcile-segment-btn--debit.is-active .reconcile-segment-icon {
+  opacity: 1;
+}
+
+.books-page .reconcile-segment-label {
+  font-weight: 600;
+}
+
+.books-page .reconcile-segment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.books-page .reconcile-segment-btn--credit .reconcile-segment-badge {
+  background: color-mix(in srgb, var(--reconcile-success) 16%, transparent);
+  color: var(--reconcile-success);
+}
+
+.books-page .reconcile-segment-btn--debit .reconcile-segment-badge {
+  background: color-mix(in srgb, var(--reconcile-danger) 14%, transparent);
+  color: var(--reconcile-danger);
+}
+
+.books-page .reconcile-segment-btn.is-active .reconcile-segment-badge {
+  background: currentColor;
+  color: var(--books-bg);
+}
+
+.books-page .reconcile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.books-page .reconcile-field-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.books-page .reconcile-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 14px 16px 10px;
+  border-top: 1px solid var(--books-border);
+  background: var(--books-bg);
+}
+
+.books-page .reconcile-section-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.books-page .reconcile-section-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  max-width: 36rem;
+}
+
+.books-page .reconcile-section-count {
+  flex-shrink: 0;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  background: var(--bg-tertiary, var(--reconcile-track));
+  color: var(--text-secondary);
+}
+
+.books-page .reconcile-table-wrap {
+  margin-bottom: 4px;
+}
+
+.books-page .reconcile-empty {
+  text-align: center;
+  padding: 28px 16px !important;
+}
+
+.books-page .reconcile-empty strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.books-page .reconcile-empty span {
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.books-page .advance-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--reconcile-accent-border);
+  background: var(--reconcile-accent-soft);
+}
+
+.books-page .advance-pick-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.books-page .advance-selected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--reconcile-accent-border);
+  background: var(--books-bg);
+  font-size: 13px;
+}
+
+.books-page .advance-clear {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  color: var(--reconcile-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.books-page .advance-hits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.books-page .advance-pick input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  background: var(--books-bg);
+}
+
+.books-page .advance-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: var(--books-bg);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.books-page .advance-hit strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.books-page .advance-hit span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.books-page .advance-hit:hover {
+  border-color: var(--reconcile-accent-border);
+  background: var(--reconcile-accent-soft);
+}
+
+.books-page .advance-hit.selected {
+  border-color: var(--reconcile-accent-border);
+  background: var(--reconcile-accent-soft);
+}
+
 @media (max-width: 700px) {
   .books-toolbar,
   .ledger-heading,
   .unassigned-banner { align-items: stretch; flex-direction: column; }
+  .books-page .reconcile-header-top { flex-direction: column; align-items: stretch; }
+  .books-page .reconcile-header-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .books-page .reconcile-header-controls { width: 100%; }
+  .books-page .reconcile-field--inline { flex: 1; min-width: 0; }
+  .books-page .reconcile-field--inline .reconcile-select { flex: 1; min-width: 0; }
+  .books-page .reconcile-segment { width: 100%; }
+  .books-page .reconcile-segment-btn { flex: 1; justify-content: center; min-width: 0; }
   .books-actions,
   .assign-controls,
   .reconcile-toolbar,

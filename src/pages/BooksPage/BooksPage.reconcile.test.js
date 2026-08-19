@@ -66,6 +66,32 @@ describe('reconcileHelpers', () => {
     expect(paymentOptionLabel(options[0], 10000)).toContain('left');
   });
 
+  it('labels loan and cash-deposit book entries without invoice fields', () => {
+    expect(
+      paymentOptionLabel(
+        {
+          kind: 'LOAN',
+          invoiceNumber: 'Loan',
+          amount: 50000,
+          remaining: 50000,
+          paidAt: '2026-07-20',
+        },
+        50000,
+      ),
+    ).toContain('Loan');
+    expect(
+      paymentOptionLabel(
+        {
+          kind: 'CASH_DEPOSIT',
+          invoiceNumber: 'Cash deposit',
+          amount: 20000,
+          remaining: 20000,
+        },
+        20000,
+      ),
+    ).toContain('Cash deposit');
+  });
+
   it('tags exact full amount vs remaining-completes vs split', () => {
     const payment = { amount: 50000, remaining: 50000 };
     expect(matchFitTag(50000, payment)).toBe('Exact');

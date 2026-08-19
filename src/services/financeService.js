@@ -103,14 +103,20 @@ export const deleteBankStatementLinesBulk = (lineIds) =>
     body: JSON.stringify({ lineIds }),
   });
 
-export const matchBankStatementLine = (lineId, paymentId) =>
+export const matchBankStatementLine = (lineId, paymentId, kind) =>
   request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/match`, {
     method: 'POST',
-    body: JSON.stringify({ paymentId }),
+    body: JSON.stringify({ paymentId, ...(kind ? { kind } : {}) }),
   });
 
-export const matchBankStatementLinesBulk = (lineIds, paymentId) =>
+export const matchBankStatementLinesBulk = (lineIds, paymentId, kind) =>
   request('/finance/bank-statements/match-bulk', {
     method: 'POST',
-    body: JSON.stringify({ lineIds, paymentId }),
+    body: JSON.stringify({ lineIds, paymentId, ...(kind ? { kind } : {}) }),
+  });
+
+export const createAndMatchBankStatementLine = (lineId, payload) =>
+  request(`/finance/bank-statements/lines/${encodeURIComponent(lineId)}/create-and-match`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });

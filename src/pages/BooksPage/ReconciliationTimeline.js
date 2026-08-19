@@ -21,11 +21,16 @@ const ReconciliationTimeline = ({
   onAnchorChange,
   selectedPeriod,
   onSelectPeriod,
+  unmatchedLines = [],
+  linkedLines = [],
+  // legacy props — prefer unmatchedLines / linkedLines
   unmatchedCredits,
   linkedCredits,
 }) => {
   const scrollerRef = useRef(null);
-  const cards = reconcileTimeline(grain, anchor, unmatchedCredits, linkedCredits);
+  const open = unmatchedLines.length ? unmatchedLines : (unmatchedCredits || []);
+  const linked = linkedLines.length ? linkedLines : (linkedCredits || []);
+  const cards = reconcileTimeline(grain, anchor, open, linked);
   const todayKey = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {

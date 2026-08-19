@@ -40,6 +40,63 @@ const money = (value) =>
 
 export const AMOUNT_TOLERANCE = 1;
 
+export const CREATE_LOAN = '__create_loan__';
+export const CREATE_CASH_DEPOSIT = '__create_cash_deposit__';
+export const CREATE_ADVANCE = '__create_advance__';
+export const CREATE_MONEY_OUT = '__create_money_out__';
+export const CREATE_MATCH_OPTIONS = [
+  { paymentId: CREATE_LOAN, label: 'Loan', hint: 'Generic money in — not customer advance' },
+  { paymentId: CREATE_CASH_DEPOSIT, label: 'Cash deposit', hint: 'Cash → this bank account' },
+  { paymentId: CREATE_ADVANCE, label: 'Customer advance', hint: 'Customer paid before invoice' },
+];
+export const CREATE_DEBIT_OPTIONS = [
+  { paymentId: CREATE_MONEY_OUT, label: 'Money out', hint: 'Book this debit as a bank money-out' },
+  { paymentId: CREATE_LOAN, label: 'Loan return', hint: 'Loan repayment / return' },
+];
+
+export const RECONCILE_SIDES = {
+  credit: {
+    key: 'credit',
+    label: 'Money in',
+    shortLabel: 'In',
+    hint: 'Credits on the bank statement — sales, advances, loans, deposits.',
+    amountField: 'credit',
+    amountClass: 'in',
+    matchLabel: 'Receipt / entry',
+    emptyTitle: 'No unmatched credits',
+    emptyBody: 'Upload an HDFC delimited statement or switch to Money out.',
+    linkedHint: 'Credits matched to invoices, advances, loans, or deposits.',
+    openTitle: 'Open receipts',
+    openHint: 'Booked payments with room left to link statement credits.',
+  },
+  debit: {
+    key: 'debit',
+    label: 'Money out',
+    shortLabel: 'Out',
+    hint: 'Debits on the bank statement — supplier payments, transfers out.',
+    amountField: 'debit',
+    amountClass: 'out',
+    matchLabel: 'Match / create',
+    emptyTitle: 'No unmatched debits',
+    emptyBody: 'Debits from imported statements appear here. Create money out or book a purchase payment.',
+    linkedHint: 'Debits matched to purchases, loans, or money-out entries.',
+    openTitle: 'Open money out',
+    openHint: 'Booked purchase payments and money-out entries waiting for a bank debit.',
+  },
+};
+
+export const customerDisplayName = (customer) =>
+  customer?.fullName || customer?.phone || 'Customer';
+
+export const isCreateMatchId = (value) =>
+  value === CREATE_LOAN || value === CREATE_CASH_DEPOSIT || value === CREATE_ADVANCE || value === CREATE_MONEY_OUT;
+
+export const matchKindOf = (option) => {
+  if (option?.kind === 'PURCHASE') return 'PURCHASE_PAYMENT';
+  if (option?.kind && option.kind !== 'INVOICE') return 'FINANCIAL_TRANSACTION';
+  return 'INVOICE_PAYMENT';
+};
+
 const paymentIdOf = (payment) => payment.paymentId || payment.id;
 
 /**
@@ -114,12 +171,30 @@ export const paymentOptionLabel = (option, lineAmount) => {
   const amount = Number(option.amount);
   const isPartial = remaining + 0.001 < amount;
   const fit = option.fit || matchFitTag(lineAmount, option);
+  const kind = option.kind && option.kind !== 'INVOICE' ? option.kind : null;
+  const title = kind
+    ? option.invoiceNumber
+      || (kind === 'CASH_DEPOSIT'
+        ? 'Cash deposit'
+        : kind === 'LOAN'
+          ? 'Loan'
+          : kind === 'ADVANCE'
+            ? 'Advance'
+            : kind === 'PURCHASE'
+              ? 'Purchase'
+              : kind === 'MONEY_OUT'
+                ? 'Money Out'
+              : 'Money In')
+    : option.invoiceNumber;
+  const createLabel = CREATE_MATCH_OPTIONS.find((item) => item.paymentId === option?.paymentId)
+    || CREATE_DEBIT_OPTIONS.find((item) => item.paymentId === option?.paymentId);
+  if (createLabel) return [createLabel.label, createLabel.hint].filter(Boolean).join(' — ');
   return [
     fit,
     option.suggested && !fit ? 'Suggested' : null,
-    option.invoiceNumber,
+    title,
     option.customerName,
-    option.mode,
+    kind ? null : option.mode,
     money(amount),
     isPartial ? `left ${money(remaining)}` : null,
     option.invoiceStatus,
