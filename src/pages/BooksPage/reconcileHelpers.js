@@ -38,7 +38,19 @@ export const groupByDay = (rows, dateField) =>
 const money = (value) =>
   `₹${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export const AMOUNT_TOLERANCE = 1;
+/** Max the bank line may fall short of booked remaining. Extra has no cap. */
+export const AMOUNT_TOLERANCE = 10;
+
+/** Line covers target: extra OK, shortfall ≤ ₹10. */
+export const coversAmount = (lineAmount, target) =>
+  Number(lineAmount) + AMOUNT_TOLERANCE >= Number(target);
+
+/** Covers target without going over — Exact / Completes, not extra. */
+export const nearAmount = (lineAmount, target) => {
+  const line = Number(lineAmount);
+  const dest = Number(target);
+  return line <= dest && coversAmount(line, dest);
+};
 
 export const CREATE_LOAN = '__create_loan__';
 export const CREATE_CASH_DEPOSIT = '__create_cash_deposit__';
@@ -108,30 +120,29 @@ export const matchFitTag = (lineAmount, payment) => {
   const credit = Number(lineAmount || 0);
   const amount = Number(payment.amount);
   const remaining = Number(payment.remaining ?? amount);
-  if (credit > remaining + AMOUNT_TOLERANCE) return null;
-  if (Math.abs(amount - credit) <= AMOUNT_TOLERANCE) return 'Exact';
-  if (Math.abs(remaining - credit) <= AMOUNT_TOLERANCE) return 'Completes';
-  return 'Split';
+  if (nearAmount(credit, amount)) return 'Exact';
+  if (nearAmount(credit, remaining)) return 'Completes';
+  if (credit < remaining) return 'Split';
+  return null;
 };
 
-/** Payments whose remaining ≈ selectedCreditsSum (±₹1). */
+/** Payments whose remaining is covered by selectedCreditsSum (extra OK, shortfall ≤ ₹10). */
 export const paymentsMatchingCreditSum = (payments, sum) =>
   (payments || []).filter((payment) => {
     const remaining = Number(payment.remaining ?? payment.amount);
-    return Math.abs(remaining - Number(sum)) <= AMOUNT_TOLERANCE;
+    return coversAmount(sum, remaining);
   });
 
 /**
- * Same-day payments with enough remaining for a bulk credit sum.
- * Exact-remaining matches (completes) first, then partial fits.
+ * Same-day payments with remaining > 0. Extra over remaining is allowed.
+ * Completes (covers remaining) first, then splits.
  */
 export const bulkMatchOptions = (payments, sum, txnDate) => {
   const day = dayKey(txnDate);
   const amount = Number(sum || 0);
   const fits = (payments || []).filter((payment) => {
     if (day && dayKey(payment.paidAt) !== day) return false;
-    const remaining = Number(payment.remaining ?? payment.amount);
-    return amount <= remaining + AMOUNT_TOLERANCE;
+    return Number(payment.remaining ?? payment.amount) > 0;
   });
   const exactIds = new Set(paymentsMatchingCreditSum(fits, amount).map(paymentIdOf));
   return [...fits]
@@ -145,24 +156,30 @@ export const bulkMatchOptions = (payments, sum, txnDate) => {
 };
 
 /**
- * Only payments booked on the same day as the bank credit, with enough remaining.
+ * Same-day payments with remaining > 0. Extra over remaining is allowed.
  * Suggestions first, then other same-day unmatched payments.
  */
 export const bankMatchOptions = (txnDate, credit, suggestions = [], unmatchedPayments = []) => {
   const day = dayKey(txnDate);
   const amount = Number(credit || 0);
-  const fits = (p) => {
-    if (dayKey(p.paidAt) !== day) return false;
-    const remaining = Number(p.remaining ?? p.amount);
-    return amount <= remaining + AMOUNT_TOLERANCE;
-  };
+  const fits = (p) => dayKey(p.paidAt) === day && Number(p.remaining ?? p.amount) > 0;
   const sameDaySuggestions = suggestions.filter(fits);
-  const suggestionIds = new Set(sameDaySuggestions.map((s) => s.paymentId));
+  const suggestionIds = new Set(sameDaySuggestions.map(paymentIdOf));
   return [
-    ...sameDaySuggestions.map((s) => ({ ...s, suggested: true, fit: matchFitTag(amount, s) })),
+    ...sameDaySuggestions.map((s) => ({
+      ...s,
+      paymentId: paymentIdOf(s),
+      suggested: true,
+      fit: matchFitTag(amount, s),
+    })),
     ...unmatchedPayments
-      .filter((p) => fits(p) && !suggestionIds.has(p.paymentId))
-      .map((p) => ({ ...p, suggested: false, fit: matchFitTag(amount, p) })),
+      .filter((p) => fits(p) && !suggestionIds.has(paymentIdOf(p)))
+      .map((p) => ({
+        ...p,
+        paymentId: paymentIdOf(p),
+        suggested: false,
+        fit: matchFitTag(amount, p),
+      })),
   ];
 };
 
@@ -171,6 +188,7 @@ export const paymentOptionLabel = (option, lineAmount) => {
   const amount = Number(option.amount);
   const isPartial = remaining + 0.001 < amount;
   const fit = option.fit || matchFitTag(lineAmount, option);
+  const fitLabel = fit && fit !== 'Exact' ? fit : null;
   const kind = option.kind && option.kind !== 'INVOICE' ? option.kind : null;
   const title = kind
     ? option.invoiceNumber
@@ -190,8 +208,8 @@ export const paymentOptionLabel = (option, lineAmount) => {
     || CREATE_DEBIT_OPTIONS.find((item) => item.paymentId === option?.paymentId);
   if (createLabel) return [createLabel.label, createLabel.hint].filter(Boolean).join(' — ');
   return [
-    fit,
-    option.suggested && !fit ? 'Suggested' : null,
+    fitLabel,
+    option.suggested && !fitLabel ? 'Suggested' : null,
     title,
     option.customerName,
     kind ? null : option.mode,

@@ -95,9 +95,20 @@ describe('reconcileHelpers', () => {
   it('tags exact full amount vs remaining-completes vs split', () => {
     const payment = { amount: 50000, remaining: 50000 };
     expect(matchFitTag(50000, payment)).toBe('Exact');
+    expect(matchFitTag(49990, payment)).toBe('Exact');
+    expect(matchFitTag(49989, payment)).toBe('Split');
+    expect(matchFitTag(60000, payment)).toBe(null);
     expect(matchFitTag(10000, { amount: 50000, remaining: 10000 })).toBe('Completes');
+    expect(matchFitTag(9990, { amount: 50000, remaining: 10000 })).toBe('Completes');
     expect(matchFitTag(10000, { amount: 50000, remaining: 40000 })).toBe('Split');
-    expect(matchFitTag(50000, { amount: 50000, remaining: 10000 })).toBe(null);
+    expect(matchFitTag(50000, { amount: 50000, remaining: 10000 })).toBe('Exact');
+    expect(matchFitTag(18000, { amount: 10000, remaining: 10000 })).toBe(null);
+    expect(
+      paymentOptionLabel({ invoiceNumber: 'MJ/197/26-27', amount: 10000, remaining: 10000 }, 18000),
+    ).not.toContain('Exact');
+    expect(
+      paymentOptionLabel({ invoiceNumber: 'MJ/1', amount: 10000, remaining: 10000 }, 10000),
+    ).not.toContain('Exact');
   });
 
   it('bulk options include partial fits and prefer exact remaining', () => {
@@ -108,11 +119,15 @@ describe('reconcileHelpers', () => {
       { paymentId: 'too-small', amount: 20000, remaining: 20000, paidAt: '2026-07-20' },
     ];
     const options = bulkMatchOptions(payments, 30000, '2026-07-20');
-    expect(options.map((p) => p.paymentId)).toEqual(['exact', 'partial']);
+    expect(options.map((p) => p.paymentId)).toEqual(['exact', 'too-small', 'partial']);
     expect(options[0].completes).toBe(true);
     expect(options[0].fit).toBe('Completes');
-    expect(options[1].fit).toBe('Split');
-    expect(paymentsMatchingCreditSum(options, 30000).map((p) => p.paymentId)).toEqual(['exact']);
+    expect(options[1].fit).toBe(null);
+    expect(options[2].fit).toBe('Split');
+    expect(paymentsMatchingCreditSum(options, 30000).map((p) => p.paymentId)).toEqual([
+      'exact',
+      'too-small',
+    ]);
   });
 
   it('computes fill progress for partial and empty payments', () => {

@@ -21,10 +21,10 @@ import {
   updateFinancialAccount,
   uploadBankStatement,
 } from '../../services/financeService';
-import { searchCustomers } from '../../services/customersService';
 import { clearPaymentAccountCache } from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { usePermission } from '../../hooks/usePermission';
 import Toast from '../../components/atoms/Toast/Toast';
+import AdvancePanel from '../../components/organisms/AdvancePanel/AdvancePanel';
 import { FiArrowDownLeft, FiArrowUpRight, FiCornerUpLeft, FiEyeOff, FiLink, FiTrash2, FiUpload } from 'react-icons/fi';
 import {
   bankMatchOptions,
@@ -35,7 +35,6 @@ import {
   CREATE_MONEY_OUT,
   CREATE_MATCH_OPTIONS,
   CREATE_DEBIT_OPTIONS,
-  customerDisplayName,
   dayKey,
   dayLabel,
   groupByDay,
@@ -48,15 +47,11 @@ import {
   paymentOptionLabel,
   RECONCILE_SIDES,
 } from './reconcileHelpers';
+import { buildManualEntryPayload, ENTRY_TYPES, ledgerTypeLabel } from './entryPayload';
 import ReconciliationTimeline from './ReconciliationTimeline';
 import './BooksPage.css';
 
 const TYPES = ['CASH', 'BANK'];
-const ENTRY_TYPES = [
-  ['MONEY_IN', 'Money In'],
-  ['MONEY_OUT', 'Money Out'],
-  ['TRANSFER', 'Transfer'],
-];
 const CREATE_ACCOUNT_FIELDS = [
   'type', 'name', 'bankName', 'accountNumber', 'ifsc', 'notes', 'openingBalance', 'openingDate',
 ];
@@ -80,7 +75,7 @@ const paymentFill = (amount, remaining) => {
 };
 
 const fitBadge = (tag) => {
-  if (!tag) return null;
+  if (!tag || tag === 'Exact') return null;
   return <span className={`fit-badge fit-badge--${tag.toLowerCase()}`}>{tag}</span>;
 };
 const list = (data, keys = []) => {
@@ -128,9 +123,7 @@ const BooksPage = () => {
   const [reconcileSide, setReconcileSide] = useState('credit');
   const [selectedMatch, setSelectedMatch] = useState({});
   const [selectedDebitMatch, setSelectedDebitMatch] = useState({});
-  const [advanceCustomerByLineId, setAdvanceCustomerByLineId] = useState({});
-  const [advanceSearchByLineId, setAdvanceSearchByLineId] = useState({});
-  const [advanceHitsByLineId, setAdvanceHitsByLineId] = useState({});
+  const [advanceMatchLine, setAdvanceMatchLine] = useState(null);
   const [bulkMatchPaymentId, setBulkMatchPaymentId] = useState('');
   const [selectedDayFilter, setSelectedDayFilter] = useState(null);
   const [timelineGrain, setTimelineGrain] = useState('day');
@@ -164,8 +157,13 @@ const BooksPage = () => {
     setLedgerRows(list(data, ['entries', 'rows', 'transactions']));
   }, [selectedAccountId, dates]);
 
+  // Callers fire this without awaiting, so it must surface its own failures.
   const loadBooksQuiet = useCallback(async () => {
-    await Promise.all([loadBook(), loadLedger()]);
+    try {
+      await Promise.all([loadBook(), loadLedger()]);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'Could not refresh finance books' });
+    }
   }, [loadBook, loadLedger]);
 
   const refresh = useCallback(async () => {
@@ -239,26 +237,6 @@ const BooksPage = () => {
     loadUnmatched().catch((err) => setToast({ type: 'error', message: err.message || 'Could not load reconcile inbox' }));
   }, [activeView, loadUnmatched]);
 
-  useEffect(() => {
-    const timers = [];
-    Object.entries(advanceSearchByLineId).forEach(([lineId, query]) => {
-      if (!query || query.trim().length < 2) {
-        setAdvanceHitsByLineId((hits) => ({ ...hits, [lineId]: [] }));
-        return;
-      }
-      const timer = setTimeout(() => {
-        searchCustomers({ query: query.trim() })
-          .then((data) => {
-            const hits = list(data, ['customers', 'results']).slice(0, 6);
-            setAdvanceHitsByLineId((prev) => ({ ...prev, [lineId]: hits }));
-          })
-          .catch(() => setAdvanceHitsByLineId((prev) => ({ ...prev, [lineId]: [] })));
-      }, 400);
-      timers.push(timer);
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [advanceSearchByLineId]);
-
   const bankAccounts = useMemo(
     () => accounts.filter((account) => account.type === 'BANK' && account.isActive !== false),
     [accounts],
@@ -316,14 +294,6 @@ const BooksPage = () => {
   const sideMeta = RECONCILE_SIDES[reconcileSide];
   const activeUnmatched = reconcileSide === 'credit' ? unmatchedCredits : unmatchedDebits;
   const activeLinked = reconcileSide === 'credit' ? linkedCredits : linkedDebits;
-  const advanceCustomerNameByLineId = useMemo(() => {
-    const map = {};
-    for (const [lineId, customerId] of Object.entries(advanceCustomerByLineId)) {
-      const hit = (advanceHitsByLineId[lineId] || []).find((row) => row.id === customerId);
-      map[lineId] = hit ? customerDisplayName(hit) : advanceSearchByLineId[lineId] || 'Customer';
-    }
-    return map;
-  }, [advanceCustomerByLineId, advanceHitsByLineId, advanceSearchByLineId]);
   const visibleCreditsByDay = useMemo(
     () => (selectedDayFilter ? creditsByDay.filter((block) => inPeriod(block.dayKey, selectedDayFilter)) : creditsByDay),
     [creditsByDay, selectedDayFilter],
@@ -459,14 +429,20 @@ const BooksPage = () => {
     });
   };
 
-  const ignoreCredit = async (lineId) => {
+  const dropLine = (lineId) => {
+    setUnmatchedCredits((rows) => rows.filter((row) => row.id !== lineId));
+    setUnmatchedDebits((rows) => rows.filter((row) => row.id !== lineId));
+    setSelectedCreditIds((ids) => ids.filter((id) => id !== lineId));
+  };
+
+  const ignoreLine = async (lineId) => {
     if (busyLineIds.has(lineId)) return;
     setLineBusy(lineId, true);
     setToast(null);
     try {
       await ignoreBankStatementLine(lineId);
-      setUnmatchedCredits((rows) => rows.filter((row) => row.id !== lineId));
-      setToast({ type: 'success', message: 'Credit ignored' });
+      dropLine(lineId);
+      setToast({ type: 'success', message: 'Statement line ignored' });
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not ignore line' });
     } finally {
@@ -474,15 +450,14 @@ const BooksPage = () => {
     }
   };
 
-  const deleteCredit = async (lineId) => {
+  const deleteLine = async (lineId) => {
     if (busyLineIds.has(lineId)) return;
     if (!window.confirm('Delete this statement line? This cannot be undone.')) return;
     setLineBusy(lineId, true);
     setToast(null);
     try {
       await deleteBankStatementLine(lineId);
-      setUnmatchedCredits((rows) => rows.filter((row) => row.id !== lineId));
-      setSelectedCreditIds((ids) => ids.filter((id) => id !== lineId));
+      dropLine(lineId);
       setToast({ type: 'success', message: 'Statement line deleted' });
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'Could not delete line' });
@@ -538,8 +513,8 @@ const BooksPage = () => {
       });
       return;
     }
-    if (paymentId === CREATE_ADVANCE && !advanceCustomerByLineId[line.id]) {
-      setToast({ type: 'error', message: 'Search and pick a customer for the advance' });
+    if (paymentId === CREATE_ADVANCE) {
+      setAdvanceMatchLine(line);
       return;
     }
     if (busyLineIds.has(line.id)) return;
@@ -552,16 +527,11 @@ const BooksPage = () => {
         ? 'LOAN'
         : paymentId === CREATE_CASH_DEPOSIT
           ? 'CASH_DEPOSIT'
-          : paymentId === CREATE_ADVANCE
-            ? 'ADVANCE'
-            : null;
+          : null;
       const result = isCreateMatchId(paymentId)
         ? await createAndMatchBankStatementLine(line.id, {
             kind: createKind,
             fromAccountId: defaultCashId,
-            ...(paymentId === CREATE_ADVANCE
-              ? { customerId: advanceCustomerByLineId[line.id] }
-              : {}),
           })
         : await matchBankStatementLine(
           line.id,
@@ -740,45 +710,13 @@ const BooksPage = () => {
     }
   };
 
-  const entryPayload = () => {
-    const form = entryForm;
-    const amount = Math.abs(Number(form.amount));
-    const base = {
-      amount,
-      occurredAt: form.entryDate,
-      reference: form.reference || undefined,
-      description: form.notes || undefined,
-    };
-    if (form.category === 'TRANSFER') {
-      const fromAccount = accounts.find((account) => account.id === form.fromAccountId);
-      const toAccount = accounts.find((account) => account.id === form.toAccountId);
-      if (!isCashOrBank(fromAccount) || !isCashOrBank(toAccount)) {
-        throw new Error('Transfers require cash or bank accounts');
-      }
-      if (fromAccount.id === toAccount.id) {
-        throw new Error('Choose different source and destination accounts');
-      }
-      const type = fromAccount.type === 'BANK' && toAccount.type === 'BANK'
-        ? 'BANK_BANK_TRANSFER'
-        : 'CASH_BANK_TRANSFER';
-      return { ...base, type, fromAccountId: form.fromAccountId, toAccountId: form.toAccountId };
-    }
-    if (!form.accountId) throw new Error('Choose an account');
-    return {
-      ...base,
-      type: 'ADJUSTMENT',
-      accountId: form.accountId,
-      amount: form.category === 'MONEY_OUT' ? -amount : amount,
-    };
-  };
-
   const saveEntry = async (event) => {
     event.preventDefault();
     if (!Number(entryForm.amount)) return;
     setSaving(true);
     setToast(null);
     try {
-      await createFinanceTransaction(entryPayload());
+      await createFinanceTransaction(buildManualEntryPayload(entryForm, accounts));
       setEntryForm(null);
       setToast({ type: 'success', message: 'Entry recorded' });
       await refresh();
@@ -896,16 +834,27 @@ const BooksPage = () => {
           <>
             <section className="account-cards">
               {visibleAccounts.map((account) => (
-                <button
+                <div
                   key={account.id}
                   className={`account-card ${selectedAccountId === account.id ? 'selected' : ''}`}
-                  onClick={() => setSelectedAccountId(selectedAccountId === account.id ? '' : account.id)}
                 >
-                  <span>{accountName(account)}</span>
-                  <strong>{money(account.currentBalance ?? account.balance ?? account.openingBalance)}</strong>
-                  <small>{account.bankName || account.type}</small>
-                  <span className="account-edit" onClick={(event) => { event.stopPropagation(); openAccount(account); }}>Edit</span>
-                </button>
+                  <button
+                    type="button"
+                    className="account-card-select"
+                    onClick={() => setSelectedAccountId(selectedAccountId === account.id ? '' : account.id)}
+                  >
+                    <span>{accountName(account)}</span>
+                    <strong>{money(account.currentBalance ?? account.balance ?? account.openingBalance)}</strong>
+                    <small>{account.bankName || account.type}</small>
+                  </button>
+                  <button
+                    type="button"
+                    className="account-edit"
+                    onClick={(event) => { event.stopPropagation(); openAccount(account); }}
+                  >
+                    Edit
+                  </button>
+                </div>
               ))}
               {!visibleAccounts.length && !loading && (
                 <button className="account-card empty" onClick={() => openAccount()}>
@@ -937,7 +886,7 @@ const BooksPage = () => {
                       return (
                         <tr key={row.id}>
                           <td>{String(row.entryDate || row.date || row.createdAt || '').slice(0, 10) || '—'}</td>
-                          <td><span className="entry-type">{row.category || row.type || 'Entry'}</span></td>
+                          <td><span className="entry-type">{ledgerTypeLabel(row)}</span></td>
                           <td>{row.particulars || row.description || row.source || row.notes || '—'}{automatic && <small className="automatic">Automatic</small>}</td>
                           <td>{row.reference || row.referenceNumber || '—'}</td>
                           <td className="amount in">{incoming ? money(incoming) : '—'}</td>
@@ -1078,7 +1027,7 @@ const BooksPage = () => {
             <div className="reconcile-section-head">
               <div>
                 <h3>Unmatched {sideMeta.label.toLowerCase()}</h3>
-                <p>Same-day matches appear first. Amounts can split across lines (±₹1).</p>
+                <p>Same-day matches appear first. Extra bank amount is allowed; shortfall up to ₹10.</p>
               </div>
               <span className="reconcile-section-count">{activeUnmatched.length}</span>
             </div>
@@ -1131,7 +1080,11 @@ const BooksPage = () => {
                               <div className="reconcile-pick">
                                 <select
                                   value={defaultPaymentId}
-                                  onChange={(e) => setSelectedMatch((m) => ({ ...m, [row.id]: e.target.value }))}
+                                  onChange={(e) => {
+                                    const value = e.target.value;
+                                    setSelectedMatch((m) => ({ ...m, [row.id]: value }));
+                                    if (value === CREATE_ADVANCE) setAdvanceMatchLine(row);
+                                  }}
                                   aria-label="Match this credit"
                                 >
                                   <option value="">
@@ -1156,65 +1109,6 @@ const BooksPage = () => {
                                 </select>
                                 {fitBadge(selectedOption?.fit || matchFitTag(row.credit, selectedOption))}
                               </div>
-                              {defaultPaymentId === CREATE_ADVANCE && (
-                                <div className="advance-pick">
-                                  <label className="advance-pick-label" htmlFor={`advance-${row.id}`}>
-                                    Customer for advance
-                                  </label>
-                                  {advanceCustomerByLineId[row.id] ? (
-                                    <div className="advance-selected">
-                                      <span>{advanceCustomerNameByLineId[row.id]}</span>
-                                      <button
-                                        type="button"
-                                        className="advance-clear"
-                                        onClick={() => {
-                                          setAdvanceCustomerByLineId((prev) => {
-                                            const next = { ...prev };
-                                            delete next[row.id];
-                                            return next;
-                                          });
-                                        }}
-                                      >
-                                        Change
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <input
-                                        id={`advance-${row.id}`}
-                                        type="search"
-                                        placeholder="Name or phone…"
-                                        value={advanceSearchByLineId[row.id] || ''}
-                                        onChange={(e) => {
-                                          setAdvanceSearchByLineId((prev) => ({ ...prev, [row.id]: e.target.value }));
-                                        }}
-                                      />
-                                      {(advanceHitsByLineId[row.id] || []).length > 0 && (
-                                        <div className="advance-hits">
-                                          {(advanceHitsByLineId[row.id] || []).map((customer) => (
-                                            <button
-                                              key={customer.id}
-                                              type="button"
-                                              className="advance-hit"
-                                              onClick={() => {
-                                                setAdvanceCustomerByLineId((prev) => ({ ...prev, [row.id]: customer.id }));
-                                                setAdvanceSearchByLineId((prev) => ({
-                                                  ...prev,
-                                                  [row.id]: customerDisplayName(customer),
-                                                }));
-                                                setAdvanceHitsByLineId((prev) => ({ ...prev, [row.id]: [] }));
-                                              }}
-                                            >
-                                              <strong>{customerDisplayName(customer)}</strong>
-                                              {customer.phone ? <span>{customer.phone}</span> : null}
-                                            </button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </>
-                                  )}
-                                </div>
-                              )}
                             </td>
                             <td className="reconcile-actions">
                               <button
@@ -1230,7 +1124,7 @@ const BooksPage = () => {
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost"
                                 type="button"
                                 disabled={busyLineIds.has(row.id)}
-                                onClick={() => ignoreCredit(row.id)}
+                                onClick={() => ignoreLine(row.id)}
                               >
                                 <FiEyeOff size={13} aria-hidden />
                                 Ignore
@@ -1239,7 +1133,7 @@ const BooksPage = () => {
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost-danger"
                                 type="button"
                                 disabled={busyLineIds.has(row.id)}
-                                onClick={() => deleteCredit(row.id)}
+                                onClick={() => deleteLine(row.id)}
                                 title="Delete line"
                               >
                                 <FiTrash2 size={13} aria-hidden />
@@ -1330,7 +1224,7 @@ const BooksPage = () => {
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost"
                                 type="button"
                                 disabled={busyLineIds.has(row.id)}
-                                onClick={() => ignoreCredit(row.id)}
+                                onClick={() => ignoreLine(row.id)}
                               >
                                 <FiEyeOff size={13} aria-hidden />
                                 Ignore
@@ -1339,7 +1233,7 @@ const BooksPage = () => {
                                 className="reconcile-btn reconcile-btn--sm reconcile-btn--ghost-danger"
                                 type="button"
                                 disabled={busyLineIds.has(row.id)}
-                                onClick={() => deleteCredit(row.id)}
+                                onClick={() => deleteLine(row.id)}
                                 title="Delete line"
                               >
                                 <FiTrash2 size={13} aria-hidden />
@@ -1658,6 +1552,45 @@ const BooksPage = () => {
           </div>
         )}
 
+        {advanceMatchLine && (
+          <AdvancePanel
+            isOpen
+            onClose={() => setAdvanceMatchLine(null)}
+            initialAmount={advanceMatchLine.credit}
+            lockAmount
+            onReceive={async ({ customerId }) => {
+              const line = advanceMatchLine;
+              setLineBusy(line.id, true);
+              setUnmatchedCredits((rows) => rows.filter((row) => row.id !== line.id));
+              setSelectedCreditIds((ids) => ids.filter((id) => id !== line.id));
+              try {
+                const result = await createAndMatchBankStatementLine(line.id, {
+                  kind: 'ADVANCE',
+                  customerId,
+                });
+                const remaining = Number(result?.payment?.remaining ?? 0);
+                const linkedTo = result?.payment?.invoiceNumber || 'Advance';
+                setToast({
+                  type: 'success',
+                  message: remaining > 1
+                    ? `Linked ${money(line.credit)} → ${linkedTo} (${money(remaining)} still open)`
+                    : `Linked ${money(line.credit)} → ${linkedTo}`,
+                });
+                loadBooksQuiet();
+                await loadUnmatched();
+              } catch (err) {
+                setUnmatchedCredits((rows) =>
+                  rows.some((row) => row.id === line.id) ? rows : [...rows, line],
+                );
+                throw err;
+              } finally {
+                setLineBusy(line.id, false);
+              }
+            }}
+            onSuccess={() => setAdvanceMatchLine(null)}
+          />
+        )}
+
         {entryForm && (
           <div className="books-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setEntryForm(null)}>
             <form className="books-modal" onSubmit={saveEntry}>
@@ -1665,10 +1598,10 @@ const BooksPage = () => {
               <div className="form-grid">
                 <label>Entry type<select value={entryForm.category} onChange={(e) => setEntryForm({ ...emptyEntry(), category: e.target.value })}>{ENTRY_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                 <label>Date<input required type="date" value={entryForm.entryDate} onChange={(e) => setEntryForm((f) => ({ ...f, entryDate: e.target.value }))} /></label>
-                {entryForm.category === 'TRANSFER' ? (
+                {entryForm.category === 'TRANSFER' || entryForm.category === 'CASH_DEPOSIT' ? (
                   <>
-                    <label>From account<select required value={entryForm.fromAccountId} onChange={(e) => setEntryForm((f) => ({ ...f, fromAccountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions()}</select></label>
-                    <label>To account<select required value={entryForm.toAccountId} onChange={(e) => setEntryForm((f) => ({ ...f, toAccountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions()}</select></label>
+                    <label>From account<select required value={entryForm.fromAccountId} onChange={(e) => setEntryForm((f) => ({ ...f, fromAccountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions(entryForm.category === 'CASH_DEPOSIT' ? (a) => a.type === 'CASH' : undefined)}</select></label>
+                    <label>To account<select required value={entryForm.toAccountId} onChange={(e) => setEntryForm((f) => ({ ...f, toAccountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions(entryForm.category === 'CASH_DEPOSIT' ? (a) => a.type === 'BANK' : undefined)}</select></label>
                   </>
                 ) : (
                   <label>Account<select required value={entryForm.accountId} onChange={(e) => setEntryForm((f) => ({ ...f, accountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions()}</select></label>

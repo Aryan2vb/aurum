@@ -294,6 +294,14 @@
   cursor: not-allowed;
 }
 
+/* Keyboard users never trigger the row hover that reveals these buttons. */
+.grid-remove-btn:focus-visible,
+.grid-remove-btn.hover-show:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Vendor Management Modal Layout */
 .vendor-modal-wide {
   width: 900px !important;

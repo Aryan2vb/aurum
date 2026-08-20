@@ -81,5 +81,5 @@ export function ledgerTypeLabel(row) {
   if (type === 'ADVANCE_RECEIPT') return 'Advance';
   if (type === 'ADVANCE_REFUND') return 'Advance refund';
   if (type === 'PURCHASE_PAYMENT') return 'Purchase';
-  return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return type.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
