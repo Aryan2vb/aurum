@@ -29,6 +29,8 @@ import {
   generateInvoiceHtml,
   generateJewelleryInvoiceHtml,
   generateModernInvoiceHtml,
+  INVOICE_TEMPLATES,
+  resolveInvoiceTemplate,
 } from "../../utils/invoiceTemplates";
 import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
 import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
@@ -169,7 +171,7 @@ const formatCustomerAddress = (location) =>
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [theme, setTheme] = useState("classic");
+  const [theme, setTheme] = useState("standard");
   const [sequenceData, setSequenceData] = useState(null);
   const [manualSequence, setManualSequence] = useState("");
   const [sequenceAvailability, setSequenceAvailability] = useState(null);
@@ -250,10 +252,12 @@ const CreateInvoicePage = () => {
           },
           declaration: settings.declaration || prev.declaration,
         }));
-        if (settings.defaultTemplate) setTheme(settings.defaultTemplate);
+        if (!id) setTheme(resolveInvoiceTemplate(null, settings.defaultTemplate));
 
         if (id) {
           const inv = await getInvoiceById(id);
+          // Open in the format this invoice was saved with, not the org default
+          setTheme(resolveInvoiceTemplate(inv.templateType, settings.defaultTemplate));
           setSelectedCustomerId(inv.customerId);
           setSelectedCustomerObj(inv.customer);
           if (inv.customer) {
@@ -1214,6 +1218,28 @@ const CreateInvoicePage = () => {
                     onChange={(e) => setInvoiceDate(e.target.value)}
                   />
                 </div>
+                <div className={styles.formatField}>
+                  <label className={styles.dateLabel}>Invoice Format</label>
+                  <div
+                    className={styles.formatSwitch}
+                    role="radiogroup"
+                    aria-label="Invoice format"
+                    title="Print format for this invoice only. Change the default in Settings."
+                  >
+                    {INVOICE_TEMPLATES.map((t) => (
+                      <button
+                        key={t.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={theme === t.value}
+                        className={`${styles.formatOption} ${theme === t.value ? styles.formatOptionActive : ""}`}
+                        onClick={() => setTheme(t.value)}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
             {/* Items */}
@@ -1692,13 +1718,13 @@ const CreateInvoicePage = () => {
               </button>
             </div>
             <div className={styles.previewTabs}>
-              {["classic", "modern", "jewellery"].map((t) => (
+              {INVOICE_TEMPLATES.map((t) => (
                 <button
-                  key={t}
-                  className={theme === t ? styles.activeTab : ""}
-                  onClick={() => setTheme(t)}
+                  key={t.value}
+                  className={theme === t.value ? styles.activeTab : ""}
+                  onClick={() => setTheme(t.value)}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {t.label}
                 </button>
               ))}
             </div>

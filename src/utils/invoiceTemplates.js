@@ -15,6 +15,36 @@ const formatPaymentDate = (value) => {
 const formatPaymentLine = (payment, formatAmount) =>
     `${payment.mode}: ₹${formatAmount(payment.amount || 0)}${payment.paidAt ? ` · ${formatPaymentDate(payment.paidAt)}` : ''}`;
 
+/** Print formats an invoice can use. `standard` is the plain GST layout. */
+export const INVOICE_TEMPLATES = [
+    { value: 'standard', label: 'Standard' },
+    { value: 'modern', label: 'Modern' },
+    { value: 'jewellery', label: 'Jewellery' },
+];
+
+/**
+ * Canonical format for a stored/settings value. The editor used to call the standard
+ * layout "classic" and the org settings call it "default"; both mean `standard`.
+ */
+export const normalizeTemplateType = (value) => {
+    if (!value) return undefined;
+    if (value === 'jewellery' || value === 'modern') return value;
+    return 'standard';
+};
+
+/**
+ * Format the invoice editor should open in: the invoice's own saved format when it has
+ * one (editing), otherwise the org default (new invoice), otherwise standard.
+ */
+export const resolveInvoiceTemplate = (savedType, defaultType) =>
+    normalizeTemplateType(savedType) || normalizeTemplateType(defaultType) || 'standard';
+
+/** Purity as printed on an invoice; "-" when an item has none. */
+const formatPurity = (value) => {
+    const v = String(value ?? '').trim();
+    return !v || v.toUpperCase() === 'NONE' || v === '-' ? '-' : v;
+};
+
 export function getInvoiceDocumentTitle({ buyer = {}, metadata = {} }) {
     const titleParts = ['Tax Invoice'];
 
@@ -61,6 +91,7 @@ export function generateInvoiceHtml(data) {
       <td class="text-center">${item.hsnSac || ''}</td>
       <td class="text-right">${item.grossWeight ? formatCurrency(item.grossWeight) + ' GMS' : ''}</td>
       <td class="text-right">${item.netWeight ? formatCurrency(item.netWeight) + ' GMS' : ''}</td>
+      <td class="text-center">${formatPurity(item.purityLabel || item.purity)}</td>
       <td class="text-right">${rateDisplay}</td>
       <td class="text-right">${formatCurrency(item.amount || 0)}</td>
     </tr>`;
@@ -169,34 +200,35 @@ export function generateInvoiceHtml(data) {
         <th class="text-center" style="width:80px;">HSN/SAC</th>
         <th class="text-center" style="width:70px;">Gross<br/>Weight</th>
         <th class="text-center" style="width:70px;">Net<br/>Weight</th>
+        <th class="text-center" style="width:60px;">Purity</th>
         <th class="text-center" style="width:100px;">Rate</th>
         <th class="text-right" style="width:100px;">Amount</th>
       </tr></thead>
       <tbody>
         ${itemRows}
-        <tr class="tax-row"><td class="text-right font-bold">Taxable Value:</td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold">${formatCurrency(totalTaxableValue)}</td></tr>
-        <tr class="tax-row"><td></td><td class="text-right font-bold">CGST(${taxes.cgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.cgstAmount || 0)}</td></tr>
-        <tr class="tax-row"><td></td><td class="text-right font-bold">SGST(${taxes.sgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.sgstAmount || 0)}</td></tr>
-        ${taxes.igstRate && taxes.igstRate > 0 ? `<tr class="tax-row"><td></td><td class="text-right font-bold">IGST(${taxes.igstRate}%)</td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.igstAmount || 0)}</td></tr>` : ''}
-        <tr class="tax-row"><td>Less:</td><td class="text-right font-bold">ROUND OFF</td><td></td><td></td><td></td><td></td><td class="text-right">${roundOff >= 0 ? '' : '(-)'}${formatCurrency(Math.abs(roundOff || 0))}</td></tr>
-        ${Array(3).fill('<tr style="height:16px;"><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('')}
-        <tr class="total-row"><td></td><td class="text-right">Total</td><td></td><td></td><td></td><td></td><td class="text-right font-bold text-lg">₹${formatCurrency(totalAmount || 0)}</td></tr>
+        <tr class="tax-row"><td class="text-right font-bold">Taxable Value:</td><td></td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold">${formatCurrency(totalTaxableValue)}</td></tr>
+        <tr class="tax-row"><td></td><td class="text-right font-bold">CGST(${taxes.cgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.cgstAmount || 0)}</td></tr>
+        <tr class="tax-row"><td></td><td class="text-right font-bold">SGST(${taxes.sgstRate || 0}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.sgstAmount || 0)}</td></tr>
+        ${taxes.igstRate && taxes.igstRate > 0 ? `<tr class="tax-row"><td></td><td class="text-right font-bold">IGST(${taxes.igstRate}%)</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${formatCurrency(taxes.igstAmount || 0)}</td></tr>` : ''}
+        <tr class="tax-row"><td>Less:</td><td class="text-right font-bold">ROUND OFF</td><td></td><td></td><td></td><td></td><td></td><td class="text-right">${roundOff >= 0 ? '' : '(-)'}${formatCurrency(Math.abs(roundOff || 0))}</td></tr>
+        ${Array(3).fill('<tr style="height:16px;"><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>').join('')}
+        <tr class="total-row"><td></td><td class="text-right">Total</td><td></td><td></td><td></td><td></td><td></td><td class="text-right font-bold text-lg">₹${formatCurrency(totalAmount || 0)}</td></tr>
         ${
           data.payments && data.payments.length > 0
             ? data.payments.map(p => `
         <tr class="tax-row">
-          <td colspan="7" class="text-right">${formatPaymentLine(p, formatCurrency)}</td>
+          <td colspan="8" class="text-right">${formatPaymentLine(p, formatCurrency)}</td>
         </tr>`).join('')
             : (data.cashReceived || 0) > 0
             ? `
         <tr class="tax-row">
-          <td colspan="6" class="text-right">Paid Amount</td>
+          <td colspan="7" class="text-right">Paid Amount</td>
           <td class="text-right">${formatCurrency(data.cashReceived || 0)}</td>
         </tr>`
             : ''
         }
         <tr class="tax-row">
-          <td colspan="6" class="text-right font-bold" style="font-size: 14px;">Balance Due</td>
+          <td colspan="7" class="text-right font-bold" style="font-size: 14px;">Balance Due</td>
           <td class="text-right font-bold" style="font-size: 14px;">₹${formatCurrency(data.amtBalance || 0)}</td>
         </tr>
       </tbody>
