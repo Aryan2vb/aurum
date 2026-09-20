@@ -50,5 +50,9 @@
     "@types/react-dom": "^19.2.3",
     "cross-env": "^10.1.0",
     "typescript": "^4.9.5"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5",
+    "underscore": "^1.13.8"
   }
 }
