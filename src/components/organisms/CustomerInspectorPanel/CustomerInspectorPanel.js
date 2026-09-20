@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Accordion from '@radix-ui/react-accordion';
 import InlineEditableField from './InlineEditableField';
+import DatePicker from '../../molecules/DatePicker/DatePicker';
 import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 import InspectorSkeleton from './InspectorSkeleton';
 import CustomerCreateForm from './CustomerCreateForm';
@@ -1502,7 +1503,11 @@ const AccountForm = ({ account, onSave, onCancel, isSaving, statusOptions }) => 
       </div>
       <div className="inline-form-field">
         <label>Opened Date</label>
-        <input type="date" value={formData.openedAt} onChange={(e) => setFormData(p => ({ ...p, openedAt: e.target.value }))} disabled={isSaving} />
+        <DatePicker
+          value={formData.openedAt}
+          onChange={(ymd) => setFormData((p) => ({ ...p, openedAt: ymd }))}
+          disabled={isSaving}
+        />
       </div>
       <div className="inline-form-field">
         <label>Status</label>
@@ -1538,7 +1543,11 @@ const MetaTrackingForm = ({ metaTracking, onSave, onCancel, isSaving, sourceOpti
     <form className="inline-form" onSubmit={handleSubmit}>
       <div className="inline-form-field">
         <label>Registration Date</label>
-        <input type="date" value={formData.registeredOn} onChange={(e) => setFormData(p => ({ ...p, registeredOn: e.target.value }))} disabled={isSaving} />
+        <DatePicker
+          value={formData.registeredOn}
+          onChange={(ymd) => setFormData((p) => ({ ...p, registeredOn: ymd }))}
+          disabled={isSaving}
+        />
       </div>
       <div className="inline-form-field">
         <label>Source</label>

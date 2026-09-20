@@ -10,6 +10,8 @@ import {
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Icon from '../../components/atoms/Icon/Icon';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
+import DatePicker from '../../components/molecules/DatePicker/DatePicker';
+import DateRangeFilter, { parseLocalYmd, toLocalYmd } from '../../components/molecules/DateRangeFilter/DateRangeFilter';
 import Toast from '../../components/atoms/Toast/Toast';
 import { getStockBalances, getStockLedger, initializeOpeningBalance, getStockGroupSummary } from '../../services/stockService';
 import { getMetalPurities } from '../../services/metalPuritiesService';
@@ -60,26 +62,6 @@ const emptyOpeningBalanceModal = () => ({
   rate: '',
   date: currentFyStartDate(),
 });
-
-const summaryRange = (preset, today = new Date()) => {
-  const todayStr = toDateInput(today);
-  if (preset === 'this_month') {
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    return { startDate: `${today.getFullYear()}-${mm}-01`, endDate: todayStr };
-  }
-  if (preset === 'last_month') {
-    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const last = new Date(today.getFullYear(), today.getMonth(), 0);
-    return { startDate: toDateInput(first), endDate: toDateInput(last) };
-  }
-  return { startDate: currentFyStartDate(today), endDate: todayStr };
-};
-
-const SUMMARY_PRESETS = [
-  { id: 'this_month', label: 'This Month' },
-  { id: 'last_month', label: 'Last Month' },
-  { id: 'this_fy', label: 'This FY' },
-];
 
 const formatDateReadable = (dStr) => {
   if (!dStr) return '';
@@ -152,8 +134,10 @@ const StockPage = () => {
   const [sorting, setSorting] = useState([]);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState('live');
-  const [summaryPreset, setSummaryPreset] = useState('this_fy');
-  const [{ startDate, endDate }, setSummaryRange] = useState(() => summaryRange('this_fy'));
+  const [{ startDate, endDate }, setSummaryRange] = useState(() => ({
+    startDate: currentFyStartDate(),
+    endDate: toDateInput(),
+  }));
   const [summaryData, setSummaryData] = useState([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -320,24 +304,6 @@ const StockPage = () => {
     }
   };
 
-  const applySummaryPreset = (preset) => {
-    setSummaryPreset(preset);
-    setSummaryRange(summaryRange(preset));
-  };
-
-  const handleSummaryDateChange = (field, value) => {
-    if (!value) return;
-    setSummaryPreset('custom');
-    setSummaryRange((prev) => {
-      const next = { ...prev, [field]: value };
-      if (next.startDate && next.endDate && next.startDate > next.endDate) {
-        if (field === 'startDate') next.endDate = value;
-        else next.startDate = value;
-      }
-      return next;
-    });
-  };
-
   const groupedSummary = useMemo(() => {
     const groups = { GOLD: [], SILVER: [] };
     summaryData.forEach((item) => {
@@ -452,26 +418,51 @@ const StockPage = () => {
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
 
       <div className="stock-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'live'}
-          className={`tab-btn${activeTab === 'live' ? ' active' : ''}`}
-          onClick={() => setActiveTab('live')}
-        >
-          <Icon name="product" size={14} />
-          Balances
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'summary'}
-          className={`tab-btn${activeTab === 'summary' ? ' active' : ''}`}
-          onClick={() => setActiveTab('summary')}
-        >
-          <Icon name="file" size={14} />
-          Group Summary
-        </button>
+        <div className="stock-tabs-list">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'live'}
+            className={`tab-btn${activeTab === 'live' ? ' active' : ''}`}
+            onClick={() => setActiveTab('live')}
+          >
+            <Icon name="product" size={14} />
+            Balances
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'summary'}
+            className={`tab-btn${activeTab === 'summary' ? ' active' : ''}`}
+            onClick={() => setActiveTab('summary')}
+          >
+            <Icon name="file" size={14} />
+            Group Summary
+          </button>
+        </div>
+        {activeTab === 'summary' && (
+          <div className="stock-tabs-actions">
+            <DateRangeFilter
+              label="Date Range"
+              icon={<Icon name="date" size={14} />}
+              align="right"
+              start={parseLocalYmd(startDate)}
+              end={parseLocalYmd(endDate)}
+              onChange={(s, e) => {
+                if (!s || !e) return;
+                setSummaryRange({ startDate: toLocalYmd(s), endDate: toLocalYmd(e) });
+              }}
+            />
+            <button
+              type="button"
+              className="attio-secondary-btn compact-btn"
+              onClick={() => window.print()}
+              disabled={summaryLoading || summaryData.length === 0}
+            >
+              <Icon name="printer" size={14} /><span>Print</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {activeTab === 'live' ? (
@@ -618,52 +609,6 @@ const StockPage = () => {
         </div>
       ) : (
         <div className="stock-summary-container">
-          <div className="report-filter-bar">
-            <div className="report-filter-presets" role="group" aria-label="Period">
-              {SUMMARY_PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`report-preset-btn${summaryPreset === p.id ? ' active' : ''}`}
-                  onClick={() => applySummaryPreset(p.id)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <div className="report-filter-right">
-              <label className="summary-date-field">
-                <span>From</span>
-                <input
-                  type="date"
-                  className="summary-date-input"
-                  value={startDate}
-                  max={endDate || toDateInput()}
-                  onChange={(e) => handleSummaryDateChange('startDate', e.target.value)}
-                />
-              </label>
-              <label className="summary-date-field">
-                <span>To</span>
-                <input
-                  type="date"
-                  className="summary-date-input"
-                  value={endDate}
-                  min={startDate || undefined}
-                  max={toDateInput()}
-                  onChange={(e) => handleSummaryDateChange('endDate', e.target.value)}
-                />
-              </label>
-              <button
-                type="button"
-                className="attio-secondary-btn compact-btn"
-                onClick={() => window.print()}
-                disabled={summaryLoading || summaryData.length === 0}
-              >
-                <Icon name="printer" size={14} /><span>Print</span>
-              </button>
-            </div>
-          </div>
-
           <div className="print-report-container">
             <div className="print-report-header">
               <h2>Stock Group Summary</h2>
@@ -759,7 +704,14 @@ const StockPage = () => {
                 </div>
                 <div className="form-group ob-date-group">
                   <label htmlFor="ob-date">Date</label>
-                  <input id="ob-date" type="date" name="date" className="saas-input" value={modalData.date} onChange={handleModalChange} required />
+                  <DatePicker
+                    id="ob-date"
+                    name="date"
+                    triggerClassName="saas-input"
+                    value={modalData.date}
+                    required
+                    onChange={(ymd) => handleModalChange({ target: { name: 'date', value: ymd } })}
+                  />
                 </div>
               </div>
               <div className="form-row">

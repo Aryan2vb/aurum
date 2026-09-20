@@ -5,69 +5,27 @@
 
 .reports-tabs {
   display: flex;
+  align-items: center;
   gap: var(--spacing-sm);
   border-bottom: 1px solid var(--border-color);
   margin-bottom: var(--spacing-md);
+}
+
+.reports-tabs-list {
+  display: flex;
+  gap: var(--spacing-sm);
+  min-width: 0;
+  flex: 1;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-.reports-tabs::-webkit-scrollbar { display: none; }
+.reports-tabs-list::-webkit-scrollbar { display: none; }
 
-/* ── Filter bar ── */
-.report-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--border-light);
-}
-
-.report-filter-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-}
-
-.report-preset-btn {
-  font-size: 0.78rem;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-.report-preset-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.report-filter-dates {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
+.reports-tabs-filter {
+  flex-shrink: 0;
   margin-left: auto;
-}
-
-.report-date-input {
-  font-size: 0.8rem;
-  padding: 4px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  outline: none;
-}
-.report-date-input:focus { border-color: var(--accent); }
-
-.report-date-sep {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
+  padding-bottom: 4px;
 }
 
 /* ── Summary cards ── */
@@ -160,8 +118,9 @@
 
 /* ── Mobile ── */
 @media (max-width: 768px) {
-  .report-filter-dates { margin-left: 0; width: 100%; }
-  .report-date-input { flex: 1; }
+  .reports-tabs {
+    align-items: flex-end;
+  }
 }
 
 /* ── Advances Held report ── */

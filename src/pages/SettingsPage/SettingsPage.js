@@ -25,6 +25,15 @@ import {
 import { puritiesForMetal } from '../../utils/metalPurities';
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
+import {
+  getBackupStatus,
+  downloadOrganizationBackup,
+  importOrganizationBackup,
+  getOrgBackupHistory,
+  triggerFullSystemBackup,
+  getStoredBackups,
+  downloadStoredBackup,
+} from '../../services/backupService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
@@ -67,6 +76,9 @@ const SECTION_FROM_HASH = {
   'metal-purities': 'inventory',
   invoicing: 'invoicing',
   invoice: 'invoicing',
+  backups: 'backups',
+  backup: 'backups',
+  data: 'backups',
   preferences: 'preferences',
   appearance: 'preferences',
   account: 'preferences',
@@ -77,6 +89,7 @@ const HASH_FOR_SECTION = {
   workspace: 'workspace',
   inventory: 'metal-purities',
   invoicing: 'invoicing',
+  backups: 'backups',
   preferences: 'preferences',
 };
 
@@ -103,6 +116,7 @@ const SettingsPage = () => {
     if (isAdmin) items.push({ id: 'workspace', label: 'Workspace', hint: 'Team & access' });
     items.push({ id: 'inventory', label: 'Inventory', hint: 'Metals & purities' });
     if (isAdmin) items.push({ id: 'invoicing', label: 'Invoicing', hint: 'Bill template' });
+    if (isAdmin) items.push({ id: 'backups', label: 'Data & Backups', hint: 'Exports & snapshots' });
     items.push({ id: 'preferences', label: 'Preferences', hint: 'Theme & account' });
     return items;
   }, [isAdmin]);
@@ -170,6 +184,19 @@ const SettingsPage = () => {
   });
   const [accessStatus, setAccessStatus] = useState({ loading: false, error: null, success: null });
 
+  // Backup states
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupStatus, setBackupStatus] = useState({ error: null, success: null });
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState({ error: null, success: null });
+  const [orgHistory, setOrgHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [fullBackupLoading, setFullBackupLoading] = useState(false);
+  const [fullBackupStatus, setFullBackupStatus] = useState({ error: null, success: null });
+  const [storedBackups, setStoredBackups] = useState([]);
+
   useEffect(() => {
     if (can('admin')) fetchMembers();
     if (isOwner) fetchAccessPolicy();
@@ -231,6 +258,105 @@ const SettingsPage = () => {
       setTimeout(() => setAccessStatus((s) => ({ ...s, success: null })), 2500);
     } catch (e) {
       setAccessStatus({ loading: false, error: e.message || 'Failed to save', success: null });
+    }
+  };
+
+  const fetchBackupData = async () => {
+    setHistoryLoading(true);
+    try {
+      const statusRes = await getBackupStatus().catch(() => ({ isSuperAdmin: false }));
+      const userIsSuper = !!statusRes?.isSuperAdmin;
+      setIsSuperAdmin(userIsSuper);
+
+      const [history, stored] = await Promise.all([
+        getOrgBackupHistory().catch(() => []),
+        userIsSuper ? getStoredBackups().catch(() => []) : Promise.resolve([]),
+      ]);
+      setOrgHistory(Array.isArray(history) ? history : []);
+      setStoredBackups(Array.isArray(stored) ? stored : []);
+    } catch (err) {
+      console.error('Failed to load backup data:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'backups' && isAdmin) {
+      fetchBackupData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, isAdmin, isOwner]);
+
+  const handleOrgBackup = async () => {
+    setBackupLoading(true);
+    setBackupStatus({ error: null, success: null });
+    try {
+      const res = await downloadOrganizationBackup();
+      setBackupStatus({ error: null, success: `Backup downloaded successfully (${res.filename})` });
+      fetchBackupData();
+    } catch (err) {
+      setBackupStatus({ error: err.message || 'Failed to export backup', success: null });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleImportBackup = async (e) => {
+    e.preventDefault();
+    if (!importFile) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to restore data from "${importFile.name}" into this organization? Records will be safely imported and updated.`,
+    );
+    if (!confirmed) return;
+
+    setImportLoading(true);
+    setImportStatus({ error: null, success: null });
+    try {
+      const res = await importOrganizationBackup(importFile);
+      const counts = res.restoredCounts || {};
+      const parts = [];
+      if (counts.customers) parts.push(`${counts.customers} customers`);
+      if (counts.invoices) parts.push(`${counts.invoices} invoices`);
+      if (counts.ledgerEntries) parts.push(`${counts.ledgerEntries} ledger entries`);
+      if (counts.stockBalances) parts.push(`${counts.stockBalances} stock balances`);
+      if (counts.financialAccounts) parts.push(`${counts.financialAccounts} accounts`);
+
+      setImportStatus({
+        error: null,
+        success: `Data imported successfully! Restored: ${parts.length > 0 ? parts.join(', ') : 'all records'}.`,
+      });
+      setImportFile(null);
+      fetchBackupData();
+    } catch (err) {
+      setImportStatus({ error: err.message || 'Failed to import backup file', success: null });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFullBackup = async () => {
+    setFullBackupLoading(true);
+    setFullBackupStatus({ error: null, success: null });
+    try {
+      const res = await triggerFullSystemBackup();
+      setFullBackupStatus({
+        error: null,
+        success: `Full system backup generated successfully: ${res.filename} (${res.fileSizeFormatted || ''})`,
+      });
+      fetchBackupData();
+    } catch (err) {
+      setFullBackupStatus({ error: err.message || 'Failed to create system backup', success: null });
+    } finally {
+      setFullBackupLoading(false);
+    }
+  };
+
+  const handleDownloadStored = async (filename) => {
+    try {
+      await downloadStoredBackup(filename);
+    } catch (err) {
+      alert(`Error downloading backup: ${err.message}`);
     }
   };
 
@@ -1204,6 +1330,249 @@ const SettingsPage = () => {
               </div>
             </div>
           </section>
+        )}
+
+        {/* ────────── PREFERENCES ────────── */}
+        {/* ────────── DATA & BACKUPS ────────── */}
+        {activeSection === 'backups' && can('admin') && (
+          <>
+            {/* Org-wise backup card */}
+            <section className="settings-section">
+              <div className="s-card">
+                <div className="s-card-header">
+                  <div>
+                    <div className="s-card-title">Organization Data Backup</div>
+                    <div className="s-card-subtitle">
+                      Export your organization&apos;s complete data snapshot (customers, invoices, ledger, stock, books)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="s-btn s-btn-primary"
+                    onClick={handleOrgBackup}
+                    disabled={backupLoading}
+                  >
+                    {backupLoading ? (
+                      <>
+                        <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                        Exporting Data…
+                      </>
+                    ) : (
+                      'Backup Organization Data'
+                    )}
+                  </button>
+                </div>
+
+                <div className="backup-card-body">
+                  <div className="backup-info-banner">
+                    <span className="backup-info-icon">📦</span>
+                    <div className="backup-info-text">
+                      <strong>Complete Tenant Portability:</strong> The exported JSON file contains all records scoped to your organization. It preserves all transaction UUIDs, customers, invoices, and accounting history for local archiving or migration.
+                    </div>
+                  </div>
+
+                  {backupStatus.error && <div className="s-feedback-err">{backupStatus.error}</div>}
+                  {backupStatus.success && <div className="s-feedback-ok">{backupStatus.success}</div>}
+
+                  <div className="backup-history-header">
+                    <span className="backup-history-title">Recent Organization Exports</span>
+                    <button type="button" className="s-btn s-btn-ghost s-btn-sm" onClick={fetchBackupData} disabled={historyLoading}>
+                      {historyLoading ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                  </div>
+
+                  {orgHistory.length === 0 ? (
+                    <div className="backup-empty-state">No recorded exports yet. Click the backup button above to export your data.</div>
+                  ) : (
+                    <div className="backup-table-wrapper">
+                      <table className="backup-table">
+                        <thead>
+                          <tr>
+                            <th>Date &amp; Time</th>
+                            <th>Initiated By</th>
+                            <th>Details / Records</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orgHistory.map((log) => (
+                            <tr key={log.id}>
+                              <td>{new Date(log.createdAt).toLocaleString()}</td>
+                              <td>{log.initiatedBy}</td>
+                              <td>
+                                {log.metadata?.fileSizeBytes
+                                  ? `${(log.metadata.fileSizeBytes / 1024).toFixed(1)} KB`
+                                  : 'Exported'}
+                                {log.metadata?.recordCounts?.invoices !== undefined && (
+                                  <span className="backup-meta-tag">
+                                    {log.metadata.recordCounts.invoices} inv, {log.metadata.recordCounts.customers} cust
+                                  </span>
+                                )}
+                              </td>
+                              <td><span className="backup-badge-ok">Completed</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Org-wise Import & Restore Data Card */}
+            <section className="settings-section">
+              <div className="s-card">
+                <div className="s-card-header">
+                  <div>
+                    <div className="s-card-title">Import &amp; Restore Organization Data</div>
+                    <div className="s-card-subtitle">
+                      Upload an Aurum JSON backup file to restore customers, invoices, ledger entries, stock, and books
+                    </div>
+                  </div>
+                </div>
+
+                <div className="backup-card-body">
+                  <div className="backup-info-banner">
+                    <span className="backup-info-icon">🔄</span>
+                    <div className="backup-info-text">
+                      <strong>Safe Upsert &amp; Migration:</strong> Uploading a backup will safely restore and link records to this organization. Existing items with matching IDs or invoice numbers will be updated without creating duplicates.
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleImportBackup} className="backup-import-form">
+                    <div className="backup-file-dropzone">
+                      <input
+                        type="file"
+                        id="backup-file-input"
+                        accept=".json,application/json"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setImportFile(e.target.files[0]);
+                            setImportStatus({ error: null, success: null });
+                          }
+                        }}
+                      />
+                      <label htmlFor="backup-file-input" className="s-btn s-btn-ghost">
+                        <i className="bi bi-file-earmark-arrow-up" style={{ marginRight: 6 }} />
+                        {importFile ? 'Change File' : 'Choose JSON Backup File'}
+                      </label>
+                      {importFile ? (
+                        <div className="backup-selected-file">
+                          <strong>{importFile.name}</strong> ({(importFile.size / 1024).toFixed(1)} KB)
+                        </div>
+                      ) : (
+                        <span className="backup-file-hint">Select a file named aurum_...backup.json</span>
+                      )}
+                    </div>
+
+                    {importStatus.error && <div className="s-feedback-err">{importStatus.error}</div>}
+                    {importStatus.success && <div className="s-feedback-ok">{importStatus.success}</div>}
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                      <button
+                        type="submit"
+                        className="s-btn s-btn-primary"
+                        disabled={!importFile || importLoading}
+                      >
+                        {importLoading ? (
+                          <>
+                            <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                            Restoring Data…
+                          </>
+                        ) : (
+                          'Upload & Restore Data'
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </section>
+
+            {/* Super Admin / System-Wide Full Database Backup (Super Admin Only) */}
+            {isSuperAdmin && (
+              <section className="settings-section">
+                <div className="s-card" style={{ borderTop: '2px solid var(--accent)' }}>
+                  <div className="s-card-header">
+                    <div>
+                      <div className="s-card-title">Super Admin: Full Database Backup</div>
+                      <div className="s-card-subtitle">
+                        Full PostgreSQL dump across all organizations (pg_dump / system archive for AWS/Bare-Metal migration &amp; DR)
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="s-btn s-btn-secondary"
+                      onClick={handleFullBackup}
+                      disabled={fullBackupLoading}
+                    >
+                      {fullBackupLoading ? (
+                        <>
+                          <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                          Dumping Database…
+                        </>
+                      ) : (
+                        'Generate Full System Dump'
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="backup-card-body">
+                    <div className="backup-info-banner" style={{ background: 'var(--bg-tertiary)' }}>
+                      <span className="backup-info-icon">⚡</span>
+                      <div className="backup-info-text">
+                        <strong>Automatic Nightly Backups:</strong> System backups run automatically every night at 00:00 UTC via scheduled background cron with a rolling 30-day retention. You can also trigger an immediate dump below.
+                      </div>
+                    </div>
+
+                    {fullBackupStatus.error && <div className="s-feedback-err">{fullBackupStatus.error}</div>}
+                    {fullBackupStatus.success && <div className="s-feedback-ok">{fullBackupStatus.success}</div>}
+
+                    <div className="backup-history-header">
+                      <span className="backup-history-title">Stored Server Backups</span>
+                    </div>
+
+                    {storedBackups.length === 0 ? (
+                      <div className="backup-empty-state">No database dumps stored on the server yet. Click &quot;Generate Full System Dump&quot; to create one.</div>
+                    ) : (
+                      <div className="backup-table-wrapper">
+                        <table className="backup-table">
+                          <thead>
+                            <tr>
+                              <th>File Name</th>
+                              <th>Size</th>
+                              <th>Created At</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {storedBackups.map((item) => (
+                              <tr key={item.filename}>
+                                <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.filename}</td>
+                                <td>{item.sizeFormatted}</td>
+                                <td>{new Date(item.createdAt).toLocaleString()}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-ghost s-btn-sm"
+                                    onClick={() => handleDownloadStored(item.filename)}
+                                  >
+                                    Download
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
         )}
 
         {/* ────────── PREFERENCES ────────── */}

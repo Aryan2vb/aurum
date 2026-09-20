@@ -14,9 +14,10 @@ const Dropdown = ({
   children, 
   className = '', 
   align = 'left',
+  defaultOpen = false,
   onOpenChange 
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -42,12 +43,16 @@ const Dropdown = ({
   };
 
   return (
-    <div className={`dropdown ${className}`} ref={ref}>
+    <div className={`dropdown ${className} ${isOpen ? 'is-open' : ''}`.trim()} ref={ref}>
       <div className="dropdown-trigger" onClick={handleToggle}>
         {typeof trigger === 'function' ? trigger({ isOpen }) : trigger}
       </div>
       {isOpen && (
-        <div className={`dropdown-menu dropdown-align-${align}`}>
+        <div
+          className={`dropdown-menu dropdown-align-${align}`}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           {typeof children === 'function' ? children({ close: handleClose }) : children}
         </div>
       )}

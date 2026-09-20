@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import DatePicker from '../../molecules/DatePicker/DatePicker';
 import './InlineEditableField.css';
 
 /**
@@ -137,6 +138,18 @@ const InlineEditableField = ({
                   </option>
                 ))}
               </select>
+            ) : type === 'date' ? (
+              <DatePicker
+                value={editValue}
+                autoOpen
+                disabled={saving}
+                triggerClassName="editable-field-input"
+                onChange={(ymd) => {
+                  setEditValue(ymd);
+                  onSave(fieldKey, ymd);
+                  setIsEditing(false);
+                }}
+              />
             ) : (
               <input
                 ref={inputRef}

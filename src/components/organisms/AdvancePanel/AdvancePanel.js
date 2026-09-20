@@ -7,6 +7,7 @@ import Toast from '../../atoms/Toast/Toast';
 import Avatar from '../../atoms/Avatar/Avatar';
 import Icon from '../../atoms/Icon/Icon';
 import PaymentAccountSelect from '../../molecules/PaymentAccountSelect/PaymentAccountSelect';
+import CustomerInspectorPanel from '../CustomerInspectorPanel/CustomerInspectorPanel';
 import {
   getAdvanceBalance,
   receiveAdvance,
@@ -54,12 +55,10 @@ const fmtAmt = (n) =>
     maximumFractionDigits: 2,
   })}`;
 
-const CustomerHits = ({ hits, query, searching, onPick }) => {
+const CustomerHits = ({ hits, query, searching, onPick, onAddNew }) => {
+  const q = query.trim();
   if (searching) return <p className="advance-panel-hint">Searching…</p>;
-  if (query.trim().length >= 2 && hits.length === 0) {
-    return <p className="advance-panel-empty">No customer named “{query.trim()}”</p>;
-  }
-  if (!hits.length) return null;
+  if (q.length < 2) return null;
   return (
     <div className="advance-panel-customer-results" role="listbox">
       {hits.map((c) => (
@@ -84,6 +83,17 @@ const CustomerHits = ({ hits, query, searching, onPick }) => {
           ) : null}
         </button>
       ))}
+      {onAddNew && (
+        <button type="button" className="advance-panel-add-customer" onClick={onAddNew}>
+          <div className="advance-panel-add-icon">
+            <Icon name="add" size={14} />
+          </div>
+          <div className="advance-panel-customer-result-info">
+            <strong>Add "{q}" as new customer</strong>
+            <span>Create a new record and select automatically</span>
+          </div>
+        </button>
+      )}
     </div>
   );
 };
@@ -115,6 +125,7 @@ const AdvancePanel = ({
   const [customerResults, setCustomerResults] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
   const [searching, setSearching] = useState(false);
+  const [createFor, setCreateFor] = useState(null);
 
   const activeCustomerId = customerId || pickedCustomer?.id || '';
   const activeCustomerName =
@@ -143,6 +154,7 @@ const AdvancePanel = ({
       setPickedCustomer(null);
       setPayerSearch('');
       setPayerHits([]);
+      setCreateFor(null);
       return;
     }
     setActiveTab('receive');
@@ -154,6 +166,7 @@ const AdvancePanel = ({
     setPayerSearch('');
     setPayerHits([]);
     setBalance(null);
+    setCreateFor(null);
     setForm({
       ...emptyForm(),
       amount: initialAmount != null && Number(initialAmount) > 0 ? String(initialAmount) : '',
@@ -309,6 +322,7 @@ const AdvancePanel = ({
   );
 
   return (
+    <>
     <SlideOver isOpen={isOpen} onClose={onClose} title={panelTitle} width={480}>
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
 
@@ -330,6 +344,7 @@ const AdvancePanel = ({
             query={payerSearch}
             searching={payerSearching}
             onPick={(c) => { setPickedCustomer(c); setPayerSearch(''); setPayerHits([]); }}
+            onAddNew={() => setCreateFor('payer')}
           />
           {payerSearch.trim().length < 2 && (
             <p className="advance-panel-pick-idle">Start typing — at least 2 characters.</p>
@@ -558,6 +573,7 @@ const AdvancePanel = ({
                       query={customerSearch}
                       searching={searching}
                       onPick={(c) => { setSelectedRecipient(c); setCustomerSearch(''); setCustomerResults([]); }}
+                      onAddNew={() => setCreateFor('recipient')}
                     />
                   </>
                 )}
@@ -583,6 +599,27 @@ const AdvancePanel = ({
         </div>
       )}
     </SlideOver>
+    <CustomerInspectorPanel
+      isOpen={Boolean(createFor)}
+      onClose={() => setCreateFor(null)}
+      mode="create"
+      initialData={{ fullName: createFor === 'recipient' ? customerSearch : payerSearch }}
+      onSuccess={(newCustomer) => {
+        if (newCustomer) {
+          if (createFor === 'recipient') {
+            setSelectedRecipient(newCustomer);
+            setCustomerSearch('');
+            setCustomerResults([]);
+          } else {
+            setPickedCustomer(newCustomer);
+            setPayerSearch('');
+            setPayerHits([]);
+          }
+        }
+        setCreateFor(null);
+      }}
+    />
+    </>
   );
 };
 

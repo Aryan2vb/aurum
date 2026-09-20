@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import Icon from '../../components/atoms/Icon/Icon';
 import {
   reconcileTimeline,
   shiftTimelineAnchor,
@@ -58,11 +58,11 @@ const ReconciliationTimeline = ({
       </div>
       <div className="reconcile-timeline-nav">
         <button type="button" onClick={() => onAnchorChange(shiftTimelineAnchor(anchor, grain, -1))} aria-label="Previous">
-          <FiChevronLeft size={14} />
+          <Icon name="chevronLeft" size={14} />
         </button>
         <span>{timelineAnchorTitle(anchor, grain)}</span>
         <button type="button" onClick={() => onAnchorChange(shiftTimelineAnchor(anchor, grain, 1))} aria-label="Next">
-          <FiChevronRight size={14} />
+          <Icon name="chevronRight" size={14} />
         </button>
       </div>
       <span className="reconcile-timeline-rule" />

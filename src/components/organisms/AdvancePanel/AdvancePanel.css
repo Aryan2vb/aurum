@@ -26,18 +26,53 @@
 }
 
 .advance-panel-pick-idle,
-.advance-panel-hint,
-.advance-panel-empty {
+.advance-panel-hint {
   margin: 4px 0 0;
   font-size: 0.8rem;
   color: var(--text-tertiary);
 }
 
-.advance-panel-empty {
-  padding: 14px 12px;
-  border: 1px dashed var(--border-primary);
-  border-radius: 10px;
-  text-align: center;
+.advance-panel-add-customer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem;
+  border: none;
+  border-top: 1.5px solid var(--border-color, var(--border-primary));
+  border-radius: 0;
+  background: var(--bg-tertiary);
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.advance-panel-add-customer:hover {
+  background: var(--accent-light);
+  color: var(--accent-hover, var(--accent));
+}
+
+.advance-panel-add-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+}
+
+.advance-panel-add-customer strong {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.advance-panel-add-customer .advance-panel-customer-result-info span {
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 

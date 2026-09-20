@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SlideOver from '../../atoms/SlideOver/SlideOver';
+import DatePicker from '../DatePicker/DatePicker';
 import Icon from '../../atoms/Icon/Icon';
 import DateDisplay from '../../atoms/DateDisplay/DateDisplay';
 import PaymentAccountSelect from '../PaymentAccountSelect/PaymentAccountSelect';
-import { deletePurchase, getPurchase, recordPurchasePayment } from '../../../services/purchasesService';
+import { deletePurchase, getPurchase, recordPurchasePayment, updatePurchaseAttachment } from '../../../services/purchasesService';
+import { getPresignedUrl, uploadToR2 } from '../../../services/uploadService';
 import { PAYMENT_MODES as ALL_PAYMENT_MODES, withFinancialAccount } from '../../../utils/paymentAccounts';
 import './PurchaseDetailSlideOver.css';
 
@@ -35,8 +37,10 @@ const PurchaseDetailSlideOver = ({
   const [error, setError] = useState(null);
   const [isPaying, setIsPaying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [payError, setPayError] = useState(null);
   const [showPayForm, setShowPayForm] = useState(false);
+  const attachmentInputRef = React.useRef(null);
   const [paymentForm, setPaymentForm] = useState({
     mode: 'UPI',
     amount: '',
@@ -146,6 +150,36 @@ const PurchaseDetailSlideOver = ({
       setPayError(err.message || 'Failed to record payment');
     } finally {
       setIsPaying(false);
+    }
+  };
+
+  const handleAttachmentFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !purchase?.id) return;
+
+    try {
+      setIsUploadingAttachment(true);
+      const { presignedUrl, publicUrl, key } = await getPresignedUrl(
+        'PURCHASE_DOC',
+        file,
+        purchase.id,
+      );
+      await uploadToR2(presignedUrl, file);
+      const updated = await updatePurchaseAttachment(purchase.id, {
+        attachmentUrl: publicUrl,
+        attachmentKey: key,
+        attachmentName: file.name,
+        attachmentMime: file.type,
+      });
+      setPurchase((prev) => ({ ...prev, ...updated }));
+      onUpdated?.(updated);
+    } catch (err) {
+      setPayError(err.message || 'Failed to upload invoice document');
+    } finally {
+      setIsUploadingAttachment(false);
+      if (attachmentInputRef.current) {
+        attachmentInputRef.current.value = '';
+      }
     }
   };
 
@@ -270,17 +304,53 @@ const PurchaseDetailSlideOver = ({
                 <Icon name="edit" size={14} />
                 Edit bill
               </button>
-              {purchase.attachmentUrl && (
-                <a
-                  href={purchase.attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+              {purchase.attachmentUrl ? (
+                <>
+                  <a
+                    href={purchase.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pds-btn secondary"
+                  >
+                    <Icon name="invoice" size={14} />
+                    View supplier invoice
+                  </a>
+                  <button
+                    type="button"
+                    className="pds-btn secondary"
+                    onClick={() => attachmentInputRef.current?.click()}
+                    disabled={isUploadingAttachment}
+                  >
+                    <Icon
+                      name={isUploadingAttachment ? 'loader' : 'upload'}
+                      size={14}
+                      className={isUploadingAttachment ? 'spin' : ''}
+                    />
+                    {isUploadingAttachment ? 'Uploading…' : 'Replace invoice'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
                   className="pds-btn secondary"
+                  onClick={() => attachmentInputRef.current?.click()}
+                  disabled={isUploadingAttachment}
                 >
-                  <Icon name="invoice" size={14} />
-                  View supplier invoice
-                </a>
+                  <Icon
+                    name={isUploadingAttachment ? 'loader' : 'upload'}
+                    size={14}
+                    className={isUploadingAttachment ? 'spin' : ''}
+                  />
+                  {isUploadingAttachment ? 'Uploading…' : 'Upload invoice'}
+                </button>
               )}
+              <input
+                type="file"
+                ref={attachmentInputRef}
+                style={{ display: 'none' }}
+                accept="image/png,image/jpeg,image/webp,application/pdf,image/heic,image/heif"
+                onChange={handleAttachmentFileSelected}
+              />
             </div>
             {payError && !showPayForm && <div className="pds-pay-error">{payError}</div>}
 
@@ -320,11 +390,10 @@ const PurchaseDetailSlideOver = ({
                   </label>
                   <label>
                     Paid on
-                    <input
-                      type="date"
+                    <DatePicker
                       value={paymentForm.paidAt}
-                      onChange={(e) => setPaymentForm((p) => ({ ...p, paidAt: e.target.value }))}
                       required
+                      onChange={(ymd) => setPaymentForm((p) => ({ ...p, paidAt: ymd }))}
                     />
                   </label>
                   <label>

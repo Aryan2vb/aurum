@@ -8,6 +8,7 @@ import React, {
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardTemplate from "../../components/templates/DashboardTemplate/DashboardTemplate";
 import Icon from "../../components/atoms/Icon/Icon";
+import DatePicker from "../../components/molecules/DatePicker/DatePicker";
 import Avatar from "../../components/atoms/Avatar/Avatar";
 import SlideOver from "../../components/atoms/SlideOver/SlideOver";
 import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
@@ -1248,11 +1249,10 @@ const CreateInvoicePage = () => {
                   ) : null}
                 <div className={styles.dateField}>
                   <label className={styles.dateLabel}>Invoice Date</label>
-                  <input
-                    type="date"
-                    className={styles.dateInput}
+                  <DatePicker
+                    triggerClassName={styles.dateInput}
                     value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    onChange={setInvoiceDate}
                   />
                 </div>
               </div>
@@ -1476,7 +1476,7 @@ const CreateInvoicePage = () => {
             >
               <span>Advanced</span>
               <Icon
-                name={showAdvanced ? "chevron-up" : "chevron-down"}
+                name={showAdvanced ? "chevronUp" : "chevronDown"}
                 size={12}
               />
             </button>
@@ -1625,16 +1625,14 @@ const CreateInvoicePage = () => {
                       </div>
                       <div className={styles.paymentField}>
                         <label htmlFor={`payment-date-${idx}`}>Payment date</label>
-                        <input
+                        <DatePicker
                           id={`payment-date-${idx}`}
-                          type="date"
                           value={p.paidAt || invoiceDate}
                           max={[invoiceDate, toDateInputValue()].sort()[0]}
                           required
-                          onChange={(e) =>
-                            handleUpdatePayment(idx, "paidAt", e.target.value)
-                          }
-                          className={styles.paymentDateInput}
+                          align="right"
+                          onChange={(ymd) => handleUpdatePayment(idx, "paidAt", ymd)}
+                          triggerClassName={styles.paymentDateInput}
                         />
                       </div>
                       <div className={styles.paymentAction}>
@@ -1694,13 +1692,13 @@ const CreateInvoicePage = () => {
                         </div>
                         <div className={styles.paymentField}>
                           <label htmlFor="advance-payment-date">Payment date</label>
-                          <input
+                          <DatePicker
                             id="advance-payment-date"
-                            type="date"
                             value={advanceDate}
                             max={toDateInputValue()}
-                            className={styles.paymentDateInput}
-                            onChange={(e) => setAdvanceDate(e.target.value)}
+                            align="right"
+                            triggerClassName={styles.paymentDateInput}
+                            onChange={setAdvanceDate}
                           />
                         </div>
                         <div className={styles.paymentAction}>

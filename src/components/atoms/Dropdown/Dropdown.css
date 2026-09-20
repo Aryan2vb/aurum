@@ -10,7 +10,7 @@
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 4px);
-  z-index: 100;
+  z-index: 9999;
   min-width: 160px;
   background: var(--ct-bg, var(--bg-secondary));
   border: 1px solid var(--ct-border-light, #e5e7eb);

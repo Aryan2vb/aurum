@@ -278,7 +278,7 @@
 .account-card.empty { justify-content: center; border-style: dashed; }
 
 .books-ledger {
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--books-border);
   border-radius: 10px;
   background: var(--books-bg);
@@ -293,7 +293,7 @@
   color: #0f766e;
   font-size: 12px;
 }
-.date-filters { display: flex; gap: 10px; }
+.date-filters { display: flex; gap: 10px; align-items: center; }
 .date-filters label { color: var(--books-muted); font-size: 11px; }
 .date-filters input,
 .assign-controls select {
@@ -306,7 +306,7 @@
   background: var(--books-bg);
   color: inherit;
 }
-.ledger-scroll { overflow-x: auto; }
+.ledger-scroll { overflow-x: auto; border-radius: 0 0 10px 10px; }
 .books-ledger table { width: 100%; min-width: 850px; border-collapse: collapse; font-size: 13px; }
 .books-ledger th {
   padding: 10px 12px;

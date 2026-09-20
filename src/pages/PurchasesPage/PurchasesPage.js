@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-table';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Icon from '../../components/atoms/Icon/Icon';
+import DatePicker from '../../components/molecules/DatePicker/DatePicker';
 import Toast from '../../components/atoms/Toast/Toast';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import {
@@ -27,6 +28,7 @@ import { PAYMENT_MODES, financialAccountIdFrom, paymentNeedsBankAccount, withFin
 import { buildPurchaseBillBookRequest } from '../../utils/billBookExport';
 import { getMetalPurities } from '../../services/metalPuritiesService';
 import { purityLabelsForMetal, withOrphanPurityOption } from '../../utils/metalPurities';
+import DateRangeFilter, { toLocalYmd } from '../../components/molecules/DateRangeFilter/DateRangeFilter';
 import './PurchasesPage.css';
 
 const columnHelper = createColumnHelper();
@@ -81,7 +83,7 @@ const SkeletonRows = ({ rows = 5, cols = 7 }) => (
   ))}</>
 );
 
-const buildColumns = () => [
+const buildColumns = ({ onUploadTrigger, uploadingPurchaseId } = {}) => [
   columnHelper.accessor(row => row.invoiceNumber || row.id?.slice(0, 8), { id: 'invoiceNumber', header: 'Bill #', size: 110 }),
   columnHelper.accessor(row => row.purchaseDate || row.invoiceDate, { id: 'purchaseDate', header: 'Date', size: 120,
     cell: info => info.getValue() ? <DateDisplay date={info.getValue()} format="absolute" size="sm" /> : '—',
@@ -97,6 +99,73 @@ const buildColumns = () => [
           <strong>{vendor?.name || '—'}</strong>
           {(vendor?.gstin || vendor?.phone) && <span>{vendor.gstin || vendor.phone}</span>}
         </div>
+      );
+    },
+  }),
+  columnHelper.accessor(row => row.attachmentUrl, {
+    id: 'attachment',
+    header: 'Bill Copy',
+    size: 125,
+    cell: info => {
+      const purchase = info.row.original;
+      const url = purchase.attachmentUrl;
+      const isUploading = uploadingPurchaseId === purchase.id;
+
+      if (isUploading) {
+        return (
+          <span className="attio-table-uploading" onClick={(e) => e.stopPropagation()}>
+            <Icon name="loader" size={12} className="spin" />
+            <span>Uploading…</span>
+          </span>
+        );
+      }
+
+      if (url) {
+        const isPdf =
+          purchase.attachmentMime?.includes('pdf') ||
+          url.toLowerCase().includes('.pdf');
+
+        return (
+          <div className="attio-table-doc-cell" onClick={(e) => e.stopPropagation()}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="attio-table-doc-badge"
+              title={purchase.attachmentName ? `Open: ${purchase.attachmentName}` : 'Open attached bill copy'}
+            >
+              <Icon name={isPdf ? 'file' : 'invoice'} size={12} />
+              <span>{isPdf ? 'View PDF' : 'View Bill'}</span>
+            </a>
+            {onUploadTrigger && (
+              <button
+                type="button"
+                className="attio-table-doc-replace"
+                onClick={() => onUploadTrigger(purchase.id)}
+                title="Replace bill document"
+              >
+                <Icon name="refresh" size={11} />
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      return onUploadTrigger ? (
+        <button
+          type="button"
+          className="attio-table-upload-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUploadTrigger(purchase.id);
+          }}
+          title="Upload vendor bill / invoice copy"
+        >
+          <Icon name="upload" size={12} />
+          <span>Attach Bill</span>
+        </button>
+      ) : (
+        <span className="attio-table-no-doc">—</span>
       );
     },
   }),
@@ -186,6 +255,8 @@ const PurchasesPage = () => {
   const [editingPurchaseId, setEditingPurchaseId] = useState(null);
   const [detailPurchase, setDetailPurchase] = useState(null);
   const [historyQuery, setHistoryQuery] = useState('');
+  const [dateRangeStart, setDateRangeStart] = useState(null);
+  const [dateRangeEnd, setDateRangeEnd] = useState(null);
   const [billBookExporting, setBillBookExporting] = useState(false);
   const [isFormCollapsed, setIsFormCollapsed] = useState(false);
   /** Saved attachment on the purchase being edited (or after load) */
@@ -196,6 +267,60 @@ const PurchasesPage = () => {
   /** User cleared existing attachment */
   const [attachmentCleared, setAttachmentCleared] = useState(false);
   const attachmentInputRef = React.useRef(null);
+
+  // Table row quick upload state
+  const [uploadingTablePurchaseId, setUploadingTablePurchaseId] = useState(null);
+  const tableFileInputRef = React.useRef(null);
+  const activeUploadTargetIdRef = React.useRef(null);
+
+  const handleTriggerTableUpload = useCallback((purchaseId) => {
+    activeUploadTargetIdRef.current = purchaseId;
+    if (tableFileInputRef.current) {
+      tableFileInputRef.current.value = '';
+      tableFileInputRef.current.click();
+    }
+  }, []);
+
+  const handleTableFileSelected = async (e) => {
+    const file = e.target.files?.[0];
+    const targetId = activeUploadTargetIdRef.current;
+    if (!file || !targetId) return;
+
+    try {
+      setUploadingTablePurchaseId(targetId);
+      const { presignedUrl, publicUrl, key } = await getPresignedUrl(
+        'PURCHASE_DOC',
+        file,
+        targetId,
+      );
+      await uploadToR2(presignedUrl, file);
+      const updated = await updatePurchaseAttachment(targetId, {
+        attachmentUrl: publicUrl,
+        attachmentKey: key,
+        attachmentName: file.name,
+        attachmentMime: file.type,
+      });
+
+      setPurchases((prev) =>
+        prev.map((p) => (p.id === targetId ? { ...p, ...updated } : p)),
+      );
+      if (detailPurchase?.id === targetId) {
+        setDetailPurchase((prev) => (prev ? { ...prev, ...updated } : prev));
+      }
+      setToast({ type: 'success', message: 'Invoice document uploaded successfully' });
+    } catch (err) {
+      setToast({
+        type: 'error',
+        message: err.message || 'Failed to upload invoice document',
+      });
+    } finally {
+      setUploadingTablePurchaseId(null);
+      activeUploadTargetIdRef.current = null;
+      if (tableFileInputRef.current) {
+        tableFileInputRef.current.value = '';
+      }
+    }
+  };
 
   // Manage Vendor UI State
   const [selectedVendorIdForManage, setSelectedVendorIdForManage] = useState(null);
@@ -718,18 +843,27 @@ const PurchasesPage = () => {
 
   const filteredPurchases = useMemo(() => {
     const q = historyQuery.trim().toLowerCase();
-    if (!q) return purchases;
+    const fromYmd = toLocalYmd(dateRangeStart);
+    const toYmd = toLocalYmd(dateRangeEnd);
     return purchases.filter((p) => {
-      const hay = [
-        p.invoiceNumber,
-        p.vendor?.name,
-        p.vendorName,
-        p.vendor?.gstin,
-        p.status,
-      ].filter(Boolean).join(' ').toLowerCase();
-      return hay.includes(q);
+      if (q) {
+        const hay = [
+          p.invoiceNumber,
+          p.vendor?.name,
+          p.vendorName,
+          p.vendor?.gstin,
+          p.status,
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (fromYmd || toYmd) {
+        const pDate = (p.purchaseDate || p.invoiceDate || '').slice(0, 10);
+        if (fromYmd && pDate < fromYmd) return false;
+        if (toYmd && pDate > toYmd) return false;
+      }
+      return true;
     });
-  }, [purchases, historyQuery]);
+  }, [purchases, historyQuery, dateRangeStart, dateRangeEnd]);
 
   const handleBillBookExport = async () => {
     if (filteredPurchases.length === 0) {
@@ -777,7 +911,14 @@ const PurchasesPage = () => {
     }
   };
 
-  const columns = useMemo(() => buildColumns(), []);
+  const columns = useMemo(
+    () =>
+      buildColumns({
+        onUploadTrigger: handleTriggerTableUpload,
+        uploadingPurchaseId: uploadingTablePurchaseId,
+      }),
+    [handleTriggerTableUpload, uploadingTablePurchaseId],
+  );
   const table = useReactTable({
     data: filteredPurchases,
     columns,
@@ -866,7 +1007,13 @@ const PurchasesPage = () => {
                   </div>
                   <div className="attio-field attio-field-compact">
                     <span className="attio-prop-label">Date</span>
-                    <input type="date" name="purchaseDate" className="inline-input cursor-pointer" value={formData.purchaseDate} onChange={handleHeaderChange} required />
+                    <DatePicker
+                      name="purchaseDate"
+                      triggerClassName="inline-input cursor-pointer"
+                      value={formData.purchaseDate}
+                      required
+                      onChange={(ymd) => handleHeaderChange({ target: { name: 'purchaseDate', value: ymd } })}
+                    />
                   </div>
                   <div className="attio-field attio-field-compact">
                     <span className="attio-prop-label">Bill No.</span>
@@ -1025,11 +1172,10 @@ const PurchasesPage = () => {
                                 value={payment.amount}
                                 onChange={(e) => handlePaymentChange(index, 'amount', e.target.value)}
                               />
-                              <input
-                                type="date"
-                                className="inline-input cursor-pointer"
+                              <DatePicker
+                                triggerClassName="inline-input cursor-pointer"
                                 value={payment.paidAt || formData.purchaseDate}
-                                onChange={(e) => handlePaymentChange(index, 'paidAt', e.target.value)}
+                                onChange={(ymd) => handlePaymentChange(index, 'paidAt', ymd)}
                               />
                               <button type="button" className="grid-remove-btn hover-show" style={{ opacity: 1 }} onClick={() => removePayment(index)} title="Remove payment">
                                 <Icon name="delete" size={14} />
@@ -1142,7 +1288,7 @@ const PurchasesPage = () => {
             <div className="attio-header">
               <div className="attio-header-left">
                 <span className="saas-view-label">Purchase History</span>
-                <span className="purchase-history-hint">Click a row for details & payments</span>
+                {/* <span className="purchase-history-hint">Click a row for details & payments</span> */}
               </div>
               <div className="attio-header-right">
                 <input
@@ -1152,6 +1298,28 @@ const PurchasesPage = () => {
                   value={historyQuery}
                   onChange={(e) => setHistoryQuery(e.target.value)}
                 />
+                <DateRangeFilter
+                  label="Date"
+                  icon={<Icon name="date" size={14} />}
+                  start={dateRangeStart}
+                  end={dateRangeEnd}
+                  align="right"
+                  onChange={(start, end) => {
+                    setDateRangeStart(start);
+                    setDateRangeEnd(end);
+                  }}
+                />
+                {(dateRangeStart || dateRangeEnd) && (
+                  <button
+                    type="button"
+                    className="attio-secondary-btn"
+                    style={{ padding: '0 0.5rem' }}
+                    title="Clear date filter"
+                    onClick={() => { setDateRangeStart(null); setDateRangeEnd(null); }}
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                )}
                 <ImportExportMenu
                   data={filteredPurchases}
                   filename="Purchases"
@@ -1161,7 +1329,7 @@ const PurchasesPage = () => {
                   onBillBookExport={handleBillBookExport}
                   billBookLabel="Purchase Invoice Book PDF"
                 />
-                <button className="attio-secondary-btn" onClick={loadPurchases} disabled={loading}><Icon name="refresh" size={14} /><span>Refresh</span></button>
+                <button className="attio-secondary-btn" onClick={loadPurchases} disabled={loading}><Icon name="refresh" size={14} /></button>
               </div>
             </div>
             <div className="attio-table-wrapper">
@@ -1169,7 +1337,7 @@ const PurchasesPage = () => {
                 <thead><tr>{table.getHeaderGroups()[0]?.headers.map(header => <th key={header.id} className="attio-th" style={{ width: header.getSize() }}><div className="attio-th-content"><span>{flexRender(header.column.columnDef.header, header.getContext())}</span></div></th>)}</tr></thead>
                 <tbody>
                   {loading ? <SkeletonRows cols={colCount} /> : table.getRowModel().rows.length === 0 ? (
-                    <tr><td colSpan={colCount} className="attio-empty"><Icon name="order" size={36} color="var(--text-tertiary)" /><span>{historyQuery ? 'No matching bills.' : 'No purchase invoices found.'}</span></td></tr>
+                    <tr><td colSpan={colCount} className="attio-empty"><Icon name="order" size={36} color="var(--text-tertiary)" /><span>{(historyQuery || dateRangeStart || dateRangeEnd) ? 'No matching bills.' : 'No purchase invoices found.'}</span></td></tr>
                   ) : table.getRowModel().rows.map(row => (
                     <tr
                       key={row.id}
@@ -1185,6 +1353,14 @@ const PurchasesPage = () => {
           </div>
         </div>
       </div>
+
+      <input
+        type="file"
+        ref={tableFileInputRef}
+        style={{ display: 'none' }}
+        accept="image/png,image/jpeg,image/webp,application/pdf,image/heic,image/heif"
+        onChange={handleTableFileSelected}
+      />
 
       {isVendorModalOpen && (
         <div className="stock-modal-backdrop animate-fade-in">

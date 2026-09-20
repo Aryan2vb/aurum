@@ -24,8 +24,10 @@ import {
 import { clearPaymentAccountCache } from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { usePermission } from '../../hooks/usePermission';
 import Toast from '../../components/atoms/Toast/Toast';
+import Icon from '../../components/atoms/Icon/Icon';
+import DateRangeFilter, { parseLocalYmd, toLocalYmd } from '../../components/molecules/DateRangeFilter/DateRangeFilter';
+import DatePicker from '../../components/molecules/DatePicker/DatePicker';
 import AdvancePanel from '../../components/organisms/AdvancePanel/AdvancePanel';
-import { FiArrowDownLeft, FiArrowUpRight, FiCornerUpLeft, FiEyeOff, FiLink, FiTrash2, FiUpload } from 'react-icons/fi';
 import {
   bankMatchOptions,
   bulkMatchOptions,
@@ -871,8 +873,17 @@ const BooksPage = () => {
                   {selectedAccountId && <button onClick={() => setSelectedAccountId('')}>Show combined book</button>}
                 </div>
                 <div className="date-filters">
-                  <label>From<input type="date" value={dates.dateFrom} onChange={(e) => setDates((d) => ({ ...d, dateFrom: e.target.value }))} /></label>
-                  <label>To<input type="date" value={dates.dateTo} onChange={(e) => setDates((d) => ({ ...d, dateTo: e.target.value }))} /></label>
+                  <DateRangeFilter
+                    label="Period"
+                    icon={<Icon name="date" size={14} />}
+                    align="right"
+                    start={parseLocalYmd(dates.dateFrom)}
+                    end={parseLocalYmd(dates.dateTo)}
+                    onChange={(s, e) => setDates({
+                      dateFrom: toLocalYmd(s) || '',
+                      dateTo: toLocalYmd(e) || '',
+                    })}
+                  />
                 </div>
               </div>
               <div className="ledger-scroll">
@@ -941,7 +952,7 @@ const BooksPage = () => {
                         onClick={deleteSelectedCredits}
                         title="Delete selected credits"
                       >
-                        <FiTrash2 size={15} aria-hidden />
+                        <Icon name="delete" size={15} aria-hidden />
                         {selectedCreditIds.length ? `Delete (${selectedCreditIds.length})` : 'Delete'}
                       </button>
                     )}
@@ -951,14 +962,14 @@ const BooksPage = () => {
                       onClick={handleUploadClick}
                       disabled={saving}
                     >
-                      <FiUpload size={15} aria-hidden />
+                      <Icon name="upload" size={15} aria-hidden />
                       Upload statement
                     </button>
                   </div>
                   <div className="reconcile-segment" role="tablist" aria-label="Statement direction">
                     {Object.values(RECONCILE_SIDES).map((side) => {
                       const count = side.key === 'credit' ? unmatchedCredits.length : unmatchedDebits.length;
-                      const Icon = side.key === 'credit' ? FiArrowDownLeft : FiArrowUpRight;
+                      const iconName = side.key === 'credit' ? 'arrowDownLeft' : 'arrowUpRight';
                       return (
                         <button
                           key={side.key}
@@ -968,7 +979,7 @@ const BooksPage = () => {
                           className={`reconcile-segment-btn reconcile-segment-btn--${side.key}${reconcileSide === side.key ? ' is-active' : ''}`}
                           onClick={() => setReconcileSide(side.key)}
                         >
-                          <Icon size={15} aria-hidden className="reconcile-segment-icon" />
+                          <Icon name={iconName} size={15} aria-hidden className="reconcile-segment-icon" />
                           <span className="reconcile-segment-label">{side.label}</span>
                           {count > 0 && (
                             <span className="reconcile-segment-badge">{count}</span>
@@ -1007,7 +1018,7 @@ const BooksPage = () => {
                       disabled={saving || !bulkSelection.candidates.length}
                       onClick={linkSelectedCredits}
                     >
-                      <FiLink size={15} aria-hidden />
+                      <Icon name="link" size={15} aria-hidden />
                       Link {money(bulkSelection.sum)}
                     </button>
                   </div>
@@ -1117,7 +1128,7 @@ const BooksPage = () => {
                                 disabled={busyLineIds.has(row.id) || !defaultPaymentId}
                                 onClick={() => confirmCredit(row)}
                               >
-                                <FiLink size={13} aria-hidden />
+                                <Icon name="link" size={13} aria-hidden />
                                 {busyLineIds.has(row.id) ? 'Linking…' : 'Link'}
                               </button>
                               <button
@@ -1126,7 +1137,7 @@ const BooksPage = () => {
                                 disabled={busyLineIds.has(row.id)}
                                 onClick={() => ignoreLine(row.id)}
                               >
-                                <FiEyeOff size={13} aria-hidden />
+                                <Icon name="eyeOff" size={13} aria-hidden />
                                 Ignore
                               </button>
                               <button
@@ -1136,7 +1147,7 @@ const BooksPage = () => {
                                 onClick={() => deleteLine(row.id)}
                                 title="Delete line"
                               >
-                                <FiTrash2 size={13} aria-hidden />
+                                <Icon name="delete" size={13} aria-hidden />
                               </button>
                             </td>
                           </tr>
@@ -1217,7 +1228,7 @@ const BooksPage = () => {
                                 disabled={busyLineIds.has(row.id) || !defaultPaymentId}
                                 onClick={() => confirmDebit(row)}
                               >
-                                <FiLink size={13} aria-hidden />
+                                <Icon name="link" size={13} aria-hidden />
                                 {busyLineIds.has(row.id) ? 'Linking…' : 'Link'}
                               </button>
                               <button
@@ -1226,7 +1237,7 @@ const BooksPage = () => {
                                 disabled={busyLineIds.has(row.id)}
                                 onClick={() => ignoreLine(row.id)}
                               >
-                                <FiEyeOff size={13} aria-hidden />
+                                <Icon name="eyeOff" size={13} aria-hidden />
                                 Ignore
                               </button>
                               <button
@@ -1236,7 +1247,7 @@ const BooksPage = () => {
                                 onClick={() => deleteLine(row.id)}
                                 title="Delete line"
                               >
-                                <FiTrash2 size={13} aria-hidden />
+                                <Icon name="delete" size={13} aria-hidden />
                               </button>
                             </td>
                           </tr>
@@ -1357,7 +1368,7 @@ const BooksPage = () => {
                               disabled={saving}
                               onClick={() => unlinkCredit(row.id)}
                             >
-                              <FiCornerUpLeft size={13} aria-hidden />
+                              <Icon name="cornerUpLeft" size={13} aria-hidden />
                               Unlink
                             </button>
                           </td>
@@ -1475,7 +1486,7 @@ const BooksPage = () => {
                               disabled={saving}
                               onClick={() => unlinkDebit(row.id)}
                             >
-                              <FiCornerUpLeft size={13} aria-hidden />
+                              <Icon name="cornerUpLeft" size={13} aria-hidden />
                               Unlink
                             </button>
                           </td>
@@ -1544,7 +1555,7 @@ const BooksPage = () => {
                   <label>IFSC<input value={accountForm.ifsc} onChange={(e) => setAccountForm((f) => ({ ...f, ifsc: e.target.value.toUpperCase() }))} /></label>
                 </>}
                 <label>Opening balance<input type="number" step="0.01" value={accountForm.openingBalance} onChange={(e) => setAccountForm((f) => ({ ...f, openingBalance: e.target.value }))} /></label>
-                <label>Opened on<input type="date" value={accountForm.openingDate} onChange={(e) => setAccountForm((f) => ({ ...f, openingDate: e.target.value }))} /></label>
+                <label>Opened on<DatePicker value={accountForm.openingDate} onChange={(ymd) => setAccountForm((f) => ({ ...f, openingDate: ymd }))} /></label>
                 <label className="wide">Notes<textarea value={accountForm.notes} onChange={(e) => setAccountForm((f) => ({ ...f, notes: e.target.value }))} /></label>
               </div>
               <footer><button type="button" className="secondary" onClick={() => setAccountForm(null)}>Cancel</button><button className="primary" disabled={saving}>{saving ? 'Saving…' : 'Save account'}</button></footer>
@@ -1597,7 +1608,7 @@ const BooksPage = () => {
               <header><div><h2>New finance entry</h2><p>Automatic invoice and purchase movements are recorded elsewhere.</p></div><button type="button" onClick={() => setEntryForm(null)}>×</button></header>
               <div className="form-grid">
                 <label>Entry type<select value={entryForm.category} onChange={(e) => setEntryForm({ ...emptyEntry(), category: e.target.value })}>{ENTRY_TYPES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <label>Date<input required type="date" value={entryForm.entryDate} onChange={(e) => setEntryForm((f) => ({ ...f, entryDate: e.target.value }))} /></label>
+                <label>Date<DatePicker required value={entryForm.entryDate} onChange={(ymd) => setEntryForm((f) => ({ ...f, entryDate: ymd }))} /></label>
                 {entryForm.category === 'TRANSFER' || entryForm.category === 'CASH_DEPOSIT' ? (
                   <>
                     <label>From account<select required value={entryForm.fromAccountId} onChange={(e) => setEntryForm((f) => ({ ...f, fromAccountId: e.target.value }))}><option value="">Select…</option>{renderAccountOptions(entryForm.category === 'CASH_DEPOSIT' ? (a) => a.type === 'CASH' : undefined)}</select></label>

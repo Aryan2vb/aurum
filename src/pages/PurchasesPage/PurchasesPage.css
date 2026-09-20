@@ -1248,6 +1248,79 @@
   box-shadow: none;
 }
 
+/* Date range filter pill */
+.purchase-date-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.5rem;
+  height: 32px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.purchase-date-filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.purchase-date-input {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 450;
+  padding: 0;
+  height: 100%;
+  cursor: pointer;
+  outline: none;
+  width: 118px;
+  color-scheme: dark;
+}
+
+.purchase-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+  filter: invert(var(--calendar-invert, 0));
+}
+
+.purchase-date-input:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+}
+
+.purchase-date-separator {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
+.purchase-date-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.purchase-date-clear:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
 /* History table — theme-safe (scoped so we don't depend on InvoiceTable.css) */
 .purchases-history-panel .attio-table-container {
   background: var(--bg-secondary);
@@ -1271,7 +1344,9 @@
   border-bottom: 1px solid var(--border-light);
   background: var(--bg-secondary);
   position: relative;
-  z-index: 5;
+  z-index: 200;
+  flex-wrap: wrap;
+  row-gap: 0.625rem;
 }
 
 .purchases-history-panel .saas-view-label {
@@ -2394,3 +2469,101 @@
     border-bottom: 1px solid var(--border-light);
   }
 }
+
+/* ─── Attio Table Attachment Cell & Quick Upload ────────────────────────── */
+.attio-table-doc-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.attio-table-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color));
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.attio-table-doc-badge .icon {
+  color: var(--accent);
+}
+
+.attio-table-doc-badge:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg-secondary));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.attio-table-doc-replace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attio-table-doc-replace:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-light);
+}
+
+.attio-table-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.attio-table-upload-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-style: solid;
+}
+
+.attio-table-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attio-table-uploading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.attio-table-no-doc {
+  color: var(--text-tertiary);
+}
+
+

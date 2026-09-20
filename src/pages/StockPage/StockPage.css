@@ -35,10 +35,26 @@
 
 .stock-tabs {
   display: flex;
+  align-items: center;
   gap: 0.25rem;
   padding: 0.65rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
+}
+
+.stock-tabs-list {
+  display: flex;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.stock-tabs-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .tab-btn {
@@ -403,43 +419,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 0.75rem;
   margin-bottom: 0.9rem;
-}
-
-.report-filter-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  padding: 0.25rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
-}
-
-.report-preset-btn {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 650;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.report-preset-btn:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.report-preset-btn.active {
-  background: var(--bg-primary);
-  border-color: var(--border-color);
-  color: var(--accent);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .report-filter-right {
@@ -687,6 +669,7 @@
 
 .stock-balances-actions .attio-secondary-btn,
 .stock-ledger-container .attio-secondary-btn,
+.stock-tabs-actions .attio-secondary-btn,
 .report-filter-bar .attio-secondary-btn,
 .stock-modal-actions .attio-secondary-btn {
   background: var(--bg-primary);
@@ -696,6 +679,7 @@
 
 .stock-balances-actions .attio-secondary-btn:hover:not(:disabled),
 .stock-ledger-container .attio-secondary-btn:hover:not(:disabled),
+.stock-tabs-actions .attio-secondary-btn:hover:not(:disabled),
 .report-filter-bar .attio-secondary-btn:hover:not(:disabled),
 .stock-modal-actions .attio-secondary-btn:hover:not(:disabled) {
   background: var(--bg-hover);
@@ -704,6 +688,7 @@
 
 .stock-balances-container button:disabled,
 .stock-ledger-container button:disabled,
+.stock-tabs-actions button:disabled,
 .report-filter-bar button:disabled,
 .stock-modal-actions button:disabled {
   cursor: not-allowed;
