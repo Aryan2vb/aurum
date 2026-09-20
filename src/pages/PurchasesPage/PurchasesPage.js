@@ -1571,9 +1571,12 @@ const PurchasesPage = () => {
         initialPurchase={detailPurchase}
         onClose={closePurchaseDetail}
         onEdit={loadPurchaseIntoForm}
-        onUpdated={(updated) => {
+        onUpdated={(updated, change) => {
           handleDetailUpdated(updated);
-          setToast({ type: 'success', message: 'Payment recorded' });
+          setToast({
+            type: 'success',
+            message: change === 'attachment' ? 'Invoice document updated' : 'Payment recorded',
+          });
         }}
         onDeleted={handleDetailDeleted}
       />

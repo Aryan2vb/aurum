@@ -30,7 +30,7 @@
 .drp-card {
   display: grid;
   grid-template-columns: 120px 1fr;
-  min-width: 420px;
+  min-width: min(420px, calc(100vw - 32px));
 }
 
 .drp-sidebar {
@@ -70,8 +70,30 @@
   background: var(--bg-hover);
 }
 
-.drp-apply {
+.drp-actions {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drp-clear {
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.drp-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.drp-apply {
   width: 100%;
   padding: 7px 10px;
   background: var(--text-primary);

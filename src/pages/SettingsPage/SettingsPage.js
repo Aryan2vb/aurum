@@ -97,7 +97,7 @@ const resolveSection = (hash, isAdmin) => {
   const key = String(hash || '').replace(/^#/, '');
   let section = SECTION_FROM_HASH[key];
   if (!section) section = isAdmin ? 'workspace' : 'inventory';
-  if (!isAdmin && (section === 'workspace' || section === 'invoicing')) {
+  if (!isAdmin && (section === 'workspace' || section === 'invoicing' || section === 'backups')) {
     section = 'inventory';
   }
   return section;
@@ -191,6 +191,7 @@ const SettingsPage = () => {
   const [importLoading, setImportLoading] = useState(false);
   const [importStatus, setImportStatus] = useState({ error: null, success: null });
   const [orgHistory, setOrgHistory] = useState([]);
+  const [historyError, setHistoryError] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [fullBackupLoading, setFullBackupLoading] = useState(false);
@@ -263,19 +264,22 @@ const SettingsPage = () => {
 
   const fetchBackupData = async () => {
     setHistoryLoading(true);
+    setHistoryError(null);
     try {
       const statusRes = await getBackupStatus().catch(() => ({ isSuperAdmin: false }));
       const userIsSuper = !!statusRes?.isSuperAdmin;
       setIsSuperAdmin(userIsSuper);
 
       const [history, stored] = await Promise.all([
-        getOrgBackupHistory().catch(() => []),
+        getOrgBackupHistory(),
         userIsSuper ? getStoredBackups().catch(() => []) : Promise.resolve([]),
       ]);
       setOrgHistory(Array.isArray(history) ? history : []);
       setStoredBackups(Array.isArray(stored) ? stored : []);
     } catch (err) {
       console.error('Failed to load backup data:', err);
+      // Don't present a failed load (403/500) as "No recorded exports yet"
+      setHistoryError(err.message || 'Failed to load backup history');
     } finally {
       setHistoryLoading(false);
     }
@@ -306,7 +310,7 @@ const SettingsPage = () => {
     e.preventDefault();
     if (!importFile) return;
     const confirmed = window.confirm(
-      `Are you sure you want to restore data from "${importFile.name}" into this organization? Records will be safely imported and updated.`,
+      `Restore data from "${importFile.name}" into this organization? Records in the file overwrite matching records here, so newer edits to those records are replaced by the backup's values. Records created after the backup are kept. Invoice number counters are never moved backwards. This cannot be undone.`,
     );
     if (!confirmed) return;
 
@@ -1381,7 +1385,9 @@ const SettingsPage = () => {
                     </button>
                   </div>
 
-                  {orgHistory.length === 0 ? (
+                  {historyError ? (
+                    <div className="s-feedback-err">{historyError}</div>
+                  ) : orgHistory.length === 0 ? (
                     <div className="backup-empty-state">No recorded exports yet. Click the backup button above to export your data.</div>
                   ) : (
                     <div className="backup-table-wrapper">
@@ -1420,76 +1426,81 @@ const SettingsPage = () => {
               </div>
             </section>
 
-            {/* Org-wise Import & Restore Data Card */}
-            <section className="settings-section">
-              <div className="s-card">
-                <div className="s-card-header">
-                  <div>
-                    <div className="s-card-title">Import &amp; Restore Organization Data</div>
-                    <div className="s-card-subtitle">
-                      Upload an Aurum JSON backup file to restore customers, invoices, ledger entries, stock, and books
+            {/* Org-wise Import & Restore Data Card (Owner only: restore overwrites live records) */}
+            {isOwner && (
+              <section className="settings-section">
+                <div className="s-card">
+                  <div className="s-card-header">
+                    <div>
+                      <div className="s-card-title">Import &amp; Restore Organization Data</div>
+                      <div className="s-card-subtitle">
+                        Upload an Aurum JSON backup file to restore customers, invoices, ledger entries, stock, and books
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                <div className="backup-card-body">
-                  <div className="backup-info-banner">
-                    <span className="backup-info-icon">🔄</span>
-                    <div className="backup-info-text">
-                      <strong>Safe Upsert &amp; Migration:</strong> Uploading a backup will safely restore and link records to this organization. Existing items with matching IDs or invoice numbers will be updated without creating duplicates.
+  
+                  <div className="backup-card-body">
+                    <div className="backup-info-banner">
+                      <span className="backup-info-icon">🔄</span>
+                      <div className="backup-info-text">
+                        <strong>Merge &amp; Restore:</strong> Records in the backup are added, and records with matching IDs are overwritten with the backup's values. Records created after the backup are kept, so restoring an old file can leave balances out of step with newer entries. Only the organization Owner can restore, and the file must have been exported from this organization.
+                      </div>
                     </div>
-                  </div>
-
-                  <form onSubmit={handleImportBackup} className="backup-import-form">
-                    <div className="backup-file-dropzone">
-                      <input
-                        type="file"
-                        id="backup-file-input"
-                        accept=".json,application/json"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            setImportFile(e.target.files[0]);
-                            setImportStatus({ error: null, success: null });
-                          }
-                        }}
-                      />
-                      <label htmlFor="backup-file-input" className="s-btn s-btn-ghost">
-                        <i className="bi bi-file-earmark-arrow-up" style={{ marginRight: 6 }} />
-                        {importFile ? 'Change File' : 'Choose JSON Backup File'}
-                      </label>
-                      {importFile ? (
-                        <div className="backup-selected-file">
-                          <strong>{importFile.name}</strong> ({(importFile.size / 1024).toFixed(1)} KB)
-                        </div>
-                      ) : (
-                        <span className="backup-file-hint">Select a file named aurum_...backup.json</span>
-                      )}
-                    </div>
-
-                    {importStatus.error && <div className="s-feedback-err">{importStatus.error}</div>}
-                    {importStatus.success && <div className="s-feedback-ok">{importStatus.success}</div>}
-
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                      <button
-                        type="submit"
-                        className="s-btn s-btn-primary"
-                        disabled={!importFile || importLoading}
-                      >
-                        {importLoading ? (
-                          <>
-                            <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
-                            Restoring Data…
-                          </>
+  
+                    <form onSubmit={handleImportBackup} className="backup-import-form">
+                      <div className="backup-file-dropzone">
+                        <input
+                          type="file"
+                          id="backup-file-input"
+                          accept=".json,application/json"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const picked = e.target.files && e.target.files[0];
+                            if (picked) {
+                              setImportFile(picked);
+                              setImportStatus({ error: null, success: null });
+                            }
+                            // Reset so choosing the same file again still fires onChange
+                            e.target.value = '';
+                          }}
+                        />
+                        <label htmlFor="backup-file-input" className="s-btn s-btn-ghost">
+                          <i className="bi bi-file-earmark-arrow-up" style={{ marginRight: 6 }} />
+                          {importFile ? 'Change File' : 'Choose JSON Backup File'}
+                        </label>
+                        {importFile ? (
+                          <div className="backup-selected-file">
+                            <strong>{importFile.name}</strong> ({(importFile.size / 1024).toFixed(1)} KB)
+                          </div>
                         ) : (
-                          'Upload & Restore Data'
+                          <span className="backup-file-hint">Select a file named aurum_...backup.json</span>
                         )}
-                      </button>
-                    </div>
-                  </form>
+                      </div>
+  
+                      {importStatus.error && <div className="s-feedback-err">{importStatus.error}</div>}
+                      {importStatus.success && <div className="s-feedback-ok">{importStatus.success}</div>}
+  
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button
+                          type="submit"
+                          className="s-btn s-btn-primary"
+                          disabled={!importFile || importLoading}
+                        >
+                          {importLoading ? (
+                            <>
+                              <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                              Restoring Data…
+                            </>
+                          ) : (
+                            'Upload & Restore Data'
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
-              </div>
-            </section>
+              </section>
+            )}
 
             {/* Super Admin / System-Wide Full Database Backup (Super Admin Only) */}
             {isSuperAdmin && (

@@ -19,7 +19,8 @@ const Input = ({
           value={value || ''}
           onChange={(ymd) => onChange?.({ target: { value: ymd, name: props.name } })}
           placeholder={placeholder}
-          disabled={props.disabled}
+          disabled={props.disabled || props.readOnly}
+          autoOpen={props.autoFocus}
           required={props.required}
           min={props.min}
           max={props.max}

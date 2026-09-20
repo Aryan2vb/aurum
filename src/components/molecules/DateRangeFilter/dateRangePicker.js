@@ -1,4 +1,6 @@
 export const PRESETS = [
+  { id: 'thisMonth', label: 'This Month' },
+  { id: 'thisFy', label: 'This FY' },
   { id: 'week', label: 'Last Week' },
   { id: 'month', label: 'Last Month' },
   { id: 'year', label: 'Last Year' },
@@ -53,6 +55,17 @@ export const getPresetRange = (id, today = new Date()) => {
     const y = t.getFullYear() - 1;
     return { start: new Date(y, 0, 1), end: new Date(y, 11, 31) };
   }
+  if (id === 'thisMonth') {
+    return {
+      start: new Date(t.getFullYear(), t.getMonth(), 1),
+      end: new Date(t.getFullYear(), t.getMonth() + 1, 0),
+    };
+  }
+  if (id === 'thisFy') {
+    // Indian financial year: 1 April – 31 March
+    const fyStartYear = t.getMonth() >= 3 ? t.getFullYear() : t.getFullYear() - 1;
+    return { start: new Date(fyStartYear, 3, 1), end: new Date(fyStartYear + 1, 2, 31) };
+  }
   return { start: null, end: null };
 };
 
@@ -60,7 +73,8 @@ export const detectPreset = (start, end, today = new Date()) => {
   if (!start || !end) return 'custom';
   const s = toLocalYmd(start);
   const e = toLocalYmd(end);
-  for (const id of ['week', 'month', 'year']) {
+  for (const { id } of PRESETS) {
+    if (id === 'custom') continue;
     const range = getPresetRange(id, today);
     if (toLocalYmd(range.start) === s && toLocalYmd(range.end) === e) return id;
   }

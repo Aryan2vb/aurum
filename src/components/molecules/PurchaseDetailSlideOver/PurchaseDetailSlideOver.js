@@ -137,7 +137,7 @@ const PurchaseDetailSlideOver = ({
       }));
       setPurchase(updated);
       setShowPayForm(false);
-      onUpdated?.(updated);
+      onUpdated?.(updated, 'payment');
       const due = round2(num(updated.grandTotal || updated.totalAmount) - num(updated.paidAmount));
       setPaymentForm({
         mode: 'UPI',
@@ -172,7 +172,7 @@ const PurchaseDetailSlideOver = ({
         attachmentMime: file.type,
       });
       setPurchase((prev) => ({ ...prev, ...updated }));
-      onUpdated?.(updated);
+      onUpdated?.(updated, 'attachment');
     } catch (err) {
       setPayError(err.message || 'Failed to upload invoice document');
     } finally {

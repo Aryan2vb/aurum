@@ -76,3 +76,21 @@
 .drp-day.disabled:hover .drp-day-num {
   background: transparent;
 }
+
+.date-picker-clear {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.date-picker-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

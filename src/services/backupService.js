@@ -41,8 +41,9 @@ export const downloadOrganizationBackup = async () => {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
+  // Revoking synchronously can cancel the download in Safari
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
   return { success: true, filename };
 };
@@ -147,8 +148,9 @@ export const downloadStoredBackup = async (filename) => {
   a.download = filename;
   document.body.appendChild(a);
   a.click();
-  window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
+  // Revoking synchronously can cancel the download in Safari
+  setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
   return { success: true };
 };

@@ -234,7 +234,12 @@ const CustomerTable = ({
         if (!c.createdAt) return false;
         const created = new Date(c.createdAt);
         if (filters.createdStart && created < filters.createdStart) return false;
-        if (filters.createdEnd && created > filters.createdEnd) return false;
+        if (filters.createdEnd) {
+          // createdEnd is local midnight of the last selected day; include that whole day
+          const endOfDay = new Date(filters.createdEnd);
+          endOfDay.setHours(23, 59, 59, 999);
+          if (created > endOfDay) return false;
+        }
         return true;
       });
     }

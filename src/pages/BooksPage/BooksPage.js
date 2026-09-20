@@ -1588,7 +1588,13 @@ const BooksPage = () => {
                     : `Linked ${money(line.credit)} → ${linkedTo}`,
                 });
                 loadBooksQuiet();
-                await loadUnmatched();
+                // The advance is already recorded: a failed refresh must not re-add the
+                // matched line or report "Failed to record advance".
+                try {
+                  await loadUnmatched();
+                } catch (refreshErr) {
+                  console.error('Failed to refresh unmatched credits:', refreshErr);
+                }
               } catch (err) {
                 setUnmatchedCredits((rows) =>
                   rows.some((row) => row.id === line.id) ? rows : [...rows, line],

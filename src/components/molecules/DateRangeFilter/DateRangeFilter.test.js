@@ -33,6 +33,26 @@ describe('dateRangePicker helpers', () => {
     expect(toLocalYmd(getPresetRange('year', today).end)).toBe('2025-12-31');
   });
 
+  test('getPresetRange this month spans the current calendar month', () => {
+    expect(toLocalYmd(getPresetRange('thisMonth', today).start)).toBe('2026-08-01');
+    expect(toLocalYmd(getPresetRange('thisMonth', today).end)).toBe('2026-08-31');
+  });
+
+  test('getPresetRange this FY runs 1 April – 31 March', () => {
+    expect(toLocalYmd(getPresetRange('thisFy', today).start)).toBe('2026-04-01');
+    expect(toLocalYmd(getPresetRange('thisFy', today).end)).toBe('2027-03-31');
+    const feb = new Date(2027, 1, 10);
+    expect(toLocalYmd(getPresetRange('thisFy', feb).start)).toBe('2026-04-01');
+    expect(toLocalYmd(getPresetRange('thisFy', feb).end)).toBe('2027-03-31');
+  });
+
+  test('detectPreset recognises the current-period presets', () => {
+    const fy = getPresetRange('thisFy', today);
+    expect(detectPreset(fy.start, fy.end, today)).toBe('thisFy');
+    const m = getPresetRange('thisMonth', today);
+    expect(detectPreset(m.start, m.end, today)).toBe('thisMonth');
+  });
+
   test('getDecadeYears returns a 12-year block containing the year', () => {
     expect(getDecadeYears(2026)).toEqual([
       2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027,

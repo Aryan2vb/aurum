@@ -446,6 +446,7 @@ const StockPage = () => {
               label="Date Range"
               icon={<Icon name="date" size={14} />}
               align="right"
+              clearable={false}
               start={parseLocalYmd(startDate)}
               end={parseLocalYmd(endDate)}
               onChange={(s, e) => {

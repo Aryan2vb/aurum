@@ -142,11 +142,24 @@ const InlineEditableField = ({
               <DatePicker
                 value={editValue}
                 autoOpen
+                clearable
                 disabled={saving}
                 triggerClassName="editable-field-input"
-                onChange={(ymd) => {
+                // Closing the popup (click-away) ends editing; otherwise the field is
+                // stuck on a bare trigger button with no way to cancel.
+                onOpenChange={(open) => {
+                  if (!open) setIsEditing(false);
+                }}
+                onChange={async (ymd) => {
                   setEditValue(ymd);
-                  onSave(fieldKey, ymd);
+                  setLocalSaving(true);
+                  try {
+                    await onSave(fieldKey, ymd);
+                  } catch (error) {
+                    console.error('Failed to save:', error);
+                  } finally {
+                    setLocalSaving(false);
+                  }
                   setIsEditing(false);
                 }}
               />
@@ -174,7 +187,12 @@ const InlineEditableField = ({
         ) : (
           // Display mode: show text, reveal edit affordance on hover
           <div
-            onClick={() => setIsEditing(true)}
+            onClick={() => {
+              setEditValue(
+                type === 'date' && value ? value.toString().split('T')[0] : (value?.toString() ?? ''),
+              );
+              setIsEditing(true);
+            }}
             className={`editable-field-display ${isHovered ? 'hovered' : ''}`}
           >
             <span className={`editable-field-text ${!displayValue ? 'placeholder' : ''}`}>

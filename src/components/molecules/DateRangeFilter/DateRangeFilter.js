@@ -30,7 +30,7 @@ const RangePreview = ({ preview, previewLabel }) => (
   </div>
 );
 
-const DateRangeFilter = ({ label, icon, start, end, onChange, align = 'left' }) => {
+const DateRangeFilter = ({ label, icon, start, end, onChange, align = 'left', clearable = true }) => {
   const [draftStart, setDraftStart] = useState(() => (start ? startOfDay(start) : null));
   const [draftEnd, setDraftEnd] = useState(() => (end ? startOfDay(end) : null));
   const [mode, setMode] = useState(() => detectPreset(start, end));
@@ -127,18 +127,32 @@ const DateRangeFilter = ({ label, icon, start, end, onChange, align = 'left' }) 
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              className="drp-apply"
-              disabled={!canApply}
-              onClick={() => {
-                if (!canApply) return;
-                onChange(draftStart, draftEnd);
-                close();
-              }}
-            >
-              Apply
-            </button>
+            <div className="drp-actions">
+              {clearable && hasValue && (
+                <button
+                  type="button"
+                  className="drp-clear"
+                  onClick={() => {
+                    onChange(null, null);
+                    close();
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                className="drp-apply"
+                disabled={!canApply}
+                onClick={() => {
+                  if (!canApply) return;
+                  onChange(draftStart, draftEnd);
+                  close();
+                }}
+              >
+                Apply
+              </button>
+            </div>
           </div>
 
           <CalendarPanel
