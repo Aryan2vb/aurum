@@ -186,10 +186,9 @@ const DashboardHeader = ({
         <Text variant="heading" weight="bold">{title}</Text>
         <div className="header-right">
           <FirmIdentityBadge identity={firmIdentity} />
-          <div className="header-actions">
-            <button className="header-action-btn">
+            {/* <button className="header-action-btn">
               <Icon name="share" size={20} />
-            </button>
+            </button> */}
 
             {/* Bell with dropdown */}
             <div className="header-bell-wrap" ref={bellRef}>
@@ -243,15 +242,14 @@ const DashboardHeader = ({
             </div>
 
             <TeamAvatars />
-            <button className="header-action-btn">
+            {/* <button className="header-action-btn">
               <Icon name="add" size={20} />
-            </button>
-            <Button variant="secondary" size="small">
+            </button> */}
+            {/* <Button variant="secondary" size="small">
               Customize Widget
-            </Button>
+            </Button> */}
           </div>
         </div>
-      </div>
       {showTabs && (
         <div className="header-tabs">
           <div className="tabs-container">

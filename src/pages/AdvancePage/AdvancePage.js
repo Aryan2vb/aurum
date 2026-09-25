@@ -43,9 +43,9 @@ const buildColumns = (onManage) => [
   columnHelper.accessor('customerName', { id: 'customerName', header: 'Customer', size: 220,
     cell: ({ row }) => (
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Avatar name={row.original.customerName} size="sm" />
+        <Avatar name={row.original.customerName || row.original.phone || 'Customer'} size="sm" />
         <div>
-          <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{row.original.customerName}</div>
+          <div style={{ fontWeight: 500, fontSize: '0.85rem' }}>{row.original.customerName || row.original.phone || 'Customer'}</div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>{row.original.customerCode}</div>
         </div>
       </div>
@@ -127,7 +127,7 @@ const AdvancePage = () => {
           <div className="attio-header-left"><span className="saas-view-label">All Advances</span></div>
           <div className="attio-header-right">
             <button className="attio-primary-btn" onClick={() => { setPanelCustomerId(null); setPanelCustomerName(''); setPanelOpen(true); }}>
-              <Icon name="add" size={14} /><span>New Advance</span>
+              <Icon name="add" size={14} /><span>Add Advance</span>
             </button>
           </div>
         </div>
@@ -220,7 +220,7 @@ const AdvancePage = () => {
         </div>
       </div>
       <AdvancePanel isOpen={panelOpen} onClose={() => setPanelOpen(false)} customerId={panelCustomerId} customerName={panelCustomerName}
-        onSuccess={() => { setToast({ type: 'success', message: 'Advance updated' }); loadData(); }} />
+        onSuccess={() => { setToast({ type: 'success', message: 'Advance saved' }); loadData(); }} />
     </DashboardTemplate>
   );
 };

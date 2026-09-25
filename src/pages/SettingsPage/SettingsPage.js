@@ -1,4 +1,5 @@
-import { React, useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme, LIGHT_THEMES, THEME_LABELS, THEME_SWATCHES } from '../../contexts/ThemeContext';
 import { usePermission } from '../../hooks/usePermission';
 import {
@@ -6,19 +7,123 @@ import {
   getOrganizationMembers,
   updateOrganizationMemberRole,
   removeOrganizationMember,
+  getAccessPolicy,
+  updateAccessPolicy,
 } from '../../services/organizationService';
+import { useAccessPolicy } from '../../contexts/AccessPolicyContext';
 import {
   getInvoiceSettings,
   upsertInvoiceSettings,
   getInvoiceSettingsPreviewUrl,
 } from '../../services/invoicesService';
+import {
+  getMetalPurities,
+  createMetalPurity,
+  updateMetalPurity,
+  hideMetalPurity,
+} from '../../services/metalPuritiesService';
+import { puritiesForMetal } from '../../utils/metalPurities';
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
+import {
+  getBackupStatus,
+  downloadOrganizationBackup,
+  importOrganizationBackup,
+  getOrgBackupHistory,
+  triggerFullSystemBackup,
+  getStoredBackups,
+  downloadStoredBackup,
+} from '../../services/backupService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
+const MODULE_LABELS = [
+  { key: 'customers', label: 'Customers' },
+  { key: 'credits', label: 'Udhar' },
+  { key: 'advance', label: 'Advance' },
+  { key: 'invoices', label: 'Invoices' },
+  { key: 'stock', label: 'Stock' },
+  { key: 'purchases', label: 'Purchases' },
+  { key: 'books', label: 'Cash & Bank Book' },
+  { key: 'reports', label: 'Reports' },
+];
+
+const DELEGATED_ROLES = ['ADMIN', 'STAFF', 'VIEWER'];
+
+/** Friendly timezone picker — value is still IANA for the API. */
+const TIMEZONE_OPTIONS = [
+  { value: 'Asia/Kolkata', label: 'India (IST)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Hong_Kong', label: 'Hong Kong (HKT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Paris (CET/CEST)' },
+  { value: 'America/New_York', label: 'New York (ET)' },
+  { value: 'America/Chicago', label: 'Chicago (CT)' },
+  { value: 'America/Los_Angeles', label: 'Los Angeles (PT)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AET)' },
+  { value: 'UTC', label: 'UTC' },
+];
+
+const defaultModuleAccess = () =>
+  Object.fromEntries(MODULE_LABELS.map(({ key }) => [key, [...DELEGATED_ROLES]]));
+
+const SECTION_FROM_HASH = {
+  workspace: 'workspace',
+  team: 'workspace',
+  inventory: 'inventory',
+  'metal-purities': 'inventory',
+  invoicing: 'invoicing',
+  invoice: 'invoicing',
+  backups: 'backups',
+  backup: 'backups',
+  data: 'backups',
+  preferences: 'preferences',
+  appearance: 'preferences',
+  account: 'preferences',
+};
+
+/** Canonical hash written when picking a section (keeps Stock → Manage purities working). */
+const HASH_FOR_SECTION = {
+  workspace: 'workspace',
+  inventory: 'metal-purities',
+  invoicing: 'invoicing',
+  backups: 'backups',
+  preferences: 'preferences',
+};
+
+const resolveSection = (hash, isAdmin) => {
+  const key = String(hash || '').replace(/^#/, '');
+  let section = SECTION_FROM_HASH[key];
+  if (!section) section = isAdmin ? 'workspace' : 'inventory';
+  if (!isAdmin && (section === 'workspace' || section === 'invoicing' || section === 'backups')) {
+    section = 'inventory';
+  }
+  return section;
+};
+
 const SettingsPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { can } = usePermission();
+  const isAdmin = can('admin');
+  const isOwner = can('manage-roles');
+  const { setFromWhoami } = useAccessPolicy();
+
+  const navItems = useMemo(() => {
+    const items = [];
+    if (isAdmin) items.push({ id: 'workspace', label: 'Workspace', hint: 'Team & access' });
+    items.push({ id: 'inventory', label: 'Inventory', hint: 'Metals & purities' });
+    if (isAdmin) items.push({ id: 'invoicing', label: 'Invoicing', hint: 'Bill template' });
+    if (isAdmin) items.push({ id: 'backups', label: 'Data & Backups', hint: 'Exports & snapshots' });
+    items.push({ id: 'preferences', label: 'Preferences', hint: 'Theme & account' });
+    return items;
+  }, [isAdmin]);
+
+  const [activeSection, setActiveSection] = useState(() =>
+    resolveSection(window.location.hash, isAdmin),
+  );
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,6 +133,11 @@ const SettingsPage = () => {
   const [role, setRole] = useState('STAFF');
   const [formStatus, setFormStatus] = useState({ loading: false, error: null, success: null });
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [metalPurities, setMetalPurities] = useState([]);
+  const [metalPuritiesLoading, setMetalPuritiesLoading] = useState(false);
+  const [showHiddenPurities, setShowHiddenPurities] = useState(false);
+  const [newPurityLabel, setNewPurityLabel] = useState({ GOLD: '', SILVER: '' });
+  const [purityStatus, setPurityStatus] = useState({ loading: false, error: null, success: null });
   const [invoiceSettingsLoading, setInvoiceSettingsLoading] = useState(false);
   const [invoiceSettingsForm, setInvoiceSettingsForm] = useState({
     companyName: '',
@@ -65,17 +175,288 @@ const SettingsPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [accessPolicy, setAccessPolicy] = useState({
+    accessWindowEnabled: false,
+    accessWindowStart: '09:00',
+    accessWindowEnd: '20:00',
+    timezone: 'Asia/Kolkata',
+    moduleAccess: defaultModuleAccess(),
+  });
+  const [accessStatus, setAccessStatus] = useState({ loading: false, error: null, success: null });
+
+  // Backup states
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupStatus, setBackupStatus] = useState({ error: null, success: null });
+  const [importFile, setImportFile] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState({ error: null, success: null });
+  const [orgHistory, setOrgHistory] = useState([]);
+  const [historyError, setHistoryError] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [fullBackupLoading, setFullBackupLoading] = useState(false);
+  const [fullBackupStatus, setFullBackupStatus] = useState({ error: null, success: null });
+  const [storedBackups, setStoredBackups] = useState([]);
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
+    if (isOwner) fetchAccessPolicy();
+    fetchMetalPurities();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setActiveSection(resolveSection(location.hash, isAdmin));
+  }, [location.hash, isAdmin]);
+
+  const goToSection = (sectionId) => {
+    const next = resolveSection(`#${HASH_FOR_SECTION[sectionId] || sectionId}`, isAdmin);
+    setActiveSection(next);
+    navigate({ pathname: '/settings', hash: HASH_FOR_SECTION[next] }, { replace: true });
+  };
+
+  const fetchAccessPolicy = async () => {
+    setAccessStatus((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const policy = await getAccessPolicy();
+      setAccessPolicy({
+        accessWindowEnabled: !!policy.accessWindowEnabled,
+        accessWindowStart: policy.accessWindowStart || '09:00',
+        accessWindowEnd: policy.accessWindowEnd || '20:00',
+        timezone: policy.timezone || 'Asia/Kolkata',
+        moduleAccess: { ...defaultModuleAccess(), ...(policy.moduleAccess || {}) },
+      });
+      setAccessStatus({ loading: false, error: null, success: null });
+    } catch (e) {
+      setAccessStatus({ loading: false, error: e.message || 'Failed to load access policy', success: null });
+    }
+  };
+
+  const saveAccessPolicy = async () => {
+    setAccessStatus({ loading: true, error: null, success: null });
+    try {
+      const saved = await updateAccessPolicy({
+        accessWindowEnabled: accessPolicy.accessWindowEnabled,
+        accessWindowStart: String(accessPolicy.accessWindowStart || '').slice(0, 5),
+        accessWindowEnd: String(accessPolicy.accessWindowEnd || '').slice(0, 5),
+        timezone: accessPolicy.timezone,
+        moduleAccess: accessPolicy.moduleAccess,
+      });
+      setAccessPolicy({
+        accessWindowEnabled: !!saved.accessWindowEnabled,
+        accessWindowStart: saved.accessWindowStart,
+        accessWindowEnd: saved.accessWindowEnd,
+        timezone: saved.timezone,
+        moduleAccess: { ...defaultModuleAccess(), ...(saved.moduleAccess || {}) },
+      });
+      // Refresh effective modules for current session (owner → all true anyway)
+      setFromWhoami({
+        accessPolicy: {
+          modules: saved.modulesForRole,
+        },
+      });
+      setAccessStatus({ loading: false, error: null, success: 'Access settings saved' });
+      setTimeout(() => setAccessStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setAccessStatus({ loading: false, error: e.message || 'Failed to save', success: null });
+    }
+  };
+
+  const fetchBackupData = async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
+    try {
+      const statusRes = await getBackupStatus().catch(() => ({ isSuperAdmin: false }));
+      const userIsSuper = !!statusRes?.isSuperAdmin;
+      setIsSuperAdmin(userIsSuper);
+
+      const [history, stored] = await Promise.all([
+        getOrgBackupHistory(),
+        userIsSuper ? getStoredBackups().catch(() => []) : Promise.resolve([]),
+      ]);
+      setOrgHistory(Array.isArray(history) ? history : []);
+      setStoredBackups(Array.isArray(stored) ? stored : []);
+    } catch (err) {
+      console.error('Failed to load backup data:', err);
+      // Don't present a failed load (403/500) as "No recorded exports yet"
+      setHistoryError(err.message || 'Failed to load backup history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'backups' && isAdmin) {
+      fetchBackupData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, isAdmin, isOwner]);
+
+  const handleOrgBackup = async () => {
+    setBackupLoading(true);
+    setBackupStatus({ error: null, success: null });
+    try {
+      const res = await downloadOrganizationBackup();
+      setBackupStatus({ error: null, success: `Backup downloaded successfully (${res.filename})` });
+      fetchBackupData();
+    } catch (err) {
+      setBackupStatus({ error: err.message || 'Failed to export backup', success: null });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleImportBackup = async (e) => {
+    e.preventDefault();
+    if (!importFile) return;
+    const confirmed = window.confirm(
+      `Restore data from "${importFile.name}" into this organization? Records in the file overwrite matching records here, so newer edits to those records are replaced by the backup's values. Records created after the backup are kept. Invoice number counters are never moved backwards. This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setImportLoading(true);
+    setImportStatus({ error: null, success: null });
+    try {
+      const res = await importOrganizationBackup(importFile);
+      const counts = res.restoredCounts || {};
+      const parts = [];
+      if (counts.customers) parts.push(`${counts.customers} customers`);
+      if (counts.invoices) parts.push(`${counts.invoices} invoices`);
+      if (counts.ledgerEntries) parts.push(`${counts.ledgerEntries} ledger entries`);
+      if (counts.stockBalances) parts.push(`${counts.stockBalances} stock balances`);
+      if (counts.financialAccounts) parts.push(`${counts.financialAccounts} accounts`);
+
+      setImportStatus({
+        error: null,
+        success: `Data imported successfully! Restored: ${parts.length > 0 ? parts.join(', ') : 'all records'}.`,
+      });
+      setImportFile(null);
+      fetchBackupData();
+    } catch (err) {
+      setImportStatus({ error: err.message || 'Failed to import backup file', success: null });
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleFullBackup = async () => {
+    setFullBackupLoading(true);
+    setFullBackupStatus({ error: null, success: null });
+    try {
+      const res = await triggerFullSystemBackup();
+      setFullBackupStatus({
+        error: null,
+        success: `Full system backup generated successfully: ${res.filename} (${res.fileSizeFormatted || ''})`,
+      });
+      fetchBackupData();
+    } catch (err) {
+      setFullBackupStatus({ error: err.message || 'Failed to create system backup', success: null });
+    } finally {
+      setFullBackupLoading(false);
+    }
+  };
+
+  const handleDownloadStored = async (filename) => {
+    try {
+      await downloadStoredBackup(filename);
+    } catch (err) {
+      alert(`Error downloading backup: ${err.message}`);
+    }
+  };
+
+  const toggleModuleRole = (moduleKey, role) => {
+    setAccessPolicy((prev) => {
+      const current = new Set(prev.moduleAccess[moduleKey] || []);
+      if (current.has(role)) current.delete(role);
+      else current.add(role);
+      return {
+        ...prev,
+        moduleAccess: {
+          ...prev.moduleAccess,
+          [moduleKey]: DELEGATED_ROLES.filter((r) => current.has(r)),
+        },
+      };
+    });
+  };
 
   const fetchMembers = async () => {
     setLoadingMembers(true);
     try { setMembers((await getOrganizationMembers()) || []); }
     catch (e) { console.error(e); }
     finally { setLoadingMembers(false); }
+  };
+
+  const fetchMetalPurities = async () => {
+    setMetalPuritiesLoading(true);
+    try {
+      const rows = await getMetalPurities(true);
+      setMetalPurities(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      console.error(e);
+      setPurityStatus({ loading: false, error: e.message || 'Failed to load purities', success: null });
+    } finally {
+      setMetalPuritiesLoading(false);
+    }
+  };
+
+  const handleAddPurity = async (metalType) => {
+    const label = (newPurityLabel[metalType] || '').trim();
+    if (!label) return;
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await createMetalPurity({ metalType, label });
+      setNewPurityLabel((prev) => ({ ...prev, [metalType]: '' }));
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Added ${label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to add', success: null });
+    }
+  };
+
+  const handleHidePurity = async (row) => {
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await hideMetalPurity(row.id);
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Hidden ${row.label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to hide', success: null });
+    }
+  };
+
+  const handleRestorePurity = async (row) => {
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await updateMetalPurity(row.id, { isActive: true });
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: `Restored ${row.label}` });
+      setTimeout(() => setPurityStatus((s) => ({ ...s, success: null })), 2500);
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to restore', success: null });
+    }
+  };
+
+  const handleMovePurity = async (metalType, index, direction) => {
+    const rows = puritiesForMetal(metalPurities, metalType, {
+      includeInactive: showHiddenPurities,
+    });
+    const swapIndex = index + direction;
+    if (swapIndex < 0 || swapIndex >= rows.length) return;
+    const a = rows[index];
+    const b = rows[swapIndex];
+    setPurityStatus({ loading: true, error: null, success: null });
+    try {
+      await Promise.all([
+        updateMetalPurity(a.id, { sortOrder: b.sortOrder }),
+        updateMetalPurity(b.id, { sortOrder: a.sortOrder }),
+      ]);
+      await fetchMetalPurities();
+      setPurityStatus({ loading: false, error: null, success: null });
+    } catch (e) {
+      setPurityStatus({ loading: false, error: e.message || 'Failed to reorder', success: null });
+    }
   };
 
   const handleRoleChange = async (id, r) => {
@@ -243,9 +624,26 @@ const SettingsPage = () => {
   return (
     <DashboardTemplate headerTitle="Settings" headerTabs={[]}>
       <div className="settings-page">
+        <div className="settings-shell">
+          <nav className="settings-nav" aria-label="Settings sections">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`settings-nav-item${activeSection === item.id ? ' is-active' : ''}`}
+                onClick={() => goToSection(item.id)}
+                aria-current={activeSection === item.id ? 'page' : undefined}
+              >
+                <span className="settings-nav-label">{item.label}</span>
+                <span className="settings-nav-hint">{item.hint}</span>
+              </button>
+            ))}
+          </nav>
 
-        {/* ────────── TEAM ────────── */}
-        {can('admin') && (
+          <div className="settings-content">
+
+        {/* ────────── WORKSPACE ────────── */}
+        {activeSection === 'workspace' && can('admin') && (
           <section className="settings-section">
             <div className="s-card">
               {/* Card header = title + action anchored together */}
@@ -317,11 +715,265 @@ const SettingsPage = () => {
                 ))
               )}
             </div>
+
+            {isOwner && (
+              <div className="s-card access-card">
+                <div className="s-card-header">
+                  <div>
+                    <div className="s-card-title">Access controls</div>
+                    <div className="s-card-subtitle">Non-owner hours &amp; module visibility</div>
+                  </div>
+                  <button
+                    className="s-btn s-btn-primary"
+                    type="button"
+                    disabled={accessStatus.loading}
+                    onClick={saveAccessPolicy}
+                  >
+                    {accessStatus.loading ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+
+                <div className="access-body">
+                  {(accessStatus.error || accessStatus.success) && (
+                    <div className={accessStatus.error ? 's-feedback-err' : 's-feedback-ok'}>
+                      {accessStatus.error || accessStatus.success}
+                    </div>
+                  )}
+
+                  <div className={`access-hours${accessPolicy.accessWindowEnabled ? ' is-on' : ''}`}>
+                    <div className="access-hours-controls">
+                      <input
+                        id="access-from"
+                        type="time"
+                        className="access-time"
+                        aria-label="From"
+                        value={accessPolicy.accessWindowStart}
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, accessWindowStart: e.target.value }))
+                        }
+                      />
+                      <span className="access-hours-sep">→</span>
+                      <input
+                        id="access-to"
+                        type="time"
+                        className="access-time"
+                        aria-label="To"
+                        value={accessPolicy.accessWindowEnd}
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, accessWindowEnd: e.target.value }))
+                        }
+                      />
+                      <select
+                        id="access-tz"
+                        className="access-tz"
+                        aria-label="Timezone"
+                        disabled={!accessPolicy.accessWindowEnabled}
+                        value={
+                          TIMEZONE_OPTIONS.some((o) => o.value === accessPolicy.timezone)
+                            ? accessPolicy.timezone
+                            : accessPolicy.timezone || 'Asia/Kolkata'
+                        }
+                        onChange={(e) =>
+                          setAccessPolicy((p) => ({ ...p, timezone: e.target.value }))
+                        }
+                      >
+                        {!TIMEZONE_OPTIONS.some((o) => o.value === accessPolicy.timezone) &&
+                          accessPolicy.timezone && (
+                            <option value={accessPolicy.timezone}>{accessPolicy.timezone}</option>
+                          )}
+                        {TIMEZONE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`access-enforce-btn${accessPolicy.accessWindowEnabled ? ' is-on' : ''}`}
+                      aria-pressed={accessPolicy.accessWindowEnabled}
+                      onClick={() =>
+                        setAccessPolicy((p) => ({
+                          ...p,
+                          accessWindowEnabled: !p.accessWindowEnabled,
+                        }))
+                      }
+                    >
+                      {accessPolicy.accessWindowEnabled ? 'Login enforced' : 'Login not enforced'}
+                    </button>
+                  </div>
+
+                  <div className="access-modules">
+                    <div className="access-modules-head">
+                      <span className="access-modules-title">Modules</span>
+                      <div className="access-role-legend" aria-hidden="true">
+                        {DELEGATED_ROLES.map((role) => (
+                          <span key={role} className="access-role-tag">
+                            {role === 'ADMIN' ? 'Admin' : role === 'STAFF' ? 'Staff' : 'Viewer'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="access-module-list" role="table" aria-label="Module visibility by role">
+                      {MODULE_LABELS.map(({ key, label }) => (
+                        <div key={key} className="access-module-item" role="row">
+                          <span className="access-module-name" role="cell">{label}</span>
+                          <div className="access-module-roles" role="cell">
+                            {DELEGATED_ROLES.map((role) => (
+                              <label key={role} className="access-module-check">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`${label} for ${role.toLowerCase()}`}
+                                  checked={(accessPolicy.moduleAccess[key] || []).includes(role)}
+                                  onChange={() => toggleModuleRole(key, role)}
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         )}
 
-        {/* ────────── INVOICE SETTINGS ────────── */}
-        {can('admin') && (
+        {/* ────────── INVENTORY ────────── */}
+        {activeSection === 'inventory' && (
+        <section className="settings-section" id="metal-purities">
+          <div className="s-card">
+            <div className="s-card-header">
+              <div>
+                <div className="s-card-title">Metals &amp; Purities</div>
+                <div className="s-card-subtitle">
+                  Labels used on invoices, purchases, and stock. Hide removes from new entries only.
+                </div>
+              </div>
+              <label className="purity-show-hidden">
+                <input
+                  type="checkbox"
+                  checked={showHiddenPurities}
+                  onChange={(e) => setShowHiddenPurities(e.target.checked)}
+                />
+                Show hidden
+              </label>
+            </div>
+
+            {(purityStatus.error || purityStatus.success) && (
+              <div className={`purity-status ${purityStatus.error ? 'is-error' : 'is-ok'}`}>
+                {purityStatus.error || purityStatus.success}
+              </div>
+            )}
+
+            {metalPuritiesLoading ? (
+              <div className="m-empty">Loading purities…</div>
+            ) : (
+              <div className="purity-metal-grid">
+                {['GOLD', 'SILVER'].map((metalType) => {
+                  const rows = puritiesForMetal(metalPurities, metalType, {
+                    includeInactive: showHiddenPurities,
+                  }).filter((r) => showHiddenPurities || r.isActive !== false);
+                  return (
+                    <div key={metalType} className="purity-metal-col">
+                      <div className="purity-metal-title">{metalType}</div>
+                      <ul className="purity-list">
+                        {rows.length === 0 ? (
+                          <li className="purity-empty">No purities yet</li>
+                        ) : (
+                          rows.map((row, index) => (
+                            <li
+                              key={row.id}
+                              className={`purity-row${!row.isActive ? ' is-hidden' : ''}`}
+                            >
+                              <span className="purity-label">{row.label}</span>
+                              <div className="purity-actions">
+                                <button
+                                  type="button"
+                                  className="s-btn s-btn-ghost purity-sort-btn"
+                                  disabled={purityStatus.loading || index === 0}
+                                  onClick={() => handleMovePurity(metalType, index, -1)}
+                                  aria-label="Move up"
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="s-btn s-btn-ghost purity-sort-btn"
+                                  disabled={purityStatus.loading || index === rows.length - 1}
+                                  onClick={() => handleMovePurity(metalType, index, 1)}
+                                  aria-label="Move down"
+                                >
+                                  ↓
+                                </button>
+                                {row.isActive ? (
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-ghost"
+                                    disabled={purityStatus.loading}
+                                    onClick={() => handleHidePurity(row)}
+                                  >
+                                    Hide
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-primary"
+                                    disabled={purityStatus.loading}
+                                    onClick={() => handleRestorePurity(row)}
+                                  >
+                                    Restore
+                                  </button>
+                                )}
+                              </div>
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                      <div className="purity-add-row">
+                        <input
+                          type="text"
+                          className="purity-add-input"
+                          placeholder={metalType === 'GOLD' ? 'e.g. 22K' : 'e.g. fancy'}
+                          value={newPurityLabel[metalType]}
+                          onChange={(e) =>
+                            setNewPurityLabel((prev) => ({
+                              ...prev,
+                              [metalType]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddPurity(metalType);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="s-btn s-btn-primary"
+                          disabled={purityStatus.loading || !(newPurityLabel[metalType] || '').trim()}
+                          onClick={() => handleAddPurity(metalType)}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+        )}
+
+        {/* ────────── INVOICING ────────── */}
+        {activeSection === 'invoicing' && can('admin') && (
           <section className="settings-section">
             <div className="s-card">
               <div className="s-card-header">
@@ -684,7 +1336,259 @@ const SettingsPage = () => {
           </section>
         )}
 
-        {/* ────────── APPEARANCE ────────── */}
+        {/* ────────── PREFERENCES ────────── */}
+        {/* ────────── DATA & BACKUPS ────────── */}
+        {activeSection === 'backups' && can('admin') && (
+          <>
+            {/* Org-wise backup card */}
+            <section className="settings-section">
+              <div className="s-card">
+                <div className="s-card-header">
+                  <div>
+                    <div className="s-card-title">Organization Data Backup</div>
+                    <div className="s-card-subtitle">
+                      Export your organization&apos;s complete data snapshot (customers, invoices, ledger, stock, books)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="s-btn s-btn-primary"
+                    onClick={handleOrgBackup}
+                    disabled={backupLoading}
+                  >
+                    {backupLoading ? (
+                      <>
+                        <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                        Exporting Data…
+                      </>
+                    ) : (
+                      'Backup Organization Data'
+                    )}
+                  </button>
+                </div>
+
+                <div className="backup-card-body">
+                  <div className="backup-info-banner">
+                    <span className="backup-info-icon">📦</span>
+                    <div className="backup-info-text">
+                      <strong>Complete Tenant Portability:</strong> The exported JSON file contains all records scoped to your organization. It preserves all transaction UUIDs, customers, invoices, and accounting history for local archiving or migration.
+                    </div>
+                  </div>
+
+                  {backupStatus.error && <div className="s-feedback-err">{backupStatus.error}</div>}
+                  {backupStatus.success && <div className="s-feedback-ok">{backupStatus.success}</div>}
+
+                  <div className="backup-history-header">
+                    <span className="backup-history-title">Recent Organization Exports</span>
+                    <button type="button" className="s-btn s-btn-ghost s-btn-sm" onClick={fetchBackupData} disabled={historyLoading}>
+                      {historyLoading ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                  </div>
+
+                  {historyError ? (
+                    <div className="s-feedback-err">{historyError}</div>
+                  ) : orgHistory.length === 0 ? (
+                    <div className="backup-empty-state">No recorded exports yet. Click the backup button above to export your data.</div>
+                  ) : (
+                    <div className="backup-table-wrapper">
+                      <table className="backup-table">
+                        <thead>
+                          <tr>
+                            <th>Date &amp; Time</th>
+                            <th>Initiated By</th>
+                            <th>Details / Records</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {orgHistory.map((log) => (
+                            <tr key={log.id}>
+                              <td>{new Date(log.createdAt).toLocaleString()}</td>
+                              <td>{log.initiatedBy}</td>
+                              <td>
+                                {log.metadata?.fileSizeBytes
+                                  ? `${(log.metadata.fileSizeBytes / 1024).toFixed(1)} KB`
+                                  : 'Exported'}
+                                {log.metadata?.recordCounts?.invoices !== undefined && (
+                                  <span className="backup-meta-tag">
+                                    {log.metadata.recordCounts.invoices} inv, {log.metadata.recordCounts.customers} cust
+                                  </span>
+                                )}
+                              </td>
+                              <td><span className="backup-badge-ok">Completed</span></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Org-wise Import & Restore Data Card (Owner only: restore overwrites live records) */}
+            {isOwner && (
+              <section className="settings-section">
+                <div className="s-card">
+                  <div className="s-card-header">
+                    <div>
+                      <div className="s-card-title">Import &amp; Restore Organization Data</div>
+                      <div className="s-card-subtitle">
+                        Upload an Aurum JSON backup file to restore customers, invoices, ledger entries, stock, and books
+                      </div>
+                    </div>
+                  </div>
+  
+                  <div className="backup-card-body">
+                    <div className="backup-info-banner">
+                      <span className="backup-info-icon">🔄</span>
+                      <div className="backup-info-text">
+                        <strong>Merge &amp; Restore:</strong> Records in the backup are added, and records with matching IDs are overwritten with the backup's values. Records created after the backup are kept, so restoring an old file can leave balances out of step with newer entries. Only the organization Owner can restore, and the file must have been exported from this organization.
+                      </div>
+                    </div>
+  
+                    <form onSubmit={handleImportBackup} className="backup-import-form">
+                      <div className="backup-file-dropzone">
+                        <input
+                          type="file"
+                          id="backup-file-input"
+                          accept=".json,application/json"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const picked = e.target.files && e.target.files[0];
+                            if (picked) {
+                              setImportFile(picked);
+                              setImportStatus({ error: null, success: null });
+                            }
+                            // Reset so choosing the same file again still fires onChange
+                            e.target.value = '';
+                          }}
+                        />
+                        <label htmlFor="backup-file-input" className="s-btn s-btn-ghost">
+                          <i className="bi bi-file-earmark-arrow-up" style={{ marginRight: 6 }} />
+                          {importFile ? 'Change File' : 'Choose JSON Backup File'}
+                        </label>
+                        {importFile ? (
+                          <div className="backup-selected-file">
+                            <strong>{importFile.name}</strong> ({(importFile.size / 1024).toFixed(1)} KB)
+                          </div>
+                        ) : (
+                          <span className="backup-file-hint">Select a file named aurum_...backup.json</span>
+                        )}
+                      </div>
+  
+                      {importStatus.error && <div className="s-feedback-err">{importStatus.error}</div>}
+                      {importStatus.success && <div className="s-feedback-ok">{importStatus.success}</div>}
+  
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button
+                          type="submit"
+                          className="s-btn s-btn-primary"
+                          disabled={!importFile || importLoading}
+                        >
+                          {importLoading ? (
+                            <>
+                              <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                              Restoring Data…
+                            </>
+                          ) : (
+                            'Upload & Restore Data'
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Super Admin / System-Wide Full Database Backup (Super Admin Only) */}
+            {isSuperAdmin && (
+              <section className="settings-section">
+                <div className="s-card" style={{ borderTop: '2px solid var(--accent)' }}>
+                  <div className="s-card-header">
+                    <div>
+                      <div className="s-card-title">Super Admin: Full Database Backup</div>
+                      <div className="s-card-subtitle">
+                        Full PostgreSQL dump across all organizations (pg_dump / system archive for AWS/Bare-Metal migration &amp; DR)
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="s-btn s-btn-secondary"
+                      onClick={handleFullBackup}
+                      disabled={fullBackupLoading}
+                    >
+                      {fullBackupLoading ? (
+                        <>
+                          <span className="asset-spinner" style={{ width: 14, height: 14, borderWidth: 2, marginRight: 6 }} />
+                          Dumping Database…
+                        </>
+                      ) : (
+                        'Generate Full System Dump'
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="backup-card-body">
+                    <div className="backup-info-banner" style={{ background: 'var(--bg-tertiary)' }}>
+                      <span className="backup-info-icon">⚡</span>
+                      <div className="backup-info-text">
+                        <strong>Automatic Nightly Backups:</strong> System backups run automatically every night at 00:00 UTC via scheduled background cron with a rolling 30-day retention. You can also trigger an immediate dump below.
+                      </div>
+                    </div>
+
+                    {fullBackupStatus.error && <div className="s-feedback-err">{fullBackupStatus.error}</div>}
+                    {fullBackupStatus.success && <div className="s-feedback-ok">{fullBackupStatus.success}</div>}
+
+                    <div className="backup-history-header">
+                      <span className="backup-history-title">Stored Server Backups</span>
+                    </div>
+
+                    {storedBackups.length === 0 ? (
+                      <div className="backup-empty-state">No database dumps stored on the server yet. Click &quot;Generate Full System Dump&quot; to create one.</div>
+                    ) : (
+                      <div className="backup-table-wrapper">
+                        <table className="backup-table">
+                          <thead>
+                            <tr>
+                              <th>File Name</th>
+                              <th>Size</th>
+                              <th>Created At</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {storedBackups.map((item) => (
+                              <tr key={item.filename}>
+                                <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{item.filename}</td>
+                                <td>{item.sizeFormatted}</td>
+                                <td>{new Date(item.createdAt).toLocaleString()}</td>
+                                <td>
+                                  <button
+                                    type="button"
+                                    className="s-btn s-btn-ghost s-btn-sm"
+                                    onClick={() => handleDownloadStored(item.filename)}
+                                  >
+                                    Download
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
+          </>
+        )}
+
+        {/* ────────── PREFERENCES ────────── */}
+        {activeSection === 'preferences' && (
+          <>
         <section className="settings-section">
           <div className="s-card">
             <div className="s-card-header">
@@ -722,7 +1626,11 @@ const SettingsPage = () => {
             </div>
           </div>
         </section>
+          </>
+        )}
 
+          </div>
+        </div>
       </div>
 
       {/* ────────── ADD MEMBER MODAL ────────── */}

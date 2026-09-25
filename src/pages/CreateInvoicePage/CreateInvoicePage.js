@@ -8,6 +8,7 @@ import React, {
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardTemplate from "../../components/templates/DashboardTemplate/DashboardTemplate";
 import Icon from "../../components/atoms/Icon/Icon";
+import DatePicker from "../../components/molecules/DatePicker/DatePicker";
 import Avatar from "../../components/atoms/Avatar/Avatar";
 import SlideOver from "../../components/atoms/SlideOver/SlideOver";
 import CustomerInspectorPanel from "../../components/organisms/CustomerInspectorPanel/CustomerInspectorPanel";
@@ -35,6 +36,16 @@ import {
 import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
 import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
 import ConfirmationModal from "../../components/atoms/ConfirmationModal/ConfirmationModal";
+import PaymentAccountSelect from "../../components/molecules/PaymentAccountSelect/PaymentAccountSelect";
+import {
+  PAYMENT_MODES,
+  financialAccountIdFrom,
+  getPaymentAccountError,
+  paymentNeedsBankAccount,
+  withFinancialAccount,
+} from "../../utils/paymentAccounts";
+import { getMetalPurities } from "../../services/metalPuritiesService";
+import { purityLabelsForMetal, withOrphanPurityOption } from "../../utils/metalPurities";
 import styles from "./CreateInvoicePage.module.css";
 
 const fmt = (n) =>
@@ -103,16 +114,9 @@ const makingOptions = [
   { value: "PERCENTAGE_ON_METAL", label: "%" },
 ];
 
-const paymentModes = [
-  "UPI",
-  "CASH",
-  "BANK_TRANSFER",
-  "CHEQUE",
-  "CARD",
-  "OLD_GOLD",
-  "OTHER",
-];
-const purityOptions = ["None", "916/22k", "833/20k", "75/18k", "F"];
+const paymentModes = PAYMENT_MODES.filter(
+  (mode) => !['OLD_GOLD', 'CREDIT', 'OTHER'].includes(mode),
+);
 
 const formatRelativeName = (fullName = '', relativeName = '', relationType = '', gender = '') => {
   const fName = (fullName || '').trim();
@@ -196,6 +200,7 @@ const CreateInvoicePage = () => {
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(toDateInputValue());
   const [showAdvanced, setShowAdvanced] = useState(true);
+  const [metalPurities, setMetalPurities] = useState([]);
   const [confirmation, setConfirmation] = useState({
     isOpen: false,
     title: "",
@@ -229,6 +234,12 @@ const CreateInvoicePage = () => {
   const [previewHtml, setPreviewHtml] = useState("");
   const canEditSequence =
     !id || (invoiceData.status === "DRAFT" && Boolean(selectedCustomerId));
+
+  useEffect(() => {
+    getMetalPurities(false)
+      .then((rows) => setMetalPurities(Array.isArray(rows) ? rows : []))
+      .catch(() => setMetalPurities([]));
+  }, []);
 
   // Fetch settings or existing invoice
   useEffect(() => {
@@ -277,6 +288,7 @@ const CreateInvoicePage = () => {
                 mode: p.mode,
                 amount: p.amount,
                 reference: p.reference || "",
+                financialAccountId: financialAccountIdFrom(p),
                 paidAt: toDateInputValue(p.paidAt || p.createdAt),
                 originalPaidAt: toDateInputValue(p.paidAt || p.createdAt),
               })),
@@ -286,11 +298,16 @@ const CreateInvoicePage = () => {
               {
                 mode: inv.modeOfPayment || "UPI",
                 amount: inv.paidAmount || 0,
+                financialAccountId: financialAccountIdFrom(inv),
                 paidAt: toDateInputValue(inv.invoiceDate),
               },
             ]);
           }
           setInvoiceDate(inv.invoiceDate?.slice(0, 10));
+          if (inv.templateType) {
+            const t = inv.templateType;
+            setTheme(t === "modern" || t === "jewellery" ? t : "classic");
+          }
           setInvoiceData((prev) => ({
             ...prev,
             items: inv.items.map((i) => ({
@@ -496,10 +513,11 @@ const CreateInvoicePage = () => {
       cashReceived: parseFloat(paidAmount) || 0,
       amtBalance: previewCalc.outstanding,
       hsnSummary: hsnSummary,
-      payments: payments.map((p) => ({
+      payments: payments.map((p) => withFinancialAccount({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
         paidAt: p.paidAt,
+        financialAccountId: p.financialAccountId,
       })),
       metadata: {
         ...invoiceData.metadata,
@@ -670,9 +688,13 @@ const CreateInvoicePage = () => {
     if (field === "metalType" && value === "SILVER") {
       updatedItem.makingChargesType = "PER_GRAM"; // Common for Silver
       updatedItem.hsnSac = "711311";
+      const labels = purityLabelsForMetal(metalPurities, "SILVER");
+      updatedItem.purity = labels[0] || "None";
     } else if (field === "metalType" && value === "GOLD") {
       updatedItem.makingChargesType = "PER_GRAM";
       updatedItem.hsnSac = "711319";
+      const labels = purityLabelsForMetal(metalPurities, "GOLD");
+      updatedItem.purity = labels[0] || "None";
     }
 
     newItems[idx] = updatedItem;
@@ -698,7 +720,7 @@ const CreateInvoicePage = () => {
   const handleAddPayment = () => {
     setPayments([
       ...payments,
-      { mode: "CASH", amount: 0, paidAt: invoiceDate },
+      { mode: "CASH", amount: 0, paidAt: invoiceDate, financialAccountId: "" },
     ]);
   };
 
@@ -724,11 +746,12 @@ const CreateInvoicePage = () => {
         canEditSequence && Number.isFinite(parsedManualSequence)
           ? parsedManualSequence
           : undefined,
-      payments: payments.map((p) => ({
+      payments: payments.map((p) => withFinancialAccount({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
         reference: p.reference || undefined,
         paidAt: p.paidAt,
+        financialAccountId: p.financialAccountId,
       })),
       paidAmount, // keep for backward compatibility
       autoCreateUdhar: autoCreateUdhar,
@@ -838,6 +861,11 @@ const CreateInvoicePage = () => {
       alert(paymentDateError);
       return;
     }
+    const accountError = getPaymentAccountError(payments);
+    if (accountError) {
+      alert(accountError);
+      return;
+    }
 
     const total = calcInvoiceTotals(
       invoiceData.items,
@@ -845,6 +873,16 @@ const CreateInvoicePage = () => {
       invoiceData.taxes.sgstRate,
       paidAmount,
     ).total;
+
+    // Cap advance to remaining after cash payments so save matches the footer Bal.
+    const advanceToApply = Math.min(
+      Math.max(0, Number(advanceApplied) || 0),
+      Math.max(0, Number(calc.outstanding) || 0),
+      Math.max(0, Number(advanceBalance) || 0),
+    );
+    if (advanceApplied > 0 && advanceToApply !== advanceApplied) {
+      setAdvanceApplied(advanceToApply);
+    }
 
     const kycError = await getInvoiceKycError(total);
     if (kycError) {
@@ -868,10 +906,10 @@ const CreateInvoicePage = () => {
           return;
         }
         // Apply advance immediately if the user specified an amount
-        if (advanceApplied > 0) {
+        if (advanceToApply > 0) {
           try {
             await applyAdvanceToInvoice(res.id, {
-              amount: advanceApplied,
+              amount: advanceToApply,
               paidAt: advanceDate || undefined,
               notes: 'Advance payment',
             });
@@ -1092,6 +1130,11 @@ const CreateInvoicePage = () => {
                       <div className={styles.selectedCustomerText}>
                         <strong>{invoiceData.buyer.name}</strong>
                         <span>{invoiceData.buyer.phone}</span>
+                        {invoiceData.buyer.address && (
+                          <span className={styles.selectedCustomerAddress}>
+                            {invoiceData.buyer.address}
+                          </span>
+                        )}
                       </div>
                       <button
                         className={styles.changeBtn}
@@ -1208,14 +1251,12 @@ const CreateInvoicePage = () => {
                       {duplicateSequenceMessage}
                     </div>
                   ) : null}
-                </div>
                 <div className={styles.dateField}>
                   <label className={styles.dateLabel}>Invoice Date</label>
-                  <input
-                    type="date"
-                    className={styles.dateInput}
+                  <DatePicker
+                    triggerClassName={styles.dateInput}
                     value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    onChange={setInvoiceDate}
                   />
                 </div>
                 <div className={styles.formatField}>
@@ -1241,19 +1282,23 @@ const CreateInvoicePage = () => {
                   </div>
                 </div>
               </div>
-
-            {/* Items */}
-            <div className={styles.itemsHeader}>
-              <h3>Line Items</h3>
-              <button className={styles.addItemBtn} onClick={addItem}>
-                <Icon name="add" size={12} /> Add
-              </button>
             </div>
 
-            <div className={styles.itemCards}>
-              {invoiceData.items.map((item, idx) => (
+            {/* Items */}
+            <section className={styles.itemsSection}>
+              <div className={styles.itemsHeader}>
+                <div>
+                  <h3>Line Items</h3>
+                  <p>Jewellery, metal, weight and making details</p>
+                </div>
+                <button className={styles.addItemBtn} onClick={addItem}>
+                  <Icon name="add" size={12} /> Add Item
+                </button>
+              </div>
+
+              <div className={styles.itemCards}>
+                {invoiceData.items.map((item, idx) => (
                 <div key={idx} className={styles.itemCard}>
-                  {/* Top row: index + description + remove */}
                   <div className={styles.itemCardTop}>
                     <span className={styles.itemIndex}>{idx + 1}</span>
                     <input
@@ -1274,7 +1319,6 @@ const CreateInvoicePage = () => {
                     </button>
                   </div>
 
-                  {/* Field grid */}
                   <div className={styles.itemFieldGrid}>
                     <div className={styles.fieldGroup}>
                       <span className={styles.fieldLabel}>Metal</span>
@@ -1348,14 +1392,15 @@ const CreateInvoicePage = () => {
                           updateItem(idx, "purity", e.target.value)
                         }
                       >
-                        {purityOptions.map((p) => (
+                        <option value="None">None</option>
+                        {withOrphanPurityOption(
+                          purityLabelsForMetal(metalPurities, item.metalType || "GOLD"),
+                          item.purity && item.purity !== "None" ? item.purity : "",
+                        ).map((p) => (
                           <option key={p} value={p}>
                             {p}
                           </option>
                         ))}
-                        {!purityOptions.includes(item.purity) && (
-                          <option value={item.purity}>{item.purity}</option>
-                        )}
                       </select>
                     </div>
                     <div className={styles.fieldGroup}>
@@ -1446,8 +1491,9 @@ const CreateInvoicePage = () => {
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </section>
 
             {/* Advanced Section */}
             <button
@@ -1456,36 +1502,79 @@ const CreateInvoicePage = () => {
             >
               <span>Advanced</span>
               <Icon
-                name={showAdvanced ? "chevron-up" : "chevron-down"}
+                name={showAdvanced ? "chevronUp" : "chevronDown"}
                 size={12}
               />
             </button>
 
             {showAdvanced && (
               <div className={styles.advancedSection}>
-                <div className={styles.advField}>
-                  <label>Tax Type</label>
-                  <select
-                    value={invoiceData.taxes.taxType}
-                    onChange={(e) => {
-                      const newType = e.target.value;
-                      let cgst = invoiceData.taxes.cgstRate;
-                      if (newType === "NONE") cgst = 0;
-                      setInvoiceData((prev) => ({
-                        ...prev,
-                        taxes: {
-                          ...prev.taxes,
-                          taxType: newType,
-                          cgstRate: cgst,
-                          sgstRate: cgst,
-                        },
-                      }));
-                    }}
-                  >
-                    <option value="CGST_SGST">GST (CGST+SGST)</option>
-                    <option value="IGST">IGST</option>
-                    <option value="NONE">NONE</option>
-                  </select>
+                <div className={styles.settingsCard}>
+                  <div className={styles.sectionHeader}>
+                    <label>Tax &amp; Settings</label>
+                  </div>
+                  <div className={styles.settingsTableHeader} aria-hidden="true">
+                    <span>Tax type</span>
+                    <span>Tax %</span>
+                  </div>
+                  <div className={styles.settingsRow}>
+                    <div className={styles.paymentField}>
+                      <label htmlFor="invoice-tax-type">Tax type</label>
+                      <select
+                        id="invoice-tax-type"
+                        value={invoiceData.taxes.taxType}
+                        onChange={(e) => {
+                          const newType = e.target.value;
+                          let cgst = invoiceData.taxes.cgstRate;
+                          if (newType === "NONE") cgst = 0;
+                          setInvoiceData((prev) => ({
+                            ...prev,
+                            taxes: {
+                              ...prev.taxes,
+                              taxType: newType,
+                              cgstRate: cgst,
+                              sgstRate: cgst,
+                            },
+                          }));
+                        }}
+                        className={styles.paymentModeSelect}
+                      >
+                        <option value="CGST_SGST">GST (CGST+SGST)</option>
+                        <option value="IGST">IGST</option>
+                        <option value="NONE">NONE</option>
+                      </select>
+                    </div>
+                    <div className={styles.paymentField}>
+                      <label htmlFor="invoice-tax-rate">Tax %</label>
+                      <input
+                        id="invoice-tax-rate"
+                        type="number"
+                        step="0.1"
+                        value={invoiceData.taxes.cgstRate}
+                        onChange={(e) =>
+                          setInvoiceData((prev) => ({
+                            ...prev,
+                            taxes: {
+                              ...prev.taxes,
+                              cgstRate: parseFloat(e.target.value) || 0,
+                              sgstRate: parseFloat(e.target.value) || 0,
+                            },
+                          }))
+                        }
+                        disabled={invoiceData.taxes.taxType === "NONE"}
+                        className={styles.paymentDateInput}
+                      />
+                    </div>
+                  </div>
+                  <label className={styles.udharCell} htmlFor="invoice-auto-udhar">
+                    <span>Auto-Udhar · create credit for unpaid balance</span>
+                    <input
+                      id="invoice-auto-udhar"
+                      type="checkbox"
+                      checked={autoCreateUdhar}
+                      onChange={(e) => setAutoCreateUdhar(e.target.checked)}
+                    />
+                  </label>
                 </div>
                 {/* <div className={styles.advField}>
                 <label>State Code</label>
@@ -1502,97 +1591,155 @@ const CreateInvoicePage = () => {
                       + Add Mode
                     </button>
                   </div>
+                  <div className={styles.paymentTableHeader} aria-hidden="true">
+                    <span>Mode</span>
+                    <span>Bank account</span>
+                    <span>Amount</span>
+                    <span>Payment date</span>
+                    <span></span>
+                  </div>
                   {payments.map((p, idx) => (
                     <div key={idx} className={styles.paymentRow}>
-                      <select
-                        value={p.mode}
-                        onChange={(e) =>
-                          handleUpdatePayment(idx, "mode", e.target.value)
-                        }
-                        className={styles.paymentModeSelect}
-                      >
-                        {paymentModes.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))}
-                      </select>
-                      <div className={styles.paymentAmountWrap}>
-                        <span className={styles.currencyPrefix}>₹</span>
-                        <input
-                          type="number"
-                          value={p.amount}
+                      <div className={styles.paymentField}>
+                        <label htmlFor={`payment-mode-${idx}`}>Payment mode</label>
+                        <select
+                          id={`payment-mode-${idx}`}
+                          value={p.mode}
                           onChange={(e) =>
-                            handleUpdatePayment(idx, "amount", e.target.value)
+                            handleUpdatePayment(idx, "mode", e.target.value)
                           }
-                          placeholder="0"
+                          className={styles.paymentModeSelect}
+                        >
+                          {paymentModes.map((m) => (
+                            <option key={m} value={m}>
+                              {m.replaceAll("_", " ")}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className={styles.paymentAccountCell}>
+                        {paymentNeedsBankAccount(p.mode) ? (
+                          <PaymentAccountSelect
+                            mode={p.mode}
+                            value={p.financialAccountId}
+                            onChange={(value) => handleUpdatePayment(idx, "financialAccountId", value)}
+                            className={styles.paymentAccountSelect}
+                          />
+                        ) : (
+                          <div className={styles.paymentField}>
+                            <label>Bank account</label>
+                            <div className={styles.accountNotRequired}>Not required for {p.mode.replaceAll("_", " ")}</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.paymentField}>
+                        <label htmlFor={`payment-amount-${idx}`}>Amount</label>
+                        <div className={styles.paymentAmountWrap}>
+                          <span className={styles.currencyPrefix}>₹</span>
+                          <input
+                            id={`payment-amount-${idx}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={p.amount}
+                            onChange={(e) =>
+                              handleUpdatePayment(idx, "amount", e.target.value)
+                            }
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.paymentField}>
+                        <label htmlFor={`payment-date-${idx}`}>Payment date</label>
+                        <DatePicker
+                          id={`payment-date-${idx}`}
+                          value={p.paidAt || invoiceDate}
+                          max={[invoiceDate, toDateInputValue()].sort()[0]}
+                          required
+                          align="right"
+                          onChange={(ymd) => handleUpdatePayment(idx, "paidAt", ymd)}
+                          triggerClassName={styles.paymentDateInput}
                         />
                       </div>
-                      <input
-                        type="date"
-                        value={p.paidAt || invoiceDate}
-                        max={[invoiceDate, toDateInputValue()].sort()[0]}
-                        required
-                        onChange={(e) =>
-                          handleUpdatePayment(idx, "paidAt", e.target.value)
-                        }
-                        className={styles.paymentDateInput}
-                        aria-label={`Payment date ${idx + 1}`}
-                      />
-                      {payments.length > 1 && (
+                      <div className={styles.paymentAction}>
+                        <span aria-hidden="true">Action</span>
                         <button
                           type="button"
                           className={styles.removePaymentBtn}
                           onClick={() => handleRemovePayment(idx)}
+                          disabled={payments.length === 1}
+                          aria-label={`Remove ${p.mode} payment`}
+                          title={payments.length === 1 ? "At least one payment row is required" : "Remove payment"}
                         >
-                          <Icon name="close" size={14} />
+                          <Icon name="delete" size={15} />
                         </button>
-                      )}
+                      </div>
                     </div>
                   ))}
 
                   {/* Advance row — only shown when selected customer has advance balance */}
                   {advanceBalance > 0 && (
                     <div className={styles.advanceRowWrap}>
-                      <div className={styles.paymentRow}>
+                      <div className={`${styles.paymentRow} ${styles.advancePaymentRow}`}>
                         <div className={styles.advanceRowLabel}>
-                          <span className={styles.advancePill}>Advance</span>
-                          <span className={styles.advanceRowAvail}>
-                            avail: ₹{advanceBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                          </span>
+                          <label>Payment source</label>
+                          <div>
+                            <span className={styles.advancePill}>Advance</span>
+                            <span className={styles.advanceRowAvail}>
+                              Available: ₹{advanceBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
                         </div>
-                        <div className={styles.paymentAmountWrap}>
-                          <span className={styles.currencyPrefix}>₹</span>
-                          <input
-                            type="number"
-                            min="0"
-                            max={advanceBalance}
-                            step="0.01"
-                            value={advanceApplied || ''}
-                            placeholder="0"
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value) || 0;
-                              setAdvanceApplied(Math.min(val, advanceBalance));
-                            }}
+                        <div className={styles.paymentField}>
+                          <label htmlFor="advance-payment-amount">Amount</label>
+                          <div className={styles.paymentAmountWrap}>
+                            <span className={styles.currencyPrefix}>₹</span>
+                            <input
+                              id="advance-payment-amount"
+                              type="number"
+                              min="0"
+                              max={Math.min(
+                                Number(advanceBalance) || 0,
+                                Math.max(0, Number(calc.outstanding) || 0),
+                              )}
+                              step="0.01"
+                              value={advanceApplied || ''}
+                              placeholder="0.00"
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                const maxApply = Math.min(
+                                  Number(advanceBalance) || 0,
+                                  Math.max(0, Number(calc.outstanding) || 0),
+                                );
+                                setAdvanceApplied(Math.min(val, maxApply));
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className={styles.paymentField}>
+                          <label htmlFor="advance-payment-date">Payment date</label>
+                          <DatePicker
+                            id="advance-payment-date"
+                            value={advanceDate}
+                            max={toDateInputValue()}
+                            align="right"
+                            triggerClassName={styles.paymentDateInput}
+                            onChange={setAdvanceDate}
                           />
                         </div>
-                        <input
-                          type="date"
-                          value={advanceDate}
-                          max={toDateInputValue()}
-                          className={styles.paymentDateInput}
-                          aria-label="Advance payment date"
-                          onChange={(e) => setAdvanceDate(e.target.value)}
-                        />
-                        {advanceApplied > 0 && (
+                        <div className={styles.paymentAction}>
+                          <span aria-hidden="true">Action</span>
                           <button
                             type="button"
                             className={styles.removePaymentBtn}
                             onClick={() => setAdvanceApplied(0)}
+                            disabled={advanceApplied <= 0}
+                            aria-label="Clear advance payment"
+                            title={advanceApplied > 0 ? "Clear advance payment" : "No advance applied"}
                           >
-                            <Icon name="close" size={14} />
+                            <Icon name="delete" size={15} />
                           </button>
-                        )}
+                        </div>
                       </div>
 
                       {/* Advance receipt history — shows when/how deposits were made */}
@@ -1616,33 +1763,6 @@ const CreateInvoicePage = () => {
                   )}
                 </div>
 
-                <div className={styles.advField}>
-                  <label>Tax CGST/SGST %</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={invoiceData.taxes.cgstRate}
-                    onChange={(e) =>
-                      setInvoiceData((prev) => ({
-                        ...prev,
-                        taxes: {
-                          ...prev.taxes,
-                          cgstRate: parseFloat(e.target.value) || 0,
-                          sgstRate: parseFloat(e.target.value) || 0,
-                        },
-                      }))
-                    }
-                    disabled={invoiceData.taxes.taxType === "NONE"}
-                  />
-                </div>
-                <div className={styles.advField}>
-                  <label>Auto-Udhar creation</label>
-                  <input
-                    type="checkbox"
-                    checked={autoCreateUdhar}
-                    onChange={(e) => setAutoCreateUdhar(e.target.checked)}
-                  />
-                </div>
               </div>
             )}
           </div>
@@ -1650,7 +1770,7 @@ const CreateInvoicePage = () => {
           {/* ── Sticky Bottom Bar ── */}
           <div className={styles.bottomBar}>
             <div className={styles.totalBox}>
-              <span className={styles.totalLabel}>Total</span>
+              <span className={styles.totalLabel}>Grand Total</span>
               <span className={styles.totalAmount}>{fmt(calc.total)}</span>
               <div className={styles.taxBreakdown}>
                 <span>

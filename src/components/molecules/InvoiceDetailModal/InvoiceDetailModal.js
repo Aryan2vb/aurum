@@ -34,6 +34,59 @@ const formatDate = (dateString) => {
   }
 };
 
+const bankMatchLines = (payment) => {
+  if (Array.isArray(payment?.bankMatches) && payment.bankMatches.length) return payment.bankMatches;
+  return payment?.bankMatch ? [payment.bankMatch] : [];
+};
+
+const BANK_RECONCILE_LABELS = {
+  full: 'Matched',
+  partial: 'Partial',
+  none: 'Unmatched',
+};
+
+const paymentBankReconcile = (payment) => {
+  if (payment?.bankReconcile) return payment.bankReconcile;
+  const lines = bankMatchLines(payment);
+  if (!lines.length) return null;
+  const linked = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+  return Number(payment.amount || 0) - linked <= 1 ? 'full' : 'partial';
+};
+
+const BankMatchedBadge = ({ payment }) => {
+  const lines = bankMatchLines(payment);
+  const status = paymentBankReconcile(payment);
+  if (!status) return <span className="bank-unmatched-label">—</span>;
+  const total = lines.reduce((sum, line) => sum + Number(line.credit || 0), 0);
+  return (
+    <span className="bank-matched" tabIndex={0}>
+      <span className={`bank-matched-badge bank-matched-badge--${status}`}>
+        {BANK_RECONCILE_LABELS[status] || status}
+        {lines.length > 1 ? ` (${lines.length})` : ''}
+      </span>
+      {lines.length ? (
+        <span className="bank-matched-pop" role="tooltip">
+          <span className="bank-matched-pop-title">Statement credit{lines.length > 1 ? 's' : ''}</span>
+          {lines.map((line, index) => (
+            <span key={line.id || index} className="bank-matched-pop-row">
+              <span className="bank-matched-pop-meta">
+                {formatDate(line.txnDate)}
+                {line.refNumber ? ` · ${line.refNumber}` : ''}
+              </span>
+              <span className="bank-matched-pop-amt">{formatCurrency(line.credit)}</span>
+              {line.narration ? <span className="bank-matched-pop-narration">{line.narration}</span> : null}
+            </span>
+          ))}
+          <span className="bank-matched-pop-total">
+            <span>Linked</span>
+            <span>{formatCurrency(total)} / {formatCurrency(payment.amount)}</span>
+          </span>
+        </span>
+      ) : null}
+    </span>
+  );
+};
+
 const formatCustomerAddress = (location) => {
   if (!location) return '';
   return [
@@ -389,12 +442,16 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 </div>
                 <div className="summary-row paid">
                   <span>Paid Amount:</span>
-                  <span>{formatCurrency(invoice.paidAmount)}</span>
+                  <span>
+                    {formatCurrency(
+                      Number(invoice.paidAmount || 0) - Number(invoice.advanceAdjustedAmount || 0),
+                    )}
+                  </span>
                 </div>
                 {Number(invoice.advanceAdjustedAmount) > 0 && (
                   <div className="summary-row" style={{ color: 'var(--color-status-paid)' }}>
                     <span>Advance Applied:</span>
-                    <span>- {formatCurrency(invoice.advanceAdjustedAmount)}</span>
+                    <span>{formatCurrency(invoice.advanceAdjustedAmount)}</span>
                   </div>
                 )}
                 <div className="summary-row balance">
@@ -465,6 +522,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                         <th>Date</th>
                         <th>Method</th>
                         <th>Reference</th>
+                        <th>Bank</th>
                         <th className="amount-header">Amount</th>
                       </tr>
                     </thead>
@@ -474,6 +532,9 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td>{formatDate(p.paidAt || p.createdAt)}</td>
                           <td><span className="payment-mode-tag">{p.mode}</span></td>
                           <td>{p.reference || '—'}</td>
+                          <td>
+                            <BankMatchedBadge payment={p} />
+                          </td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>
                         </tr>
                       ))}

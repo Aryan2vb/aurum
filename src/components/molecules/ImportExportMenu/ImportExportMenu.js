@@ -5,6 +5,11 @@ import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
 import { buildExportFilename } from '../../../utils/exportFilename';
 import { flattenInvoiceDataByPayment } from '../../../utils/exportUtils';
+import {
+  appendInvoicePeriodSummaryPage,
+  fetchInvoicePeriodSummary,
+  stampPdfPageFooters,
+} from '../../../utils/invoicePeriodSummary';
 import './ImportExportMenu.css';
 
 const MM_TO_PT = 72 / 25.4;
@@ -112,6 +117,76 @@ const INVOICE_COLUMN_GROUPS = [
   },
 ];
 
+const PURCHASE_COLUMN_GROUPS = [
+  {
+    id: 'vendor',
+    label: 'Supplier Details',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+    cols: ['NAME', 'GSTIN'],
+  },
+  {
+    id: 'place_of_supply',
+    label: 'Place of Supply',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
+        <circle cx="12" cy="10" r="3" />
+      </svg>
+    ),
+    cols: ['STATE CODE', 'STATE NAME'],
+  },
+  {
+    id: 'invoice_details',
+    label: 'Invoice Details',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+      </svg>
+    ),
+    cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'],
+  },
+  {
+    id: 'amount_of_tax',
+    label: 'Amount of Tax',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      </svg>
+    ),
+    cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'],
+  },
+  {
+    id: 'weight',
+    label: 'Weight',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="6" x2="12" y2="18" />
+        <line x1="6" y1="12" x2="18" y2="12" />
+      </svg>
+    ),
+    cols: ['GOLD (GM)', 'SILVER (GM)'],
+  },
+];
+
+const PURCHASE_COLUMNS = [
+  'NAME', 'GSTIN',
+  'STATE CODE', 'STATE NAME',
+  'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE',
+  'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX',
+  'GOLD (GM)', 'SILVER (GM)',
+];
+
+
 // Group checkbox: renders a tri-state checkbox (all / partial / none)
 const GroupCheckbox = ({ state, onChange }) => (
   <span
@@ -136,9 +211,10 @@ const GroupCheckbox = ({ state, onChange }) => (
 // ============================================
 // COLUMN PICKER MODAL
 // ============================================
-const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
+const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat, resourceName }) => {
   // Only include groups whose columns exist in the provided `columns` list
-  const activeGroups = INVOICE_COLUMN_GROUPS
+  const columnGroups = resourceName === 'purchases' ? PURCHASE_COLUMN_GROUPS : INVOICE_COLUMN_GROUPS;
+  const activeGroups = columnGroups
     .map(g => ({ ...g, cols: g.cols.filter(c => columns.includes(c)) }))
     .filter(g => g.cols.length > 0);
 
@@ -332,9 +408,11 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
  * @param {function} props.flattenRow - Function to flatten a single row. Can return an object or array of objects.
  * @param {function} props.onExportTrigger - Optional async function to fetch data for export.
  * @param {function} props.onBillBookExport - Optional handler for exporting complete invoice bills.
+ * @param {string} props.billBookLabel - Label for the bill-book menu item
  * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
+ * @param {object} props.periodSummaryFilters - dateFrom/dateTo/customerId for invoice PDF summary page
  */
 const ImportExportMenu = ({ 
   data = [], 
@@ -345,9 +423,11 @@ const ImportExportMenu = ({
   flattenRow,
   onExportTrigger,
   onBillBookExport,
+  billBookLabel = 'Bill Book PDF',
   isLoading = false,
   selectedCount = 0,
-  resourceName = 'items'
+  resourceName = 'items',
+  periodSummaryFilters = null,
 }) => {
   const hasSelection = selectedCount > 0;
 
@@ -378,13 +458,13 @@ const ImportExportMenu = ({
     if (onExportTrigger) {
       const fetchedData = await onExportTrigger();
       if (!fetchedData || (Array.isArray(fetchedData) && fetchedData.length === 0)) {
-        return [];
+        return { flattened: [], sourceRows: [] };
       }
       dataToExport = fetchedData;
     }
 
     if (!flattenRow) {
-      return dataToExport;
+      return { flattened: dataToExport, sourceRows: dataToExport };
     }
 
     // Determine whether to use payment-aware flattening
@@ -438,7 +518,7 @@ const ImportExportMenu = ({
       flattened.push(totals);
     }
 
-    return flattened;
+    return { flattened, sourceRows: dataToExport };
   };
 
   // ── Shared: prepare data then open column picker ──────────────────────────
@@ -455,6 +535,8 @@ const ImportExportMenu = ({
     let columns;
     if (resourceName === 'invoices') {
       columns = INVOICE_COLUMNS;
+    } else if (resourceName === 'purchases') {
+      columns = PURCHASE_COLUMNS;
     } else {
       // For non-invoice resources, derive columns from the already-loaded data
       const headersSet = new Set();
@@ -561,6 +643,58 @@ const ImportExportMenu = ({
         return { wch: Math.min(maxWidth + 2, 50) };
       });
       worksheet['!cols'] = colWidths;
+    } else if (resourceName === 'purchases') {
+      const GROUP_DEFS = [
+        { label: 'PLACE OF SUPPLY', cols: ['STATE CODE', 'STATE NAME'] },
+        { label: 'INVOICE DETAILS', cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'] },
+        { label: 'AMOUNT OF TAX',    cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'] },
+        { label: 'WEIGHT',           cols: ['GOLD (GM)', 'SILVER (GM)'] },
+      ];
+      const SOLO_COLS = new Set(['NAME', 'GSTIN']);
+
+      const headRow1 = [];
+      const headRow2 = [];
+
+      selectedCols.forEach(col => {
+        if (SOLO_COLS.has(col)) {
+          headRow1.push(col);
+          headRow2.push('');
+        } else {
+          const group = GROUP_DEFS.find(g => g.cols.includes(col));
+          headRow1.push(group ? group.label : col);
+          headRow2.push(col);
+        }
+      });
+
+      const merges = [];
+      selectedCols.forEach((col, colIdx) => {
+        if (SOLO_COLS.has(col)) {
+          merges.push({ s: { r: 0, c: colIdx }, e: { r: 1, c: colIdx } });
+        }
+      });
+
+      let i = 0;
+      while (i < headRow1.length) {
+        if (SOLO_COLS.has(selectedCols[i])) { i++; continue; }
+        let j = i + 1;
+        while (j < headRow1.length && headRow1[j] === headRow1[i] && !SOLO_COLS.has(selectedCols[j])) j++;
+        if (j - i > 1) merges.push({ s: { r: 0, c: i }, e: { r: 0, c: j - 1 } });
+        i = j;
+      }
+
+      const dataRows = flattenedData.map(row => selectedCols.map(col => row[col] ?? ''));
+      worksheet = XLSX.utils.aoa_to_sheet([headRow1, headRow2, ...dataRows]);
+      worksheet['!merges'] = merges;
+
+      const colWidths = selectedCols.map((col) => {
+        let maxWidth = col.length;
+        flattenedData.forEach(row => {
+          const val = String(row[col] || '');
+          if (val.length > maxWidth) maxWidth = val.length;
+        });
+        return { wch: Math.min(maxWidth + 2, 50) };
+      });
+      worksheet['!cols'] = colWidths;
     } else {
       // Generic: single-level header
       const dataRows = flattenedData.map(row => selectedCols.map(col => row[col] ?? ''));
@@ -589,43 +723,8 @@ const ImportExportMenu = ({
     XLSX.writeFile(workbook, buildExportFilename(filename, 'xlsx', filenameQualifier));
   }, [filename, filenameQualifier, sheetName, resourceName]);
 
-  // ── Handle confirmation from column picker ────────────────────────────────
-  const handleColPickerConfirm = useCallback(async (selectedCols) => {
-    if (!colPicker) return;
-    const { format } = colPicker;
-    setColPicker(null);
-
-    // Now fetch data using the correct flattener (payment-aware if needed)
-    const flattenedData = await getFlattenedData(selectedCols);
-    if (!flattenedData || flattenedData.length === 0) return;
-
-    if (format === 'csv') {
-      doExportCSV(flattenedData, selectedCols);
-    } else if (format === 'xlsx') {
-      doExportExcel(flattenedData, selectedCols);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [colPicker, doExportCSV, doExportExcel]);
-
-  const handleColPickerCancel = useCallback(() => {
-    setColPicker(null);
-  }, []);
-
-  // ── PDF export (unchanged — no column picker for PDF) ─────────────────────
-  const exportToPDF = async (close) => {
-    if (!onExportTrigger && !hasSelection && data.length === 0) {
-      alert(`Please select at least one ${resourceName} to export`);
-      close();
-      return;
-    }
-
-    const flattenedData = await getFlattenedData();
-    if (flattenedData.length === 0) {
-      close();
-      return;
-    }
-
-    // Separate totals row from data rows
+  // ── PDF export after column selection ─────────────────────────────────────
+  const doExportPDF = useCallback((flattenedData, selectedCols, periodSummary = null) => {
     const isInvoice = resourceName === 'invoices';
     let dataRows = flattenedData;
     let totalsRow = null;
@@ -640,7 +739,6 @@ const ImportExportMenu = ({
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: FS_LANDSCAPE_FORMAT_PT });
     const pageW = doc.internal.pageSize.getWidth();
 
-    // ── Title bar — black fill, white text (prints cleanly on green paper) ──
     doc.setFillColor(0, 0, 0);
     doc.rect(0, 0, pageW, 36, 'F');
     doc.setTextColor(255, 255, 255);
@@ -654,67 +752,81 @@ const ImportExportMenu = ({
     doc.text(`Generated: ${dateStr}`, pageW - 28, 23, { align: 'right' });
     doc.setTextColor(0, 0, 0);
 
+    const buildHeadRow1 = (colKeys, groupDefs) =>
+      colKeys.map((col, colIdx) => {
+        const group = groupDefs.find(g => g.cols.includes(col));
+        if (!group) return col;
+        const firstInGroup = colKeys.findIndex(c => group.cols.includes(c));
+        return colIdx === firstInGroup ? group.label : '';
+      });
+
+    const writePageFooter = (data) => {
+      // Final stamp after period summary rewrites all footers for invoices.
+      if (isInvoice && periodSummary) return;
+      const pageCount = doc.internal.getNumberOfPages();
+      doc.setFontSize(8);
+      doc.setTextColor(80);
+      doc.text(
+        `Page ${data.pageNumber} of ${pageCount}`,
+        pageW / 2,
+        doc.internal.pageSize.getHeight() - 12,
+        { align: 'center' }
+      );
+    };
+
     if (isInvoice) {
-      // ── Column keys (match exportUtils order) ────────────────────────────
-      const colKeys = [
+      const ALL_COLS = [
         'Serial No.', 'Invoice No.', 'Date',
         'Customer Name', 'Last Name', 'Address', 'Contact No.',
         'Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver',
         'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other',
-        'Gst No'
+        'Gst No',
       ];
-
-      const subLabels = [
+      const ALL_SUB = [
         'S.No', 'Invoice No.', 'Date',
         'Cust. Name', 'Last Name', 'Address', 'Contact',
         'Metal', 'HSN', 'Item', 'Purity', 'Wt. Gold', 'Wt. Silver',
         'Rate/g', 'Labour/g', 'Labour', 'Hallmark', 'Amount', 'CGST', 'SGST', 'Round off',
         'Total',
         'UPI', 'Swipe', 'Cheque', 'Bank Tfr', 'Cash', 'Other',
-        'GST No'
+        'GST No',
+      ];
+      const ALL_WIDTHS = [
+        28, 68, 50,
+        58, 48, 68, 50,
+        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 36, 36, 38,
+        48,
+        42, 38, 42, 48, 38, 38,
+        52,
+      ];
+      const GROUP_DEFS = [
+        { label: 'S.No', cols: ['Serial No.'] },
+        { label: 'Invoice No.', cols: ['Invoice No.'] },
+        { label: 'Date', cols: ['Date'] },
+        { label: 'Customer Details', cols: ['Customer Name', 'Last Name', 'Address', 'Contact No.'] },
+        { label: 'Item Details', cols: ['Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver', 'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off'] },
+        { label: 'Total', cols: ['Total'] },
+        { label: 'Payment Details', cols: ['UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'] },
+        { label: 'GST No', cols: ['Gst No'] },
       ];
 
-      // Group definitions: [label, startColIdx, endColIdx (inclusive)]
-      // Columns: 0=S.No, 1=Inv, 2=Date, 3-6=Customer(4), 7-20=Items(14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round), 21=Total, 22-27=Payment(6), 28=GSTNo
-      const groups = [
-        ['S.No',             0,  0],
-        ['Invoice No.',      1,  1],
-        ['Date',             2,  2],
-        ['Customer Details', 3,  6],
-        ['Item Details',     7, 20],
-        ['Total',           21, 21],
-        ['Payment Details', 22, 27],
-        ['GST No',          28, 28],
-      ];
+      const selectedSet = new Set(selectedCols);
+      const indices = ALL_COLS.map((c, i) => (selectedSet.has(c) ? i : -1)).filter(i => i >= 0);
+      const colKeys = indices.map(i => ALL_COLS[i]);
+      const subLabels = indices.map(i => ALL_SUB[i]);
+      const rawWidths = indices.map(i => ALL_WIDTHS[i]);
+      const headRow1 = buildHeadRow1(colKeys, GROUP_DEFS);
 
-      // Build group header row — show label only at the first col of each group
-      const headRow1 = subLabels.map((_, colIdx) => {
-        const group = groups.find(([, s, e]) => colIdx >= s && colIdx <= e);
-        if (!group) return '';
-        const [label, start] = group;
-        return colIdx === start ? label : '';
-      });
-
-      // Build body
       const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
       if (totalsRow) {
         body.push(colKeys.map(k => totalsRow[k] ?? ''));
       }
 
-      // Column widths (raw proportions) — scaled to fit exactly within page margins
       const margin = { top: 44, left: 14, right: 14, bottom: 22 };
       const availableWidth = pageW - margin.left - margin.right;
-      const rawWidths = [
-        28, 68, 50,              // S.No, Invoice, Date
-        58, 48, 68, 50,          // Customer (4)
-        34, 34, 58, 34, 42, 42, 42, 42, 42, 42, 48, 36, 36, 38, // Items (14: Metal,Hsn,Item,Purity,WtG,WtS,Rate,LabPG,Lab,Hall,Amt,CGST,SGST,Round)
-        48,                      // Total
-        42, 38, 42, 48, 38, 38,  // Payment (6)
-        52                       // GST No
-      ];
-      const rawTotal = rawWidths.reduce((a, b) => a + b, 0);
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0) || 1;
       const scale = availableWidth / rawTotal;
       const scaledWidths = rawWidths.map(w => w * scale);
 
@@ -723,7 +835,6 @@ const ImportExportMenu = ({
         margin,
         head: [headRow1, subLabels],
         body,
-        // B&W palette — safe on green paper with a monochrome printer
         theme: 'grid',
         styles: {
           fontSize: 6.5,
@@ -732,37 +843,127 @@ const ImportExportMenu = ({
           valign: 'middle',
           overflow: 'linebreak',
           textColor: [0, 0, 0],
-          fillColor: false,          // transparent — green paper shows through
+          fillColor: false,
           lineColor: [80, 80, 80],
           lineWidth: 0.4,
         },
         headStyles: {
-          fillColor: [60, 60, 60],   // dark gray — group header row
+          fillColor: [60, 60, 60],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
           fontSize: 7,
         },
         alternateRowStyles: {
-          fillColor: [220, 220, 220], // light gray stripe — subtle on green
+          fillColor: [220, 220, 220],
         },
         columnStyles: scaledWidths.reduce((acc, w, i) => {
           acc[i] = { cellWidth: w };
           return acc;
         }, {}),
         didParseCell: (data) => {
-          // Sub-header row (row index 1) — medium gray
           if (data.section === 'head' && data.row.index === 1) {
             data.cell.styles.fillColor = [120, 120, 120];
             data.cell.styles.textColor = [255, 255, 255];
             data.cell.styles.fontStyle = 'bold';
           }
-          // Totals row (last body row) — white fill, bold, thick top border
           if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
             data.cell.styles.fillColor = [255, 255, 255];
             data.cell.styles.fontStyle = 'bold';
             data.cell.styles.fontSize = 7;
             data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
+          }
+        },
+        didDrawPage: writePageFooter,
+      });
+
+      if (periodSummary) {
+        appendInvoicePeriodSummaryPage(doc, periodSummary);
+        stampPdfPageFooters(doc);
+      }
+
+    } else if (resourceName === 'purchases') {
+      const ALL_COLS = [
+        'NAME', 'GSTIN',
+        'STATE CODE', 'STATE NAME',
+        'INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE',
+        'TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX',
+        'GOLD (GM)', 'SILVER (GM)',
+      ];
+      const ALL_SUB = [
+        'Name', 'GSTIN',
+        'State Code', 'State Name',
+        'Invoice No', 'Date', 'Value',
+        'Taxable Val', 'SGST', 'CGST', 'IGST', 'Total Tax',
+        'Gold (g)', 'Silver (g)',
+      ];
+      const ALL_WIDTHS = [
+        80, 70,
+        50, 60,
+        60, 50, 60,
+        60, 40, 40, 40, 50,
+        50, 50,
+      ];
+      const GROUP_DEFS = [
+        { label: 'Name', cols: ['NAME'] },
+        { label: 'GSTIN', cols: ['GSTIN'] },
+        { label: 'Place of Supply', cols: ['STATE CODE', 'STATE NAME'] },
+        { label: 'Invoice Details', cols: ['INVOICE NO', 'INVOICE DATE', 'INVOICE VALUE'] },
+        { label: 'Amount of Tax', cols: ['TAXABLE VALUE', 'SGST', 'CGST', 'IGST', 'TOTAL TAX'] },
+        { label: 'Weight', cols: ['GOLD (GM)', 'SILVER (GM)'] },
+      ];
+
+      const selectedSet = new Set(selectedCols);
+      const indices = ALL_COLS.map((c, i) => (selectedSet.has(c) ? i : -1)).filter(i => i >= 0);
+      const colKeys = indices.map(i => ALL_COLS[i]);
+      const subLabels = indices.map(i => ALL_SUB[i]);
+      const rawWidths = indices.map(i => ALL_WIDTHS[i]);
+      const headRow1 = buildHeadRow1(colKeys, GROUP_DEFS);
+
+      const body = dataRows.map(row => colKeys.map(k => row[k] ?? ''));
+
+      const margin = { top: 44, left: 14, right: 14, bottom: 22 };
+      const availableWidth = pageW - margin.left - margin.right;
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0) || 1;
+      const scale = availableWidth / rawTotal;
+      const scaledWidths = rawWidths.map(w => w * scale);
+
+      autoTable(doc, {
+        startY: 44,
+        margin,
+        head: [headRow1, subLabels],
+        body,
+        theme: 'grid',
+        styles: {
+          fontSize: 7,
+          cellPadding: 3,
+          halign: 'center',
+          valign: 'middle',
+          overflow: 'linebreak',
+          textColor: [0, 0, 0],
+          fillColor: false,
+          lineColor: [80, 80, 80],
+          lineWidth: 0.4,
+        },
+        headStyles: {
+          fillColor: [60, 60, 60],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 7.5,
+        },
+        alternateRowStyles: {
+          fillColor: [220, 220, 220],
+        },
+        columnStyles: scaledWidths.reduce((acc, w, i) => {
+          acc[i] = { cellWidth: w };
+          return acc;
+        }, {}),
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.row.index === 1) {
+            data.cell.styles.fillColor = [120, 120, 120];
+            data.cell.styles.textColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
           }
         },
         didDrawPage: (data) => {
@@ -779,8 +980,9 @@ const ImportExportMenu = ({
       });
 
     } else {
-      // ── Generic single-level table ────────────────────────────────────────
-      const headers = Object.keys(flattenedData[0] || {});
+      const headers = selectedCols.length
+        ? selectedCols
+        : Object.keys(flattenedData[0] || {});
       autoTable(doc, {
         startY: 44,
         head: [headers],
@@ -793,8 +995,42 @@ const ImportExportMenu = ({
     }
 
     doc.save(buildExportFilename(filename, 'pdf', filenameQualifier));
-    close();
-  };
+  }, [filename, filenameQualifier, resourceName]);
+
+  // ── Handle confirmation from column picker ────────────────────────────────
+  const handleColPickerConfirm = useCallback(async (selectedCols) => {
+    if (!colPicker) return;
+    const { format } = colPicker;
+    setColPicker(null);
+
+    // Now fetch data using the correct flattener (payment-aware if needed)
+    const { flattened: flattenedData, sourceRows } = await getFlattenedData(selectedCols);
+    if (!flattenedData || flattenedData.length === 0) return;
+
+    if (format === 'csv') {
+      doExportCSV(flattenedData, selectedCols);
+    } else if (format === 'xlsx') {
+      doExportExcel(flattenedData, selectedCols);
+    } else if (format === 'pdf') {
+      let periodSummary = null;
+      if (resourceName === 'invoices') {
+        try {
+          periodSummary = await fetchInvoicePeriodSummary(
+            periodSummaryFilters || {},
+            sourceRows || [],
+          );
+        } catch (err) {
+          console.error('Period summary fetch failed', err);
+        }
+      }
+      doExportPDF(flattenedData, selectedCols, periodSummary);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colPicker, doExportCSV, doExportExcel, doExportPDF, periodSummaryFilters, resourceName]);
+
+  const handleColPickerCancel = useCallback(() => {
+    setColPicker(null);
+  }, []);
 
   const handleImportClick = (close) => {
     const input = document.createElement('input');
@@ -833,6 +1069,20 @@ const ImportExportMenu = ({
       <Dropdown className="import-export-menu" trigger={trigger} align="right">
         {({ close }) => (
           <>
+            {onBillBookExport && (
+              <>
+                <DropdownItem
+                  icon={<DownloadIcon />}
+                  onClick={() => {
+                    close();
+                    onBillBookExport();
+                  }}
+                >
+                  {billBookLabel}
+                </DropdownItem>
+                <DropdownDivider />
+              </>
+            )}
             <DropdownItem 
               icon={<DownloadIcon />} 
               onClick={() => openColPicker('csv', close)}
@@ -847,24 +1097,10 @@ const ImportExportMenu = ({
             </DropdownItem>
             <DropdownItem 
               icon={<DownloadIcon />} 
-              onClick={() => exportToPDF(close)}
+              onClick={() => openColPicker('pdf', close)}
             >
               {exportLabel} PDF
             </DropdownItem>
-            {onBillBookExport && (
-              <>
-                <DropdownDivider />
-                <DropdownItem
-                  icon={<DownloadIcon />}
-                  onClick={() => {
-                    close();
-                    onBillBookExport();
-                  }}
-                >
-                  Bill Book PDF
-                </DropdownItem>
-              </>
-            )}
             {onImport && (
               <>
                 <DropdownDivider />
@@ -882,6 +1118,7 @@ const ImportExportMenu = ({
         <ColumnPickerModal
           columns={colPicker.columns}
           exportFormat={colPicker.format}
+          resourceName={resourceName}
           onConfirm={handleColPickerConfirm}
           onCancel={handleColPickerCancel}
         />

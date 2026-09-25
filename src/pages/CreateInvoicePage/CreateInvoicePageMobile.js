@@ -7,6 +7,7 @@ import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
 import SlideOver from '../../components/atoms/SlideOver/SlideOver';
+import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { getDocuments, searchCustomers } from '../../services/customersService';
 import {
   createInvoice,
@@ -18,6 +19,7 @@ import {
 } from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
 import { getHighValueInvoiceKycError } from '../../utils/customerKyc';
+import { withFinancialAccount } from '../../utils/paymentAccounts';
 import styles from './CreateInvoicePageMobile.module.css';
 
 const defaultInvoiceState = {
@@ -73,6 +75,7 @@ const CreateInvoicePageMobile = () => {
   const navigate = useNavigate();
   const [theme, setTheme] = useState('jewellery');
   const [paidAmount, setPaidAmount] = useState(0);
+  const [financialAccountId, setFinancialAccountId] = useState('');
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -369,10 +372,10 @@ const CreateInvoicePageMobile = () => {
     setInvoiceData({ ...invoiceData, items: newItems });
   };
 
-  const isCredit = invoiceData.metadata.modeOfPayment === 'CREDIT';
-
   const buildPayload = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
+    const mode = invoiceData.metadata.modeOfPayment;
+    const amount = parseFloat(paidAmount) || 0;
 
     return {
       customerId: selectedCustomerId,
@@ -380,7 +383,14 @@ const CreateInvoicePageMobile = () => {
       invoiceDate,
       manualSequence: Number.isFinite(parsedManualSequence) ? parsedManualSequence : undefined,
       templateType: theme,
-      modeOfPayment: invoiceData.metadata.modeOfPayment,
+      modeOfPayment: mode,
+      payments: [
+        withFinancialAccount({
+          mode,
+          amount,
+          financialAccountId,
+        }),
+      ],
       metalRateSource: 'manual',
       metalRateDate: new Date().toISOString(),
       taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
@@ -390,8 +400,8 @@ const CreateInvoicePageMobile = () => {
       buyerAddress: invoiceData.buyer.address || '',
       buyerState: invoiceData.buyer.state || '',
       buyerStateCode: invoiceData.buyer.stateCode || '',
-      autoCreateUdhar: isCredit ? true : autoCreateUdhar,
-      paidAmount: parseFloat(paidAmount) || 0,
+      autoCreateUdhar: autoCreateUdhar,
+      paidAmount: amount,
       notes: invoiceData.declaration,
       deliveryNote: '',
       dispatchDocNo: '',
@@ -667,7 +677,7 @@ const CreateInvoicePageMobile = () => {
             <div className={styles.formField}>
               <label>Payment Mode</label>
               <div className={styles.paymentModes}>
-                {['CASH', 'CREDIT', 'UPI'].map(mode => (
+                {['CASH', 'UPI', 'CARD', 'BANK_TRANSFER'].map(mode => (
                   <button
                     key={mode}
                     className={`${styles.paymentMode} ${invoiceData.metadata.modeOfPayment === mode ? styles.active : ''}`}
@@ -677,6 +687,11 @@ const CreateInvoicePageMobile = () => {
                   </button>
                 ))}
               </div>
+              <PaymentAccountSelect
+                mode={invoiceData.metadata.modeOfPayment}
+                value={financialAccountId}
+                onChange={setFinancialAccountId}
+              />
             </div>
           </div>
         </div>
@@ -812,8 +827,7 @@ const CreateInvoicePageMobile = () => {
         </div>
 
         {/* Payment Section */}
-        {!isCredit && (
-          <div className={styles.section}>
+        <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Payment</h2>
             <div className={styles.paymentSection}>
               <div className={styles.paymentField}>
@@ -844,7 +858,6 @@ const CreateInvoicePageMobile = () => {
               )}
             </div>
           </div>
-        )}
 
         {/* Notes */}
         <div className={styles.section}>

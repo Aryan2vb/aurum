@@ -5,7 +5,9 @@ import Input from '../../components/atoms/Input/Input';
 import Button from '../../components/atoms/Button/Button';
 import AmountDisplay from '../../components/atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../components/atoms/Toast/Toast';
+import PaymentAccountSelect from '../../components/molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { getCreditById, addPaymentTransaction } from '../../services/creditsService';
+import { withFinancialAccount } from '../../utils/paymentAccounts';
 import './RecordPaymentPage.css';
 
 const RecordPaymentPage = () => {
@@ -20,6 +22,7 @@ const RecordPaymentPage = () => {
   const [formData, setFormData] = useState({
     amount: '',
     paymentMethod: 'CASH',
+    financialAccountId: '',
     transactionDate: new Date().toISOString().split('T')[0],
     referenceNumber: '',
     collectedBy: '',
@@ -66,14 +69,15 @@ const RecordPaymentPage = () => {
 
     try {
       setSaving(true);
-      const paymentData = {
+      const paymentData = withFinancialAccount({
         amount: parseFloat(formData.amount),
         paymentMethod: formData.paymentMethod,
+        financialAccountId: formData.financialAccountId,
         ...(formData.transactionDate && { transactionDate: formData.transactionDate }),
         ...(formData.referenceNumber && { referenceNumber: formData.referenceNumber }),
         ...(formData.collectedBy && { collectedBy: formData.collectedBy }),
         ...(formData.notes && { notes: formData.notes }),
-      };
+      });
 
       await addPaymentTransaction(id, paymentData);
       setToast({ type: 'success', message: 'Payment recorded successfully' });
@@ -209,6 +213,11 @@ const RecordPaymentPage = () => {
                     <option value="OTHER">Other</option>
                   </select>
                 </div>
+                <PaymentAccountSelect
+                  mode={formData.paymentMethod}
+                  value={formData.financialAccountId}
+                  onChange={(value) => handleInputChange('financialAccountId', value)}
+                />
 
                 <div className="record-payment-form-field">
                   <label className="record-payment-form-label">Transaction Date</label>

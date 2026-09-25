@@ -1,139 +1,173 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Dropdown from '../../atoms/Dropdown/Dropdown';
 import FilterButton from '../../atoms/FilterButton/FilterButton';
+import CalendarPanel from './CalendarPanel';
+import {
+  PRESETS,
+  detectPreset,
+  formatPreview,
+  formatRangeLabel,
+  getPresetRange,
+  orderedRange,
+  startOfDay,
+  startOfMonth,
+} from './dateRangePicker';
 import './DateRangeFilter.css';
 
-/**
- * Filter presets for quick selection
- */
-const PRESETS = [
-  { id: '7d', label: 'Last 7 days' },
-  { id: '30d', label: 'Last 30 days' },
-  { id: 'fy', label: 'Current FY' }
-];
+export { toLocalYmd, parseLocalYmd } from './dateRangePicker';
 
-/**
- * Date range filter (start/end dates)
- * @param {Object} props
- * @param {string} props.label - Filter label
- * @param {React.ReactNode} props.icon - Icon element
- * @param {Date|null} props.start - Start date
- * @param {Date|null} props.end - End date
- * @param {function} props.onChange - Change handler (start, end)
- */
-const DateRangeFilter = ({ label, icon, start, end, onChange }) => {
-  const hasValue = start !== null || end !== null;
+const RangePreview = ({ preview, previewLabel }) => (
+  <div className={`drp-preview ${!preview.start ? 'empty' : ''}`}>
+    <span className="drp-preview-from">{previewLabel.from}</span>
+    {previewLabel.to && (
+      <>
+        <span className="drp-preview-arrow">→</span>
+        <span className={`drp-preview-to ${previewLabel.pending ? 'waiting' : ''}`}>
+          {previewLabel.to}
+        </span>
+      </>
+    )}
+  </div>
+);
 
-  const formatDateInput = (date) => {
-    if (!date) return '';
-    return new Date(date).toISOString().split('T')[0];
-  };
+const DateRangeFilter = ({ label, icon, start, end, onChange, align = 'left', clearable = true }) => {
+  const [draftStart, setDraftStart] = useState(() => (start ? startOfDay(start) : null));
+  const [draftEnd, setDraftEnd] = useState(() => (end ? startOfDay(end) : null));
+  const [mode, setMode] = useState(() => detectPreset(start, end));
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(end || start || new Date()));
+  const [hoverDay, setHoverDay] = useState(null);
+  const [panel, setPanel] = useState('day');
 
-  const handleClear = () => onChange(null, null);
+  const hasValue = start != null || end != null;
 
-  const applyPreset = (id) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    let s, e;
-
-    switch (id) {
-      case '7d':
-        s = new Date(today);
-        s.setDate(today.getDate() - 7);
-        e = today;
-        break;
-      case '30d':
-        s = new Date(today);
-        s.setDate(today.getDate() - 30);
-        e = today;
-        break;
-      case 'fy':
-        const currentYear = today.getFullYear();
-        const currentMonth = today.getMonth(); // 0-indexed, April is 3
-        const fyStartYear = currentMonth >= 3 ? currentYear : currentYear - 1;
-        s = new Date(fyStartYear, 3, 1); // April 1st
-        e = today;
-        break;
-      default:
-        return;
-    }
-    onChange(s, e);
-  };
-
-  const activePresetLabel = useMemo(() => {
-    if (!start || !end) return null;
-    
-    // Convert to simple date strings for comparison
-    const sStr = formatDateInput(start);
-    const eStr = formatDateInput(end);
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const todayStr = formatDateInput(today);
-    
-    // Check presets
-    const d7 = new Date(today);
-    d7.setDate(today.getDate() - 7);
-    if (sStr === formatDateInput(d7) && eStr === todayStr) return 'Last 7 days';
-    
-    const d30 = new Date(today);
-    d30.setDate(today.getDate() - 30);
-    if (sStr === formatDateInput(d30) && eStr === todayStr) return 'Last 30 days';
-    
-    const fyStartYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    const fyStart = new Date(fyStartYear, 3, 1);
-    if (sStr === formatDateInput(fyStart) && eStr === todayStr) return 'Current FY';
-    
-    return 'Custom range';
+  const committedLabel = useMemo(() => {
+    if (!start && !end) return null;
+    const preset = detectPreset(start, end);
+    if (preset !== 'custom') return PRESETS.find((p) => p.id === preset).label;
+    return formatRangeLabel(start, end);
   }, [start, end]);
+
+  const handleOpenChange = (open) => {
+    if (!open) return;
+    const s = start ? startOfDay(start) : null;
+    const e = end ? startOfDay(end) : null;
+    setDraftStart(s);
+    setDraftEnd(e);
+    setMode(detectPreset(s, e));
+    setViewMonth(startOfMonth(e || s || new Date()));
+    setHoverDay(null);
+    setPanel('day');
+  };
+
+  const selectPreset = (id) => {
+    setMode(id);
+    setHoverDay(null);
+    setPanel('day');
+    if (id === 'custom') return;
+    const range = getPresetRange(id);
+    setDraftStart(range.start);
+    setDraftEnd(range.end);
+    setViewMonth(startOfMonth(range.end));
+  };
+
+  const handleDayClick = (date) => {
+    setMode('custom');
+    if (!draftStart || draftEnd) {
+      setDraftStart(date);
+      setDraftEnd(null);
+      setHoverDay(null);
+      return;
+    }
+    if (date < draftStart) {
+      setDraftEnd(draftStart);
+      setDraftStart(date);
+    } else {
+      setDraftEnd(date);
+    }
+    setHoverDay(null);
+  };
+
+  const preview = orderedRange(
+    draftStart,
+    mode === 'custom' && draftStart && !draftEnd && hoverDay ? hoverDay : draftEnd
+  );
+
+  const canApply = Boolean(draftStart && draftEnd);
+  const previewLabel = formatPreview(preview.start, preview.end);
 
   return (
     <Dropdown
       className="date-range-filter"
+      align={align}
+      onOpenChange={handleOpenChange}
       trigger={
         <FilterButton
           icon={icon}
           label={label}
-          value={hasValue ? activePresetLabel : null}
+          value={hasValue ? committedLabel : null}
           placeholder="between..."
           active={hasValue}
         />
       }
     >
-      <div className="date-range-content">
-        <div className="date-range-presets">
-          {PRESETS.map((preset) => (
-            <button key={preset.id} className="preset-btn" onClick={() => applyPreset(preset.id)}>
-              {preset.label}
-            </button>
-          ))}
-        </div>
-        <div className="date-range-header">Or custom range</div>
-        <div className="date-range-fields">
-          <div className="date-field">
-            <label>From</label>
-            <input
-              type="date"
-              className="date-input"
-              value={formatDateInput(start)}
-              onChange={(e) => onChange(e.target.value ? new Date(e.target.value) : null, end)}
-            />
+      {({ close }) => (
+        <div className="drp-card">
+          <RangePreview preview={preview} previewLabel={previewLabel} />
+
+          <div className="drp-sidebar">
+            <div className="drp-presets">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className={`drp-preset ${mode === preset.id ? 'active' : ''}`}
+                  onClick={() => selectPreset(preset.id)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <div className="drp-actions">
+              {clearable && hasValue && (
+                <button
+                  type="button"
+                  className="drp-clear"
+                  onClick={() => {
+                    onChange(null, null);
+                    close();
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                type="button"
+                className="drp-apply"
+                disabled={!canApply}
+                onClick={() => {
+                  if (!canApply) return;
+                  onChange(draftStart, draftEnd);
+                  close();
+                }}
+              >
+                Apply
+              </button>
+            </div>
           </div>
-          <div className="date-field">
-            <label>To</label>
-            <input
-              type="date"
-              className="date-input"
-              value={formatDateInput(end)}
-              onChange={(e) => onChange(start, e.target.value ? new Date(e.target.value) : null)}
-            />
-          </div>
+
+          <CalendarPanel
+            viewMonth={viewMonth}
+            onViewMonthChange={setViewMonth}
+            panel={panel}
+            onPanelChange={setPanel}
+            selectedStart={preview.start}
+            selectedEnd={preview.end}
+            onDayClick={handleDayClick}
+            onDayEnter={(date) => mode === 'custom' && setHoverDay(date)}
+            onDayLeave={() => setHoverDay(null)}
+          />
         </div>
-        {hasValue && (
-          <button className="date-range-clear" onClick={handleClear}>
-            Clear
-          </button>
-        )}
-      </div>
+      )}
     </Dropdown>
   );
 };

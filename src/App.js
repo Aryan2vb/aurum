@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AccessPolicyProvider } from './contexts/AccessPolicyContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import LoginPage from './pages/LoginPage/LoginPage';
 import SignupPage from './pages/SignupPage/SignupPage';
@@ -23,12 +24,16 @@ import CreateInvoicePage from './pages/CreateInvoicePage/CreateInvoicePage';
 import CreateInvoicePageMobile from './pages/CreateInvoicePage/CreateInvoicePageMobile';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
 import AdvancePage from './pages/AdvancePage/AdvancePage';
+import StockPage from './pages/StockPage/StockPage';
+import PurchasesPage from './pages/PurchasesPage/PurchasesPage';
+import BooksPage from './pages/BooksPage/BooksPage';
 import './App.css';
 
 function App() {
 
   return (
     <ThemeProvider>
+      <AccessPolicyProvider>
       <ErrorBoundary>
         <Router>
           <div className="App">
@@ -183,8 +188,32 @@ function App() {
             <Route
               path="/advance"
               element={
-                <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'STAFF']}>
+                <ProtectedRoute>
                   <AdvancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/stock"
+              element={
+                <ProtectedRoute>
+                  <StockPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchases"
+              element={
+                <ProtectedRoute>
+                  <PurchasesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/books"
+              element={
+                <ProtectedRoute>
+                  <BooksPage />
                 </ProtectedRoute>
               }
             />
@@ -193,6 +222,7 @@ function App() {
           </div>
         </Router>
       </ErrorBoundary>
+      </AccessPolicyProvider>
     </ThemeProvider>
   );
 }

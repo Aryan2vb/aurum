@@ -1,0 +1,96 @@
+.date-picker {
+  display: block;
+  width: 100%;
+  position: relative;
+  z-index: 20;
+}
+
+.date-picker.is-open {
+  z-index: 80;
+}
+
+.date-picker .dropdown-trigger {
+  width: 100%;
+}
+
+.date-picker .dropdown-menu {
+  padding: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 24px var(--shadow-hover);
+  z-index: 40;
+}
+
+.date-picker-card {
+  grid-template-columns: 1fr;
+  min-width: 280px;
+}
+
+.date-picker-card .drp-calendar {
+  border-left: none;
+}
+
+.date-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.date-picker-trigger.placeholder {
+  color: var(--text-tertiary);
+}
+
+.date-picker-trigger:hover:not(:disabled),
+.date-picker-trigger:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.date-picker-trigger.dateInput,
+.date-picker-trigger.paymentDateInput,
+.date-picker-trigger.inline-input,
+.date-picker-trigger.saas-input,
+.date-picker-trigger.editable-field-input {
+  box-sizing: border-box;
+}
+
+.drp-day.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.drp-day.disabled:hover .drp-day-num {
+  background: transparent;
+}
+
+.date-picker-clear {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.date-picker-clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

@@ -4,7 +4,9 @@ import Input from '../../atoms/Input/Input';
 import Button from '../../atoms/Button/Button';
 import AmountDisplay from '../../atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../atoms/Toast/Toast';
+import PaymentAccountSelect from '../../molecules/PaymentAccountSelect/PaymentAccountSelect';
 import { updatePaymentTransaction } from '../../../services/creditsService';
+import { withFinancialAccount } from '../../../utils/paymentAccounts';
 import './PaymentEditPanel.css';
 
 const PaymentEditPanel = ({
@@ -17,6 +19,7 @@ const PaymentEditPanel = ({
   const [formData, setFormData] = useState({
     amount: '',
     paymentMethod: 'CASH',
+    financialAccountId: '',
     transactionDate: '',
     referenceNumber: '',
     collectedBy: '',
@@ -36,6 +39,7 @@ const PaymentEditPanel = ({
       setFormData({
         amount: payment.amount || '',
         paymentMethod: payment.paymentMethod || 'CASH',
+        financialAccountId: payment.accountId || payment.financialAccountId || '',
         transactionDate: formatDateForInput(payment.transactionDate),
         referenceNumber: payment.referenceNumber || '',
         collectedBy: payment.collectedBy || '',
@@ -70,14 +74,15 @@ const PaymentEditPanel = ({
 
     try {
       setSaving(true);
-      const updateData = {
+      const updateData = withFinancialAccount({
         amount: parseFloat(formData.amount),
         paymentMethod: formData.paymentMethod,
+        financialAccountId: formData.financialAccountId,
         ...(formData.transactionDate && { transactionDate: formData.transactionDate }),
         ...(formData.referenceNumber && { referenceNumber: formData.referenceNumber }),
         ...(formData.collectedBy && { collectedBy: formData.collectedBy }),
         ...(formData.notes !== undefined && { notes: formData.notes }),
-      };
+      });
 
       await updatePaymentTransaction(credit.id, payment.id, updateData);
       setToast({ type: 'success', message: 'Payment updated successfully' });
@@ -187,6 +192,11 @@ const PaymentEditPanel = ({
                 <option value="OTHER">Other</option>
               </select>
             </div>
+            <PaymentAccountSelect
+              mode={formData.paymentMethod}
+              value={formData.financialAccountId}
+              onChange={(value) => handleInputChange('financialAccountId', value)}
+            />
 
             <div className="payment-edit-form-field">
               <label className="payment-edit-form-label">Transaction Date</label>

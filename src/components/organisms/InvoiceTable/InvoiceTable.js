@@ -12,7 +12,7 @@ import {
 import Checkbox from '../../atoms/Checkbox/Checkbox';
 import Icon from '../../atoms/Icon/Icon';
 import EnumFilter from '../../molecules/EnumFilter/EnumFilter';
-import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
+import DateRangeFilter, { parseLocalYmd, toLocalYmd } from '../../molecules/DateRangeFilter/DateRangeFilter';
 import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
@@ -35,6 +35,7 @@ const columnTypes = {
   paid: 'number',
   balance: 'number',
   status: 'status',
+  bankReconcile: 'status',
   actions: 'link',
 };
 
@@ -98,6 +99,18 @@ const STATUS_OPTIONS = [
   { value: 'PAID', label: 'Paid' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
+
+const BANK_RECONCILE_LABELS = {
+  full: 'Matched',
+  partial: 'Partial',
+  none: 'Unmatched',
+};
+
+const BANK_RECONCILE_COLORS = {
+  full: { bg: 'rgba(74, 222, 128, 0.2)', color: '#4ade80' },
+  partial: { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24' },
+  none: { bg: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af' },
+};
 
 const STATUS_COLORS = {
   DRAFT: { bg: 'rgba(156, 163, 175, 0.2)', color: '#9ca3af' },
@@ -755,6 +768,31 @@ const InvoiceTable = ({
       },
       size: 100,
     }),
+    columnHelper.accessor('bankReconcile', {
+      id: 'bankReconcile',
+      header: 'Bank',
+      cell: info => {
+        const value = info.getValue();
+        if (!value) return '—';
+        const colors = BANK_RECONCILE_COLORS[value] || BANK_RECONCILE_COLORS.none;
+        const title =
+          value === 'full'
+            ? 'All bank payments are on the statement'
+            : value === 'partial'
+              ? 'Some bank payments are still unlinked'
+              : 'Bank payments not yet on the statement';
+        return (
+          <span
+            className="attio-status-badge"
+            style={{ backgroundColor: colors.bg, color: colors.color }}
+            title={title}
+          >
+            {BANK_RECONCILE_LABELS[value] || value}
+          </span>
+        );
+      },
+      size: 110,
+    }),
     // Total
     columnHelper.accessor('totalAmount', {
       id: 'totalAmount',
@@ -844,6 +882,11 @@ const InvoiceTable = ({
               onExportTrigger={handleDeepExport} // New prop for async deep fetch
               onBillBookExport={handleBillBookExport}
               isLoading={exporting}
+              periodSummaryFilters={{
+                dateFrom: filters.dateFrom || null,
+                dateTo: filters.dateTo || null,
+                customerId: filters.customerId || null,
+              }}
             />
           </div>
         </div>
@@ -883,12 +926,12 @@ const InvoiceTable = ({
             <DateRangeFilter
               label="Date Range"
               icon={<Icon name="date" size={14} />}
-              start={filters.dateFrom ? new Date(filters.dateFrom) : null}
-              end={filters.dateTo ? new Date(filters.dateTo) : null}
+              start={parseLocalYmd(filters.dateFrom)}
+              end={parseLocalYmd(filters.dateTo)}
               onChange={(s, e) => onFiltersChange({
                 ...filters,
-                dateFrom: s ? s.toISOString().split('T')[0] : null,
-                dateTo: e ? e.toISOString().split('T')[0] : null
+                dateFrom: toLocalYmd(s),
+                dateTo: toLocalYmd(e)
               })}
             />
             <div className="ledger-toggle-container">
