@@ -14,6 +14,7 @@ import {
 } from '../../services/invoicesService';
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
+import { archiveFooterAsset, completeFooterAsset, createFooterFolder, getFooterLibrary, presignFooterAsset, restoreFooterAsset, setDefaultFooterAsset, updateFooterAsset } from '../../services/footerLibraryService';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
@@ -65,6 +66,10 @@ const SettingsPage = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [footerLibrary, setFooterLibrary] = useState({ folders: [], assets: [] });
+  const [footerUpload, setFooterUpload] = useState({ folderId: '', tags: '', loading: false });
+  const [folderModal, setFolderModal] = useState({ open: false, name: '', loading: false, error: null });
+  const [editModal, setEditModal] = useState({ open: false, assetId: null, name: '', tags: '', loading: false, error: null });
 
   useEffect(() => {
     if (can('admin')) fetchMembers();
@@ -125,7 +130,80 @@ const SettingsPage = () => {
   // Invoice Settings
   useEffect(() => {
     fetchInvoiceSettings();
+    if (can('admin')) fetchFooterLibrary();
+    // fetch helpers are component-local and intentionally run once on page entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchFooterLibrary = async () => {
+    try { setFooterLibrary(await getFooterLibrary()); }
+    catch (e) { console.error('Failed to load footer library', e); }
+  };
+
+  const handleFooterUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return alert('Footer image is too large (max 5MB)');
+    setFooterUpload((value) => ({ ...value, loading: true }));
+    try {
+      const upload = await presignFooterAsset({
+        contentType: file.type,
+        name: file.name.replace(/\.[^.]+$/, ''),
+        folderId: footerUpload.folderId || undefined,
+        tags: footerUpload.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      });
+      await uploadToR2(upload.presignedUrl, file);
+      await completeFooterAsset(upload.assetId);
+      await fetchFooterLibrary();
+    } catch (e) { alert(e.message || 'Footer upload failed'); }
+    finally { setFooterUpload((value) => ({ ...value, loading: false })); event.target.value = ''; }
+  };
+
+  const openFolderModal = () => setFolderModal({ open: true, name: '', loading: false, error: null });
+  const closeFolderModal = () => setFolderModal({ open: false, name: '', loading: false, error: null });
+
+  const handleCreateFooterFolder = async (e) => {
+    e.preventDefault();
+    const name = folderModal.name.trim();
+    if (!name) {
+      setFolderModal((value) => ({ ...value, error: 'Folder name is required' }));
+      return;
+    }
+    setFolderModal((value) => ({ ...value, loading: true, error: null }));
+    try {
+      await createFooterFolder(name);
+      await fetchFooterLibrary();
+      closeFolderModal();
+    } catch (err) {
+      setFolderModal((value) => ({ ...value, loading: false, error: err.message || 'Could not create folder' }));
+    }
+  };
+
+  const handleEditFooter = (asset) => {
+    setEditModal({ open: true, assetId: asset.id, name: asset.name, tags: asset.tags.join(', '), loading: false, error: null });
+  };
+
+  const closeEditModal = () => setEditModal({ open: false, assetId: null, name: '', tags: '', loading: false, error: null });
+
+  const handleUpdateFooter = async (e) => {
+    e.preventDefault();
+    const name = editModal.name.trim();
+    if (!name) {
+      setEditModal((value) => ({ ...value, error: 'Footer name is required' }));
+      return;
+    }
+    setEditModal((value) => ({ ...value, loading: true, error: null }));
+    try {
+      await updateFooterAsset(editModal.assetId, {
+        name,
+        tags: editModal.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      });
+      await fetchFooterLibrary();
+      closeEditModal();
+    } catch (err) {
+      setEditModal((value) => ({ ...value, loading: false, error: err.message || 'Could not update footer' }));
+    }
+  };
 
   const fetchInvoiceSettings = async () => {
     setInvoiceSettingsLoading(true);
@@ -384,14 +462,6 @@ const SettingsPage = () => {
                           onUpload={handleAssetUpload}
                         />
                         <AssetCard
-                          label="Footer Image"
-                          field="footerImageUrl"
-                          assetType="ORG_FOOTER_IMAGE"
-                          currentUrl={invoiceSettingsForm.footerImageUrl}
-                          loading={assetLoading.footerImageUrl}
-                          onUpload={handleAssetUpload}
-                        />
-                        <AssetCard
                           label="WhatsApp QR"
                           field="whatsappGroupQrUrl"
                           assetType="ORG_WHATSAPP_QR"
@@ -400,6 +470,50 @@ const SettingsPage = () => {
                           onUpload={handleAssetUpload}
                           square
                         />
+                      </div>
+                    </div>
+
+                    <div className="settings-group footer-library">
+                      <div className="footer-library-header">
+                        <div>
+                          <h4 className="settings-group-title">Invoice Footer Library</h4>
+                          <p className="footer-library-help">Upload reusable footer banners. Archived designs remain available on existing invoices.</p>
+                        </div>
+                        <button type="button" className="s-btn s-btn-ghost" onClick={openFolderModal}>New folder</button>
+                      </div>
+                      <div className="footer-library-upload">
+                        <select value={footerUpload.folderId} onChange={(e) => setFooterUpload((value) => ({ ...value, folderId: e.target.value }))}>
+                          <option value="">No folder</option>
+                          {footerLibrary.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                        </select>
+                        <input value={footerUpload.tags} onChange={(e) => setFooterUpload((value) => ({ ...value, tags: e.target.value }))} placeholder="Tags, separated by commas" />
+                        <label className="s-btn s-btn-primary footer-upload-btn">
+                          {footerUpload.loading ? 'Uploading…' : 'Upload footer'}
+                          <input type="file" accept="image/png,image/jpeg,image/webp" disabled={footerUpload.loading} onChange={handleFooterUpload} />
+                        </label>
+                      </div>
+                      <div className="footer-library-grid">
+                        {footerLibrary.assets.length === 0 ? <p className="footer-library-empty">No footer designs yet.</p> : footerLibrary.assets.map((asset) => (
+                          <article className={`footer-library-card ${asset.isDefault ? 'footer-library-card--default' : ''}`} key={asset.id}>
+                            <img src={asset.publicUrl} alt={asset.name} />
+                            <div className="footer-library-card-body">
+                              <strong>{asset.name}</strong>
+                              {asset.status !== 'ACTIVE' && <span className="footer-library-archived">Archived</span>}
+                              <span>{asset.folder?.name || 'No folder'}</span>
+                              {asset.tags.length > 0 && <small>{asset.tags.map((tag) => `#${tag}`).join(' ')}</small>}
+                              <select aria-label={`Folder for ${asset.name}`} value={asset.folderId || ''} onChange={async (e) => { await updateFooterAsset(asset.id, { folderId: e.target.value || null }); await fetchFooterLibrary(); }}>
+                                <option value="">No folder</option>
+                                {footerLibrary.folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                              </select>
+                            </div>
+                            <div className="footer-library-actions">
+                              {!asset.isDefault && asset.status === 'ACTIVE' && <button type="button" onClick={async () => { await setDefaultFooterAsset(asset.id); await fetchFooterLibrary(); }}>Set default</button>}
+                              <button type="button" onClick={() => handleEditFooter(asset)}>Edit</button>
+                              {asset.status === 'ACTIVE' && <button type="button" onClick={async () => { if (window.confirm(`Archive ${asset.name}?`)) { await archiveFooterAsset(asset.id); await fetchFooterLibrary(); } }}>Archive</button>}
+                              {asset.status !== 'ACTIVE' && <button type="button" onClick={async () => { await restoreFooterAsset(asset.id); await fetchFooterLibrary(); }}>Restore</button>}
+                            </div>
+                          </article>
+                        ))}
                       </div>
                     </div>
 
@@ -767,6 +881,90 @@ const SettingsPage = () => {
                 <button type="button" className="s-btn s-btn-ghost" onClick={close}>Cancel</button>
                 <button type="submit" className="s-btn s-btn-primary" disabled={formStatus.loading}>
                   {formStatus.loading ? 'Adding…' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ────────── NEW FOLDER MODAL ────────── */}
+      {folderModal.open && (
+        <div className="s-overlay" onClick={closeFolderModal}>
+          <div className="s-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="s-modal-head">
+              <span className="s-modal-title">New folder</span>
+              <button className="s-modal-close" onClick={closeFolderModal}>✕</button>
+            </div>
+            <form onSubmit={handleCreateFooterFolder}>
+              <div className="s-modal-body">
+                <div className="s-field">
+                  <label htmlFor="folder-name" className="s-field-label">Folder Name</label>
+                  <input
+                    id="folder-name"
+                    type="text"
+                    className="s-field-input"
+                    value={folderModal.name}
+                    onChange={(e) => setFolderModal((value) => ({ ...value, name: e.target.value, error: null }))}
+                    required
+                    autoFocus
+                    placeholder="e.g. Festive banners"
+                  />
+                </div>
+                {folderModal.error && <div className="s-feedback-err">{folderModal.error}</div>}
+              </div>
+              <div className="s-modal-foot">
+                <button type="button" className="s-btn s-btn-ghost" onClick={closeFolderModal}>Cancel</button>
+                <button type="submit" className="s-btn s-btn-primary" disabled={folderModal.loading}>
+                  {folderModal.loading ? 'Creating…' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ────────── EDIT FOOTER MODAL ────────── */}
+      {editModal.open && (
+        <div className="s-overlay" onClick={closeEditModal}>
+          <div className="s-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="s-modal-head">
+              <span className="s-modal-title">Edit footer</span>
+              <button className="s-modal-close" onClick={closeEditModal}>✕</button>
+            </div>
+            <form onSubmit={handleUpdateFooter}>
+              <div className="s-modal-body">
+                <div className="s-field">
+                  <label htmlFor="footer-name" className="s-field-label">Footer Name</label>
+                  <input
+                    id="footer-name"
+                    type="text"
+                    className="s-field-input"
+                    value={editModal.name}
+                    onChange={(e) => setEditModal((value) => ({ ...value, name: e.target.value, error: null }))}
+                    required
+                    autoFocus
+                    placeholder="Footer name"
+                  />
+                </div>
+                <div className="s-field">
+                  <label htmlFor="footer-tags" className="s-field-label">Tags</label>
+                  <input
+                    id="footer-tags"
+                    type="text"
+                    className="s-field-input"
+                    value={editModal.tags}
+                    onChange={(e) => setEditModal((value) => ({ ...value, tags: e.target.value }))}
+                    placeholder="Comma-separated tags"
+                  />
+                  <span className="s-field-hint">Separate multiple tags with commas</span>
+                </div>
+                {editModal.error && <div className="s-feedback-err">{editModal.error}</div>}
+              </div>
+              <div className="s-modal-foot">
+                <button type="button" className="s-btn s-btn-ghost" onClick={closeEditModal}>Cancel</button>
+                <button type="submit" className="s-btn s-btn-primary" disabled={editModal.loading}>
+                  {editModal.loading ? 'Saving…' : 'Save'}
                 </button>
               </div>
             </form>
