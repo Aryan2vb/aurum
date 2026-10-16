@@ -152,7 +152,7 @@ const SettingsPage = () => {
         folderId: footerUpload.folderId || undefined,
         tags: footerUpload.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       });
-      await uploadToR2(upload.presignedUrl, file, { cacheControl: upload.cacheControl });
+      await uploadToR2(upload.presignedUrl, file);
       await completeFooterAsset(upload.assetId);
       await fetchFooterLibrary();
     } catch (e) { alert(e.message || 'Footer upload failed'); }
