@@ -11,3 +11,12 @@ The full cross-repo plan is in `back-aurum/docs/OOP_SOLID_PATTERNS_PLAN.md`. Fro
 | 6 | SRP | `src/pages/CreateInvoicePage/CreateInvoicePage.js` (74KB) | Pure helpers → `utils/invoiceFormat.js`; extract `useCustomerSearch`, `useInvoiceSequence`, `useInvoicePreview` | L |
 
 Practice order: #3 `session` → #2 `apiClient` (one service at a time) → #4 policy → #6 hook extraction. Run `npm test` after each step.
+
+## Asset uploads
+
+Full analysis: `back-aurum/docs/ASSET_UPLOAD_DESIGN.md`. Frontend gaps:
+- `src/services/uploadService.js` builds its own `fetch` and reads `localStorage` directly (items #2/#3).
+- Single-file, settings-only uploads: no multi-file, progress, retry, or validation driven by `ASSET_CONFIG`.
+- Footers use a separate flow (`footerLibraryService.js`: presign → PUT → complete) from other assets (`getPresignedUrl` → PUT).
+- Target: one `useAssetUpload(type, owner)` hook on top of `apiClient`, used by settings, footers, jewellery/inventory photos, and employee photos.
+- R2 CORS allows only `content-type`; don't add upload headers without updating the bucket rule.
