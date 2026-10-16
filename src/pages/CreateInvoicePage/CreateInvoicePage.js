@@ -34,6 +34,7 @@ import {
 } from "../../utils/invoiceTemplates";
 import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
 import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
+import { getFooterLibrary } from "../../services/footerLibraryService";
 import ConfirmationModal from "../../components/atoms/ConfirmationModal/ConfirmationModal";
 import styles from "./CreateInvoicePage.module.css";
 
@@ -180,6 +181,7 @@ const CreateInvoicePage = () => {
   const [missingSequencesLoading, setMissingSequencesLoading] = useState(false);
   const [missingSequencesError, setMissingSequencesError] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [previewTab, setPreviewTab] = useState("preview");
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -227,6 +229,9 @@ const CreateInvoicePage = () => {
   });
 
   const [previewHtml, setPreviewHtml] = useState("");
+  const [footerLibrary, setFooterLibrary] = useState({ folders: [], assets: [] });
+  const [selectedFooterAssetId, setSelectedFooterAssetId] = useState("");
+  const [footerFolderFilter, setFooterFolderFilter] = useState("");
   const canEditSequence =
     !id || (invoiceData.status === "DRAFT" && Boolean(selectedCustomerId));
 
@@ -235,6 +240,8 @@ const CreateInvoicePage = () => {
     const loadData = async () => {
       try {
         const settings = await getInvoiceSettings();
+        const footerData = await getFooterLibrary().catch(() => ({ folders: [], assets: [] }));
+        setFooterLibrary(footerData);
         setInvoiceData((prev) => ({
           ...prev,
           company: {
@@ -252,10 +259,14 @@ const CreateInvoicePage = () => {
           },
           declaration: settings.declaration || prev.declaration,
         }));
-        if (!id) setTheme(resolveInvoiceTemplate(null, settings.defaultTemplate));
+        if (!id) {
+          setTheme(resolveInvoiceTemplate(null, settings.defaultTemplate));
+          setSelectedFooterAssetId(footerData.assets.find((asset) => asset.isDefault)?.id || "");
+        }
 
         if (id) {
           const inv = await getInvoiceById(id);
+          setSelectedFooterAssetId(inv.footerAssetId || inv.companySnapshot?.data?.footerAssetId || "");
           // Open in the format this invoice was saved with, not the org default
           setTheme(resolveInvoiceTemplate(inv.templateType, settings.defaultTemplate));
           setSelectedCustomerId(inv.customerId);
@@ -335,6 +346,12 @@ const CreateInvoicePage = () => {
     };
     loadData();
   }, [id]);
+
+  useEffect(() => {
+    const selected = footerLibrary.assets.find((asset) => asset.id === selectedFooterAssetId);
+    if (!selected) return;
+    setInvoiceData((prev) => ({ ...prev, company: { ...prev.company, footerImage: selected.publicUrl } }));
+  }, [footerLibrary.assets, selectedFooterAssetId]);
 
   useEffect(() => {
     if (!canEditSequence || !invoiceDate) return;
@@ -718,6 +735,7 @@ const CreateInvoicePage = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
     const payload = {
       customerId: selectedCustomerId,
+      footerAssetId: selectedFooterAssetId || undefined,
       buyerName: invoiceData.buyer.name || undefined,
       invoiceDate: invoiceDate,
       manualSequence:
@@ -1093,6 +1111,12 @@ const CreateInvoicePage = () => {
                         <strong>{invoiceData.buyer.name}</strong>
                         <span>{invoiceData.buyer.phone}</span>
                       </div>
+                      {invoiceData.buyer.address && (
+                        <span className={styles.selectedCustomerAddress}>
+                          <Icon name="location" size={11} />
+                          {invoiceData.buyer.address}
+                        </span>
+                      )}
                       <button
                         className={styles.changeBtn}
                         onClick={clearCustomer}
@@ -1157,16 +1181,9 @@ const CreateInvoicePage = () => {
                   </div>
                 )}
               </div>
-              {/* Advance balance badge — informational only, input is in the payments section */}
-              {selectedCustomerId && advanceBalance > 0 && (
-                <div className={styles.advanceBanner}>
-                  <span className={styles.advanceBannerIcon}>💰</span>
-                  <span className={styles.advanceBannerText}>
-                    ₹{advanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} advance available — enter amount below to apply
-                  </span>
-                </div>
-              )}
-              <div className={styles.dateAndSeqGroup}>
+              <aside className={styles.invoiceControls}>
+                <div className={styles.dateAndSeqGroup}>
+                  <div className={styles.seqField}>
                   <div className={styles.seqHeader}>
                     <label className={styles.dateLabel}>Invoice No.</label>
                     {canEditSequence ? (
@@ -1208,7 +1225,7 @@ const CreateInvoicePage = () => {
                       {duplicateSequenceMessage}
                     </div>
                   ) : null}
-                </div>
+                  </div>
                 <div className={styles.dateField}>
                   <label className={styles.dateLabel}>Invoice Date</label>
                   <input
@@ -1240,7 +1257,19 @@ const CreateInvoicePage = () => {
                     ))}
                   </div>
                 </div>
+                </div>
+              </aside>
+            </div>
+
+            {/* Advance balance badge — informational only, input is in the payments section */}
+            {selectedCustomerId && advanceBalance > 0 && (
+              <div className={styles.advanceBanner}>
+                <span className={styles.advanceBannerIcon}>💰</span>
+                <span className={styles.advanceBannerText}>
+                  ₹{advanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} advance available — enter amount below to apply
+                </span>
               </div>
+            )}
 
             {/* Items */}
             <div className={styles.itemsHeader}>
@@ -1721,16 +1750,106 @@ const CreateInvoicePage = () => {
               {INVOICE_TEMPLATES.map((t) => (
                 <button
                   key={t.value}
-                  className={theme === t.value ? styles.activeTab : ""}
-                  onClick={() => setTheme(t.value)}
+                  className={previewTab === "preview" && theme === t.value ? styles.activeTab : ""}
+                  onClick={() => {
+                    setTheme(t.value);
+                    setPreviewTab("preview");
+                  }}
                 >
                   {t.label}
                 </button>
               ))}
+              <button
+                className={previewTab === "footer" ? styles.activeTab : ""}
+                onClick={() => setPreviewTab("footer")}
+              >
+                Footer
+              </button>
             </div>
-            <div className={styles.previewIframe}>
-              <iframe srcDoc={previewHtml} title="Preview" />
-            </div>
+
+            {previewTab === "footer" ? (
+              <section className={styles.footerPicker} aria-label="Footer design">
+                <div className={styles.footerPickerHeader}>
+                  <div>
+                    <span className={styles.dateLabel}>Footer design</span>
+                    <p>Choose the banner for this invoice</p>
+                  </div>
+                  {selectedFooterAssetId && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedFooterAssetId(
+                          footerLibrary.assets.find((asset) => asset.isDefault)?.id || ""
+                        )
+                      }
+                    >
+                      Use default
+                    </button>
+                  )}
+                </div>
+                {(() => {
+                  const activeAssets = footerLibrary.assets.filter(
+                    (asset) => asset.status === "ACTIVE"
+                  );
+                  const foldersWithAssets = footerLibrary.folders.filter((folder) =>
+                    activeAssets.some((asset) => asset.folderId === folder.id)
+                  );
+                  const visibleAssets = activeAssets.filter(
+                    (asset) => !footerFolderFilter || asset.folderId === footerFolderFilter
+                  );
+                  return (
+                    <>
+                      {foldersWithAssets.length > 0 && (
+                        <div className={styles.footerFolderTabs}>
+                          <button
+                            type="button"
+                            onClick={() => setFooterFolderFilter("")}
+                            className={footerFolderFilter ? styles.footerFolderTab : styles.footerFolderTabActive}
+                          >
+                            All
+                          </button>
+                          {foldersWithAssets.map((folder) => (
+                            <button
+                              type="button"
+                              onClick={() => setFooterFolderFilter(folder.id)}
+                              className={footerFolderFilter === folder.id ? styles.footerFolderTabActive : styles.footerFolderTab}
+                              key={folder.id}
+                            >
+                              {folder.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className={styles.footerChoices}>
+                        {visibleAssets.map((asset) => (
+                          <button
+                            type="button"
+                            key={asset.id}
+                            onClick={() => setSelectedFooterAssetId(asset.id)}
+                            className={`${styles.footerChoice} ${selectedFooterAssetId === asset.id ? styles.footerChoiceActive : ""}`}
+                          >
+                            <img src={asset.publicUrl} alt={asset.name} />
+                            <span>
+                              {asset.name}
+                              {asset.isDefault ? " · Default" : ""}
+                            </span>
+                          </button>
+                        ))}
+                        {!activeAssets.length && (
+                          <span className={styles.footerEmpty}>
+                            No active footer designs. Add one in Settings.
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+              </section>
+            ) : (
+              <div className={styles.previewIframe}>
+                <iframe srcDoc={previewHtml} title="Preview" />
+              </div>
+            )}
           </div>
 
           {/* ── Customer Create Panel ── */}
