@@ -40,12 +40,16 @@ export const getPresignedUrl = async (assetType, file, entityId = null) => {
  * 
  * @param {string} presignedUrl - The URL obtained from getPresignedUrl
  * @param {File} file - The file object to upload
+ * @param {{ cacheControl?: string }} [opts] - When the presigned PUT was signed
+ *   with a Cache-Control value, the same value MUST be sent here or R2 rejects
+ *   the upload with a signature mismatch.
  */
-export const uploadToR2 = async (presignedUrl, file) => {
+export const uploadToR2 = async (presignedUrl, file, opts = {}) => {
   const response = await fetch(presignedUrl, {
     method: 'PUT',
     headers: {
       'Content-Type': file.type,
+      ...(opts.cacheControl ? { 'Cache-Control': opts.cacheControl } : {}),
     },
     body: file,
   });
