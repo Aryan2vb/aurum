@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { clearSession, logout as logoutRequest } from '../../../services/authService';
 import { usePermission } from '../../../hooks/usePermission';
+import { useAccessPolicy } from '../../../contexts/AccessPolicyContext';
 import Icon from '../../atoms/Icon/Icon';
 import './Sidebar.css';
 
@@ -70,15 +71,16 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
   const userEmail = localStorage.getItem('userEmail') || 'user@example.com';
   const { can } = usePermission();
   const canWrite = can('write');
+  const { canAccessModule } = useAccessPolicy();
 
   const records = [
-    { iconName: 'customer', label: 'Customers',      path: '/customers',    color: '#3b82f6' },
-    { iconName: 'udhar',    label: 'Udhar',          path: '/credits',      color: '#f59e0b' },
-    { iconName: 'advance',  label: 'Advance',        path: '/advance',      color: '#10b981' },
-    { iconName: 'invoice',  label: 'Invoice Table',  path: '/invoices',     color: '#14b8a6' },
-    ...(canWrite ? [{ iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316' }] : []),
-    { iconName: 'dashboard',label: 'Reports',        path: '/reports',      color: '#64748b' },
-  ];
+    { iconName: 'customer', label: 'Customers',      path: '/customers',    color: '#3b82f6', module: 'customers' },
+    { iconName: 'udhar',    label: 'Udhar',          path: '/credits',      color: '#f59e0b', module: 'credits' },
+    { iconName: 'advance',  label: 'Advance',        path: '/advance',      color: '#10b981', module: 'advance' },
+    { iconName: 'invoice',  label: 'Invoice Table',  path: '/invoices',     color: '#14b8a6', module: 'invoices' },
+    ...(canWrite ? [{ iconName: 'add', label: 'Create Invoice', path: '/invoices/new', color: '#f97316', module: 'invoices' }] : []),
+    { iconName: 'dashboard',label: 'Reports',        path: '/reports',      color: '#64748b', module: 'reports' },
+  ].filter((item) => canAccessModule(item.module));
 
   // Collapsed sidebar (on desktop only)
   if (collapsed && !mobileOpen) {

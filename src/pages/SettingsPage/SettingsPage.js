@@ -15,6 +15,7 @@ import {
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import { archiveFooterAsset, completeFooterAsset, createFooterFolder, getFooterLibrary, presignFooterAsset, restoreFooterAsset, setDefaultFooterAsset, updateFooterAsset } from '../../services/footerLibraryService';
+import AccessControlsCard from '../../components/organisms/AccessControlsCard/AccessControlsCard';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
@@ -395,6 +396,13 @@ const SettingsPage = () => {
                 ))
               )}
             </div>
+          </section>
+        )}
+
+        {/* ────────── ACCESS CONTROLS ────────── */}
+        {can('manage-roles') && (
+          <section className="settings-section">
+            <AccessControlsCard />
           </section>
         )}
 
