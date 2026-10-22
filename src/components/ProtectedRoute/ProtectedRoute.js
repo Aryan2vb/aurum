@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { whoami, clearSession } from '../../services/authService';
+import { useAccessPolicy, moduleForAppPath } from '../../contexts/AccessPolicyContext';
 
 let lastValidatedToken = null;
 let validatePromise = null;
@@ -8,6 +9,8 @@ let validatePromise = null;
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('authToken');
   const userRole = localStorage.getItem('userRole');
+  const location = useLocation();
+  const { setFromWhoami, canAccessModule } = useAccessPolicy();
   const [status, setStatus] = useState(token ? 'checking' : 'no-token');
 
   useEffect(() => {
@@ -27,28 +30,24 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       }
 
       try {
-        await validatePromise;
+        const payload = await validatePromise;
         if (!cancelled) {
+          setFromWhoami(payload);
           setStatus('ok');
         }
       } catch (error) {
-        if (error.status === 401 || error.status === 403) {
+        if (error.status === 401 || error.code === 'ACCESS_WINDOW_CLOSED') {
           clearSession();
           lastValidatedToken = null;
           validatePromise = null;
-          if (!cancelled) {
-            setStatus('no-token');
-          }
+          if (!cancelled) setStatus('no-token');
           return;
         }
 
-        // For non-auth errors, allow access but log in dev.
         if (process.env.NODE_ENV !== 'production') {
           console.error('Session validation failed', error);
         }
-        if (!cancelled) {
-          setStatus('ok');
-        }
+        if (!cancelled) setStatus('ok');
       }
     };
 
@@ -57,7 +56,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, setFromWhoami]);
 
   if (status === 'no-token') {
     return <Navigate to="/login" replace />;
@@ -67,13 +66,30 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     return null;
   }
 
-  // Role check
   if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/invoices" replace />;
+  }
+
+  const moduleKey = moduleForAppPath(location.pathname);
+  if (moduleKey && !canAccessModule(moduleKey)) {
+    const fallbacks = [
+      '/invoices',
+      '/customers',
+      '/credits',
+      '/reports',
+      '/advance',
+      '/settings',
+    ];
+    const dest =
+      fallbacks.find((path) => {
+        const mod = moduleForAppPath(path);
+        return !mod || canAccessModule(mod);
+      }) || '/settings';
+    if (dest === location.pathname) return children;
+    return <Navigate to={dest} replace />;
   }
 
   return children;
 };
 
 export default ProtectedRoute;
-

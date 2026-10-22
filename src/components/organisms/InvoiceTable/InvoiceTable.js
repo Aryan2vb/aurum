@@ -10,6 +10,9 @@ import {
 
 // Atomic components
 import Checkbox from '../../atoms/Checkbox/Checkbox';
+import ColumnResizer from '../../atoms/ColumnResizer/ColumnResizer';
+import ScrollToTopButton from '../../atoms/ScrollToTopButton/ScrollToTopButton';
+import { useColumnResize, pinnedLeft } from '../../../hooks/useColumnResize';
 import Icon from '../../atoms/Icon/Icon';
 import EnumFilter from '../../molecules/EnumFilter/EnumFilter';
 import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
@@ -111,6 +114,8 @@ const STATUS_COLORS = {
 // SKELETON LOADING
 // ============================================
 
+const PINNED_COLUMNS = ['sn', 'actions', 'invoiceNumber'];
+
 const SkeletonCell = ({ width = '60%' }) => (
   <div className="skeleton-cell">
     <div className="skeleton-bar" style={{ width }} />
@@ -140,6 +145,38 @@ const SkeletonRows = ({ rows = 10, columns }) => (
 // ============================================
 // MAIN COMPONENT
 // ============================================
+// Memoised so dragging a column header (which only changes widths) doesn't re-render every row.
+const InvoiceTableBody = React.memo(({ rows, columns, isLoading }) => (
+  <tbody>
+    {isLoading ? (
+      <SkeletonRows columns={columns} />
+    ) : rows.length === 0 ? (
+      <tr>
+        <td colSpan={columns.length} className="attio-empty">
+          <div className="empty-state-content">
+            <Icon name="fileText" size={40} />
+            <p>No invoices found matching current filters.</p>
+          </div>
+        </td>
+      </tr>
+    ) : (
+      rows.map((row) => (
+        <tr key={row.id} className={row.getIsSelected() ? 'attio-row-selected' : ''}>
+          {row.getVisibleCells().map((cell, idx) => (
+            <td
+              key={cell.id}
+              style={PINNED_COLUMNS.includes(cell.column.id) ? { left: `var(--pin-${cell.column.id})` } : undefined}
+              className={`attio-td ${idx === 0 ? 'attio-td-checkbox' : ''} ${PINNED_COLUMNS.includes(cell.column.id) ? `attio-td-pinned-${cell.column.id}` : ''}`}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </td>
+          ))}
+        </tr>
+      ))
+    )}
+  </tbody>
+));
+
 const InvoiceTable = ({
   data,
   isLoading = false,
@@ -165,32 +202,30 @@ const InvoiceTable = ({
 }) => {
   const [sorting, setSorting] = useState([{ id: 'date', desc: true }]);
   const [rowSelection, setRowSelection] = useState({});
+  const { columnSizing, resizeOptions } = useColumnResize('invoiceTableColumnSizing');
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
   const tableWrapperRef = useRef(null);
   const { can } = usePermission();
   const canWrite = can('write');
 
-  const handleTableScroll = useCallback((event) => {
-    if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
-
-    const target = event.currentTarget;
-    const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
-    if (remaining < 180) {
-      onLoadMore?.();
-    }
-  }, [hasMore, infiniteScroll, isLoading, isLoadingMore, onLoadMore]);
-
+  // Load the next page only when the user actually scrolls near the end — never automatically.
+  // Whichever element scrolls (the table wrapper or the page around it) is picked up in the capture phase.
   useEffect(() => {
-    if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return;
+    if (!infiniteScroll || isLoadingMore || isLoading || !hasMore) return undefined;
 
-    const wrapper = tableWrapperRef.current;
-    if (!wrapper) return;
+    const onScroll = (event) => {
+      const wrapper = tableWrapperRef.current;
+      const source = event.target === document ? document.scrollingElement : event.target;
+      if (!wrapper || !source || !(source === wrapper || source.contains?.(wrapper))) return;
 
-    if (wrapper.scrollHeight <= wrapper.clientHeight + 24) {
-      onLoadMore?.();
-    }
-  }, [data.length, hasMore, infiniteScroll, isLoading, isLoadingMore, onLoadMore]);
+      const remaining = source.scrollHeight - source.scrollTop - source.clientHeight;
+      if (remaining < 180) onLoadMore?.();
+    };
+
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
+    return () => document.removeEventListener('scroll', onScroll, { capture: true });
+  }, [hasMore, infiniteScroll, isLoading, isLoadingMore, onLoadMore]);
 
   useEffect(() => {
     if (!infiniteScroll || !isLoading) return;
@@ -542,12 +577,13 @@ const InvoiceTable = ({
         />
       ),
       size: 40,
+      enableResizing: false,
     }),
     columnHelper.accessor('sn', {
       id: 'sn',
       header: 'S.N',
       cell: info => info.getValue(),
-      size: 50,
+      size: 56,
     }),
     columnHelper.display({
       id: 'actions',
@@ -809,8 +845,9 @@ const InvoiceTable = ({
   const table = useReactTable({
     data: processedData,
     columns,
-    state: { sorting, rowSelection, columnVisibility },
+    state: { sorting, rowSelection, columnVisibility, columnSizing },
     onColumnVisibilityChange: setColumnVisibility,
+    ...resizeOptions,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
@@ -819,6 +856,13 @@ const InvoiceTable = ({
     enableRowSelection: true,
   });
   tableRef.current = table;
+
+  // Pinned offsets go through CSS variables so body cells don't re-render while a column is dragged.
+  const pinnedStyle = (columnId) =>
+    PINNED_COLUMNS.includes(columnId) ? { left: `var(--pin-${columnId})` } : undefined;
+  const tableVars = Object.fromEntries(
+    PINNED_COLUMNS.map((id) => [`--pin-${id}`, `${pinnedLeft(table, id)}px`]),
+  );
 
   return (
     <div className="attio-table-container">
@@ -916,9 +960,11 @@ const InvoiceTable = ({
       <div
         className="attio-table-wrapper"
         ref={tableWrapperRef}
-        onScroll={handleTableScroll}
       >
-        <table className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}>
+        <table
+          className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}
+          style={{ width: table.getTotalSize(), minWidth: table.getTotalSize(), ...tableVars }}
+        >
           <thead>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
@@ -928,7 +974,7 @@ const InvoiceTable = ({
                     <th
                       key={header.id}
                       className={`attio-th ${idx === 0 ? 'attio-th-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(header.id) ? `attio-th-pinned-${header.id}` : ''}`}
-                      style={{ width: header.getSize() }}
+                      style={{ width: header.getSize(), ...pinnedStyle(header.id) }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       <div className="attio-th-content">
@@ -940,42 +986,26 @@ const InvoiceTable = ({
                           </svg>
                         )}
                       </div>
+                      <ColumnResizer header={header} />
                     </th>
                   );
                 })}
               </tr>
             ))}
           </thead>
-          <tbody>
-            {isLoading ? (
-              <SkeletonRows columns={columns} />
-            ) : table.getRowModel().rows.length === 0 ? (
-              <tr>
-                <td colSpan={columns.length} className="attio-empty">
-                  <div className="empty-state-content">
-                    <Icon name="fileText" size={40} />
-                    <p>No invoices found matching current filters.</p>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map(row => (
-                <tr key={row.id} className={row.getIsSelected() ? 'attio-row-selected' : ''}>
-                  {row.getVisibleCells().map((cell, idx) => (
-                    <td key={cell.id} className={`attio-td ${idx === 0 ? 'attio-td-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(cell.column.id) ? `attio-td-pinned-${cell.column.id}` : ''}`}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
+          <InvoiceTableBody
+            rows={table.getRowModel().rows}
+            columns={columns}
+            isLoading={isLoading}
+            rowSelection={rowSelection}
+            columnVisibility={columnVisibility}
+          />
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
                 {table.getVisibleFlatColumns().map((col) => {
                   const totals = {
-                    sn: `${aggregations.count} ${aggregations.label}`,
+                    sn: String(aggregations.count),
                     ledgerNetWeightGold: Number(aggregations.goldWt).toFixed(3),
                     ledgerNetWeightSilver: Number(aggregations.silverWt).toFixed(3),
                     ledgerAmount: formatCurrency(aggregations.subtotal),
@@ -992,7 +1022,7 @@ const InvoiceTable = ({
                   };
                   const val = totals[col.id];
                   return (
-                    <td key={col.id} className={`attio-tf ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
+                    <td key={col.id} style={pinnedStyle(col.id)} title={col.id === 'sn' ? `${aggregations.count} ${aggregations.label}` : undefined} className={`attio-tf ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
                       {val && <span className={`attio-tf-value${col.id === 'totalAmount' ? ' fw-600' : ''}`}>{val}</span>}
                     </td>
                   );
@@ -1002,6 +1032,7 @@ const InvoiceTable = ({
           )}
         </table>
       </div>
+      <ScrollToTopButton targetRef={tableWrapperRef} />
 
       {pagination && (
         <Pagination

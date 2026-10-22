@@ -248,6 +248,7 @@ export const customerColumns = [
     ),
     size: 40,
     enableSorting: false,
+    enableResizing: false,
   },
 
   // Full Name (Primary identifier)

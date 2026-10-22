@@ -61,3 +61,28 @@ export const removeOrganizationMember = async (userId) => {
   }
   return parseResponse(response);
 };
+
+export const getAccessPolicy = async () => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl('/organizations/access-policy'), {
+    method: 'GET',
+    headers: {
+      ...defaultHeaders,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return parseResponse(response);
+};
+
+export const updateAccessPolicy = async (data) => {
+  const token = localStorage.getItem('authToken');
+  const response = await fetch(buildApiUrl('/organizations/access-policy'), {
+    method: 'PATCH',
+    headers: {
+      ...defaultHeaders,
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(data),
+  });
+  return parseResponse(response);
+};

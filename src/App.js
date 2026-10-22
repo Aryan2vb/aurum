@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AccessPolicyProvider } from './contexts/AccessPolicyContext';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import LoginPage from './pages/LoginPage/LoginPage';
 import SignupPage from './pages/SignupPage/SignupPage';
@@ -30,6 +31,7 @@ function App() {
   return (
     <ThemeProvider>
       <ErrorBoundary>
+        <AccessPolicyProvider>
         <Router>
           <div className="App">
             <Routes>
@@ -192,6 +194,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+        </AccessPolicyProvider>
       </ErrorBoundary>
     </ThemeProvider>
   );

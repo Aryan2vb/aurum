@@ -1,4 +1,5 @@
-import { React, useState, useEffect } from 'react';
+import { React, useState, useEffect, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTheme, LIGHT_THEMES, THEME_LABELS, THEME_SWATCHES } from '../../contexts/ThemeContext';
 import { usePermission } from '../../hooks/usePermission';
 import {
@@ -15,11 +16,54 @@ import {
 import { clearSession, logout as logoutRequest } from '../../services/authService';
 import { getPresignedUrl, uploadToR2 } from '../../services/uploadService';
 import { archiveFooterAsset, completeFooterAsset, createFooterFolder, getFooterLibrary, presignFooterAsset, restoreFooterAsset, setDefaultFooterAsset, updateFooterAsset } from '../../services/footerLibraryService';
+import AccessControlsCard from '../../components/organisms/AccessControlsCard/AccessControlsCard';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import './SettingsPage.css';
 
+const SECTION_FROM_HASH = {
+  workspace: 'workspace',
+  team: 'workspace',
+  access: 'workspace',
+  invoicing: 'invoicing',
+  invoice: 'invoicing',
+  preferences: 'preferences',
+  appearance: 'preferences',
+  account: 'preferences',
+};
+
+const resolveSection = (hash, isAdmin) => {
+  const section = SECTION_FROM_HASH[String(hash || '').replace(/^#/, '')];
+  if (section && (isAdmin || section === 'preferences')) return section;
+  return isAdmin ? 'workspace' : 'preferences';
+};
+
 const SettingsPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { can } = usePermission();
+  const isAdmin = can('admin');
+
+  const navItems = useMemo(() => {
+    const items = [];
+    if (isAdmin) {
+      items.push({ id: 'workspace', label: 'Workspace', hint: 'Team & access' });
+      items.push({ id: 'invoicing', label: 'Invoicing', hint: 'Bill template' });
+    }
+    items.push({ id: 'preferences', label: 'Preferences', hint: 'Theme & account' });
+    return items;
+  }, [isAdmin]);
+
+  const [activeSection, setActiveSection] = useState(() => resolveSection(location.hash, isAdmin));
+
+  useEffect(() => {
+    setActiveSection(resolveSection(location.hash, isAdmin));
+  }, [location.hash, isAdmin]);
+
+  const goToSection = (id) => {
+    setActiveSection(id);
+    navigate({ pathname: '/settings', hash: id }, { replace: true });
+  };
+
   const [members, setMembers] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -321,9 +365,26 @@ const SettingsPage = () => {
   return (
     <DashboardTemplate headerTitle="Settings" headerTabs={[]}>
       <div className="settings-page">
+        <div className="settings-shell">
+          <nav className="settings-nav" aria-label="Settings sections">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`settings-nav-item${activeSection === item.id ? ' is-active' : ''}`}
+                onClick={() => goToSection(item.id)}
+                aria-current={activeSection === item.id ? 'page' : undefined}
+              >
+                <span className="settings-nav-label">{item.label}</span>
+                <span className="settings-nav-hint">{item.hint}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="settings-content">
 
         {/* ────────── TEAM ────────── */}
-        {can('admin') && (
+        {activeSection === 'workspace' && isAdmin && (
           <section className="settings-section">
             <div className="s-card">
               {/* Card header = title + action anchored together */}
@@ -398,8 +459,15 @@ const SettingsPage = () => {
           </section>
         )}
 
+        {/* ────────── ACCESS CONTROLS ────────── */}
+        {activeSection === 'workspace' && can('manage-roles') && (
+          <section className="settings-section">
+            <AccessControlsCard />
+          </section>
+        )}
+
         {/* ────────── INVOICE SETTINGS ────────── */}
-        {can('admin') && (
+        {activeSection === 'invoicing' && isAdmin && (
           <section className="settings-section">
             <div className="s-card">
               <div className="s-card-header">
@@ -798,6 +866,8 @@ const SettingsPage = () => {
           </section>
         )}
 
+        {activeSection === 'preferences' && (
+        <>
         {/* ────────── APPEARANCE ────────── */}
         <section className="settings-section">
           <div className="s-card">
@@ -836,7 +906,11 @@ const SettingsPage = () => {
             </div>
           </div>
         </section>
+        </>
+        )}
 
+          </div>
+        </div>
       </div>
 
       {/* ────────── ADD MEMBER MODAL ────────── */}
