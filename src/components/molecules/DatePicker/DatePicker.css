@@ -6,7 +6,7 @@
 }
 
 .date-picker.is-open {
-  z-index: 80;
+  z-index: 1000; /* above sticky bars (e.g. invoice Grand Total strip, z-index 100) */
 }
 
 .date-picker .dropdown-trigger {

@@ -1245,7 +1245,7 @@
     position: fixed;
     top: 0;
     right: 0;
-    bottom: 48px;
+    bottom: var(--bottom-bar-height, 76px);
     width: 650px;
     background: var(--bg-secondary);
     border-left: 1px solid var(--border-color);
@@ -2615,4 +2615,47 @@
   .itemFieldGrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Top row: keep Invoice No. / Date / Format close to the customer (left) and inside the card. */
+@media (min-width: 901px) {
+  .topRow {
+    grid-template-columns: minmax(300px, 400px) max-content;
+    justify-content: start;
+  }
+
+  .invoiceControls {
+    min-width: 0;
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  /* Box hugs its content; outer padding = inner gap + a little breathing room. */
+  .dateAndSeqGroup {
+    grid-template-columns: auto auto auto;
+    grid-template-rows: auto;
+    justify-content: start;
+    width: fit-content;
+    max-width: 100%;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) calc(var(--spacing-md) + var(--spacing-xs));
+  }
+
+  .dateAndSeqGroup > * {
+    min-width: 0;
+  }
+
+  .dateField {
+    min-width: 130px;
+  }
+}
+
+/* Open date picker must stack above the fixed Grand Total bar. */
+.paymentRow {
+  position: relative;
+}
+
+.paymentRow:has(:global(.date-picker.is-open)),
+.paymentsSection:has(:global(.date-picker.is-open)) {
+  z-index: 1000;
 }

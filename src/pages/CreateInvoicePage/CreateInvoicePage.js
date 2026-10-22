@@ -209,7 +209,18 @@ const CreateInvoicePage = () => {
   });
   const searchDebounceRef = useRef(null);
   const firstItemDescriptionRef = useRef(null);
+  const bottomBarRef = useRef(null);
+  const [bottomBarHeight, setBottomBarHeight] = useState(76);
   const pendingItemDescriptionFocusRef = useRef(false);
+
+  // Keep the preview drawer's bottom edge flush with the (variable-height) Grand Total bar.
+  useEffect(() => {
+    const el = bottomBarRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => setBottomBarHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const sequenceEditedRef = useRef(false);
   const lastSuggestedSequenceRef = useRef(null);
 
@@ -1643,7 +1654,7 @@ const CreateInvoicePage = () => {
                           aria-label={`Remove ${p.mode} payment`}
                           title={payments.length === 1 ? "At least one payment row is required" : "Remove payment"}
                         >
-                          <Icon name="delete" size={15} />
+                          <Icon name="close" size={15} />
                         </button>
                       </div>
                     </div>
@@ -1733,7 +1744,7 @@ const CreateInvoicePage = () => {
           </div>
 
           {/* ── Sticky Bottom Bar ── */}
-          <div className={styles.bottomBar}>
+          <div className={styles.bottomBar} ref={bottomBarRef}>
             <div className={styles.totalBox}>
               <span className={styles.totalLabel}>Grand Total</span>
               <span className={styles.totalAmount}>{fmt(calc.total)}</span>
@@ -1792,6 +1803,7 @@ const CreateInvoicePage = () => {
           )}
           <div
             className={`${styles.previewDrawer} ${showPreview ? styles.open : ""}`}
+            style={{ "--bottom-bar-height": `${bottomBarHeight}px` }}
           >
             <div className={styles.previewDrawerHeader}>
               <h3>Invoice Preview</h3>
