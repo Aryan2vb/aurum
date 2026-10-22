@@ -12,8 +12,78 @@
 
 /* ── Page Container ── */
 .settings-page {
-  max-width: 640px;
+  max-width: 860px;
   padding: 0 0 48px;
+}
+
+
+.settings-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.settings-nav {
+  position: sticky;
+  top: 12px;
+  flex: 0 0 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.settings-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+
+.settings-nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-nav-item.is-active {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.settings-nav-label {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.settings-nav-hint {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.settings-nav-item.is-active .settings-nav-hint {
+  color: var(--text-secondary);
+}
+
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  max-width: 640px;
 }
 
 /* ── Section ── */
@@ -815,4 +885,40 @@
   font-size: 0.625rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+  .settings-shell {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .settings-nav {
+    position: static;
+    flex: none;
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding: 6px;
+    scrollbar-width: none;
+  }
+
+  .settings-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .settings-nav-item {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 7px 12px;
+  }
+
+  .settings-nav-hint {
+    display: none;
+  }
+
+  .settings-content {
+    max-width: none;
+  }
 }
