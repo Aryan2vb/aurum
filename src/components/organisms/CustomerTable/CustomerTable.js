@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   useReactTable,
@@ -21,6 +21,9 @@ import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu'
 import Pagination from '../../molecules/Pagination/Pagination';
 import CustomerInspectorPanel from '../CustomerInspectorPanel/CustomerInspectorPanel';
 import { usePermission } from '../../../hooks/usePermission';
+import { useColumnResize } from '../../../hooks/useColumnResize';
+import ColumnResizer from '../../atoms/ColumnResizer/ColumnResizer';
+import ScrollToTopButton from '../../atoms/ScrollToTopButton/ScrollToTopButton';
 
 // Table-specific
 import { customerColumns, defaultColumnOrder, calculateAge, hasPhone, columnTypes } from './columns';
@@ -324,10 +327,14 @@ const CustomerTable = ({
     ].filter(Boolean).length;
   }, [filters, searchQuery]);
 
+  const tableWrapperRef = useRef(null);
+  const { columnSizing, resizeOptions } = useColumnResize('customerTableColumnSizing');
+
   const table = useReactTable({
     data: filteredData,
     columns: customerColumns,
-    state: { sorting, columnVisibility, rowSelection, columnOrder },
+    state: { sorting, columnVisibility, rowSelection, columnOrder, columnSizing },
+    ...resizeOptions,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
@@ -468,8 +475,11 @@ const CustomerTable = ({
       </div>
 
       {/* Table */}
-      <div className="attio-table-wrapper">
-        <table className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}>
+      <div className="attio-table-wrapper" ref={tableWrapperRef}>
+        <table
+          className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}
+          style={{ width: table.getTotalSize(), minWidth: table.getTotalSize() }}
+        >
           <thead>
             <tr>
               {table.getHeaderGroups()[0]?.headers.map((header, idx) => {
@@ -500,6 +510,7 @@ const CustomerTable = ({
                         )}
                       </div>
                     )}
+                    <ColumnResizer header={header} />
                   </th>
                 );
               })}
@@ -572,6 +583,7 @@ const CustomerTable = ({
           </tfoot>
         </table>
       </div>
+      <ScrollToTopButton targetRef={tableWrapperRef} />
 
       {/* Pagination */}
       {pagination && (

@@ -1,0 +1,29 @@
+/* Fixed to the viewport so it works whether the table or the page is the scroller. */
+.scroll-top-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 88px; /* clears the sticky totals footer / bottom bars */
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: 0 4px 14px var(--shadow, rgba(0, 0, 0, 0.15));
+  cursor: pointer;
+  z-index: 90;
+  animation: scrollTopIn 0.15s ease-out;
+}
+
+.scroll-top-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+@keyframes scrollTopIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}

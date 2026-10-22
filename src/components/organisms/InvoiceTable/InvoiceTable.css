@@ -436,3 +436,22 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
+/* Header cells clip long labels (resize handle lives in atoms/ColumnResizer). */
+.attio-th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Narrow identifier columns: tighter padding so 3-digit values aren't clipped. */
+.attio-td-pinned-sn, .attio-th-pinned-sn, .attio-tf-pinned-sn {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Footer totals never spill into the neighbouring cell. */
+.attio-tf {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
