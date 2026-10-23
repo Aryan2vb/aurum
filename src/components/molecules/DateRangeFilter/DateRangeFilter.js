@@ -42,8 +42,6 @@ const DateRangeFilter = ({ label, icon, start, end, onChange, align = 'left', cl
 
   const committedLabel = useMemo(() => {
     if (!start && !end) return null;
-    const preset = detectPreset(start, end);
-    if (preset !== 'custom') return PRESETS.find((p) => p.id === preset).label;
     return formatRangeLabel(start, end);
   }, [start, end]);
 
