@@ -336,17 +336,16 @@ const RENDERERS = {
   inventory:   InventoryReport,
 };
 
-/* ── Date filter bar ── */
-const FilterBar = ({ filters, onChange }) => (
-  <div className="report-filter-bar">
-    <DateRangeFilter
-      label="Date Range"
-      icon={<Icon name="date" size={14} />}
-      start={parseLocalYmd(filters.dateFrom)}
-      end={parseLocalYmd(filters.dateTo)}
-      onChange={(s, e) => onChange({ dateFrom: toLocalYmd(s) || '', dateTo: toLocalYmd(e) || '' })}
-    />
-  </div>
+/* ── Date filter ── */
+const ReportDateFilter = ({ filters, onChange }) => (
+  <DateRangeFilter
+    label="Date Range"
+    icon={<Icon name="date" size={14} />}
+    align="right"
+    start={parseLocalYmd(filters.dateFrom)}
+    end={parseLocalYmd(filters.dateTo)}
+    onChange={(s, e) => onChange({ dateFrom: toLocalYmd(s) || '', dateTo: toLocalYmd(e) || '' })}
+  />
 );
 
 /* ── Page ── */
@@ -384,13 +383,18 @@ const ReportsPage = () => {
   return (
     <DashboardTemplate headerTitle="Reports" headerTabs={[]}>
       <div className="reports-page">
-        <div className="reports-tabs">
-          {TABS.map(t => (
-            <Tab key={t.id} label={t.label} active={activeTab === t.id} onClick={() => setActiveTab(t.id)} />
-          ))}
+        <div className="reports-toolbar">
+          <div className="reports-tabs">
+            {TABS.map(t => (
+              <Tab key={t.id} label={t.label} active={activeTab === t.id} onClick={() => setActiveTab(t.id)} />
+            ))}
+          </div>
+          {tab.hasFilters && (
+            <div className="reports-toolbar-filter">
+              <ReportDateFilter filters={filters} onChange={setFilters} />
+            </div>
+          )}
         </div>
-
-        {tab.hasFilters && <FilterBar filters={filters} onChange={setFilters} />}
 
         <div className="reports-content">
           {loading && <p className="report-loading">Loading…</p>}
