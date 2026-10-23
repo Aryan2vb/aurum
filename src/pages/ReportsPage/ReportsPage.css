@@ -25,51 +25,6 @@
   border-bottom: 1px solid var(--border-light);
 }
 
-.report-filter-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-xs);
-}
-
-.report-preset-btn {
-  font-size: 0.78rem;
-  font-weight: 500;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  border: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-.report-preset-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.report-filter-dates {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-  margin-left: auto;
-}
-
-.report-date-input {
-  font-size: 0.8rem;
-  padding: 4px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  outline: none;
-}
-.report-date-input:focus { border-color: var(--accent); }
-
-.report-date-sep {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-}
-
 /* ── Summary cards ── */
 .report-summary {
   display: grid;
@@ -157,12 +112,6 @@
   font-size: 0.875rem;
 }
 .report-error { color: var(--error); }
-
-/* ── Mobile ── */
-@media (max-width: 768px) {
-  .report-filter-dates { margin-left: 0; width: 100%; }
-  .report-date-input { flex: 1; }
-}
 
 /* ── Advances Held report ── */
 .advances-balance-col {

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import Tab from '../../components/molecules/Tab/Tab';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
+import Icon from '../../components/atoms/Icon/Icon';
+import DateRangeFilter from '../../components/molecules/DateRangeFilter/DateRangeFilter';
+import { toLocalYmd, parseLocalYmd } from '../../components/molecules/DateRangeFilter/dateRangePicker';
 import {
   getSalesReport,
   getGstReport,
@@ -334,36 +337,15 @@ const RENDERERS = {
 };
 
 /* ── Date filter bar ── */
-const PRESETS = [
-  { label: 'This Month', getValue: () => {
-    const now = new Date();
-    return { dateFrom: new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,10), dateTo: now.toISOString().slice(0,10) };
-  }},
-  { label: 'Last Month', getValue: () => {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const last  = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { dateFrom: first.toISOString().slice(0,10), dateTo: last.toISOString().slice(0,10) };
-  }},
-  { label: 'This Year', getValue: () => {
-    const now = new Date();
-    return { dateFrom: `${now.getFullYear()}-01-01`, dateTo: now.toISOString().slice(0,10) };
-  }},
-];
-
 const FilterBar = ({ filters, onChange }) => (
   <div className="report-filter-bar">
-    <div className="report-filter-presets">
-      {PRESETS.map(p => (
-        <button key={p.label} className="report-preset-btn" onClick={() => onChange(p.getValue())}>{p.label}</button>
-      ))}
-      <button className="report-preset-btn" onClick={() => onChange({ dateFrom: '', dateTo: '' })}>All Time</button>
-    </div>
-    <div className="report-filter-dates">
-      <input type="date" className="report-date-input" value={filters.dateFrom || ''} onChange={e => onChange({ ...filters, dateFrom: e.target.value })} />
-      <span className="report-date-sep">→</span>
-      <input type="date" className="report-date-input" value={filters.dateTo || ''} onChange={e => onChange({ ...filters, dateTo: e.target.value })} />
-    </div>
+    <DateRangeFilter
+      label="Date Range"
+      icon={<Icon name="date" size={14} />}
+      start={parseLocalYmd(filters.dateFrom)}
+      end={parseLocalYmd(filters.dateTo)}
+      onChange={(s, e) => onChange({ dateFrom: toLocalYmd(s) || '', dateTo: toLocalYmd(e) || '' })}
+    />
   </div>
 );
 
