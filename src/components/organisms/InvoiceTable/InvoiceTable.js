@@ -16,6 +16,7 @@ import { useColumnResize, pinnedLeft } from '../../../hooks/useColumnResize';
 import Icon from '../../atoms/Icon/Icon';
 import EnumFilter from '../../molecules/EnumFilter/EnumFilter';
 import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
+import { toLocalYmd, parseLocalYmd } from '../../molecules/DateRangeFilter/dateRangePicker';
 import ViewSelector from '../../molecules/ViewSelector/ViewSelector';
 import ImportExportMenu from '../../molecules/ImportExportMenu/ImportExportMenu';
 import Pagination from '../../molecules/Pagination/Pagination';
@@ -927,12 +928,12 @@ const InvoiceTable = ({
             <DateRangeFilter
               label="Date Range"
               icon={<Icon name="date" size={14} />}
-              start={filters.dateFrom ? new Date(filters.dateFrom) : null}
-              end={filters.dateTo ? new Date(filters.dateTo) : null}
+              start={parseLocalYmd(filters.dateFrom)}
+              end={parseLocalYmd(filters.dateTo)}
               onChange={(s, e) => onFiltersChange({
                 ...filters,
-                dateFrom: s ? s.toISOString().split('T')[0] : null,
-                dateTo: e ? e.toISOString().split('T')[0] : null
+                dateFrom: toLocalYmd(s),
+                dateTo: toLocalYmd(e)
               })}
             />
             <div className="ledger-toggle-container">

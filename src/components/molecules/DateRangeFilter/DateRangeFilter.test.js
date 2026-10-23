@@ -100,4 +100,11 @@ describe('dateRangePicker helpers', () => {
       pending: false,
     });
   });
+
+  test('toLocalYmd/parseLocalYmd round-trip keeps the calendar day in any timezone', () => {
+    const { start, end } = getPresetRange('week', new Date(2026, 9, 23));
+    expect(toLocalYmd(start)).toBe('2026-10-12');
+    expect(toLocalYmd(end)).toBe('2026-10-18');
+    expect(toLocalYmd(parseLocalYmd('2026-10-12'))).toBe('2026-10-12');
+  });
 });
