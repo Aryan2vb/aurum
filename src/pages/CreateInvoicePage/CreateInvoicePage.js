@@ -33,7 +33,7 @@ import {
   INVOICE_TEMPLATES,
   resolveInvoiceTemplate,
 } from "../../utils/invoiceTemplates";
-import { calcInvoiceTotals, parsePurity } from "../../utils/invoiceCalc";
+import { calcInvoiceTotals, parsePurity, resolveTaxRates } from "../../utils/invoiceCalc";
 import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
 import { getFooterLibrary } from "../../services/footerLibraryService";
 import ConfirmationModal from "../../components/atoms/ConfirmationModal/ConfirmationModal";
@@ -170,6 +170,12 @@ const formatCustomerAddress = (location) =>
     .filter(Boolean)
     .join(" ");
 
+// Totals for the tax type currently selected (NONE/IGST zero out the CGST/SGST rates).
+const calcTotalsForTaxes = (items, taxes, paidAmount) => {
+  const t = resolveTaxRates(taxes);
+  return calcInvoiceTotals(items, t.cgstRate, t.sgstRate, paidAmount, t.igstRate);
+};
+
 const CreateInvoicePage = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -231,7 +237,7 @@ const CreateInvoicePage = () => {
 
   const [invoiceData, setInvoiceData] = useState({
     buyer: { name: "", phone: "", address: "", stateCode: "" },
-    taxes: { cgstRate: 1.5, sgstRate: 1.5, taxType: "CGST_SGST" },
+    taxes: { cgstRate: 1.5, sgstRate: 1.5, igstRate: 0, taxType: "CGST_SGST" },
     metadata: { modeOfPayment: "UPI", deliveryNote: "", destination: "" },
     declaration:
       "We declare that this invoice shows the actual price of the goods described.",
@@ -267,6 +273,7 @@ const CreateInvoicePage = () => {
             ...prev.taxes,
             cgstRate: settings.defaultCgstRate ?? 1.5,
             sgstRate: settings.defaultSgstRate ?? 1.5,
+            igstRate: settings.defaultIgstRate ?? 0,
             taxType: settings.defaultTaxType || prev.taxes.taxType,
           },
           declaration: settings.declaration || prev.declaration,
@@ -348,6 +355,14 @@ const CreateInvoicePage = () => {
                 inv.buyerSnapshot?.stateCode ||
                 inv.customer?.locations?.[0]?.stateCode ||
                 "",
+            },
+            // Show the tax this invoice was saved with, not the org default
+            taxes: {
+              ...prev.taxes,
+              taxType: inv.taxType || prev.taxes.taxType,
+              cgstRate: parseFloat(inv.cgstRate) || 0,
+              sgstRate: parseFloat(inv.sgstRate) || 0,
+              igstRate: parseFloat(inv.igstRate) || 0,
             },
             status: inv.status,
           }));
@@ -456,24 +471,14 @@ const CreateInvoicePage = () => {
   };
 
   const calc = useMemo(
-    () =>
-      calcInvoiceTotals(
-        invoiceData.items,
-        invoiceData.taxes.cgstRate,
-        invoiceData.taxes.sgstRate,
-        paidAmount,
-      ),
+    () => calcTotalsForTaxes(invoiceData.items, invoiceData.taxes, paidAmount),
     [invoiceData, paidAmount],
   );
 
   // Regenerate preview on data change — uses calcInvoiceTotals (single source of truth)
   useEffect(() => {
-    const previewCalc = calcInvoiceTotals(
-      invoiceData.items,
-      invoiceData.taxes.cgstRate,
-      invoiceData.taxes.sgstRate,
-      paidAmount,
-    );
+    const appliedTax = resolveTaxRates(invoiceData.taxes);
+    const previewCalc = calcTotalsForTaxes(invoiceData.items, invoiceData.taxes, paidAmount);
 
     const hydratedItems = previewCalc.hydratedItems.map((item, idx) => ({
       ...item,
@@ -491,9 +496,9 @@ const CreateInvoicePage = () => {
         hsnSummaryMap[hsn] = {
           hsnSac: hsn,
           taxableValue: 0,
-          cgstRate: invoiceData.taxes?.cgstRate || 1.5,
-          sgstRate: invoiceData.taxes?.sgstRate || 1.5,
-          igstRate: invoiceData.taxes?.igstRate || 0,
+          cgstRate: appliedTax.cgstRate,
+          sgstRate: appliedTax.sgstRate,
+          igstRate: appliedTax.igstRate,
           cgstAmount: 0,
           sgstAmount: 0,
           igstAmount: 0,
@@ -516,9 +521,11 @@ const CreateInvoicePage = () => {
       items: hydratedItems,
       taxes: {
         ...invoiceData.taxes,
+        ...appliedTax,
         cgstAmount: previewCalc.cgst,
         sgstAmount: previewCalc.sgst,
-        totalTaxAmount: previewCalc.cgst + previewCalc.sgst,
+        igstAmount: previewCalc.igst,
+        totalTaxAmount: previewCalc.cgst + previewCalc.sgst + previewCalc.igst,
       },
       totalAmount: previewCalc.total,
       roundOff: previewCalc.roundOff,
@@ -763,6 +770,7 @@ const CreateInvoicePage = () => {
       paidAmount, // keep for backward compatibility
       autoCreateUdhar: autoCreateUdhar,
       templateType: theme,
+      ...resolveTaxRates(invoiceData.taxes),
       modeOfPayment: payments[0]?.mode || "UPI",
       items: invoiceData.items.map((item) => {
         const { purityValue, purityBasis } = parsePurity(
@@ -869,12 +877,7 @@ const CreateInvoicePage = () => {
       return;
     }
 
-    const total = calcInvoiceTotals(
-      invoiceData.items,
-      invoiceData.taxes.cgstRate,
-      invoiceData.taxes.sgstRate,
-      paidAmount,
-    ).total;
+    const total = calcTotalsForTaxes(invoiceData.items, invoiceData.taxes, paidAmount).total;
 
     const kycError = await getInvoiceKycError(total);
     if (kycError) {
@@ -1524,15 +1527,17 @@ const CreateInvoicePage = () => {
                     value={invoiceData.taxes.taxType}
                     onChange={(e) => {
                       const newType = e.target.value;
-                      let cgst = invoiceData.taxes.cgstRate;
-                      if (newType === "NONE") cgst = 0;
+                      // Rates stay in state so switching back restores them; NONE/IGST
+                      // are applied through resolveTaxRates. IGST starts at CGST + SGST.
                       setInvoiceData((prev) => ({
                         ...prev,
                         taxes: {
                           ...prev.taxes,
                           taxType: newType,
-                          cgstRate: cgst,
-                          sgstRate: cgst,
+                          igstRate:
+                            newType === "IGST" && !prev.taxes.igstRate
+                              ? (parseFloat(prev.taxes.cgstRate) || 0) + (parseFloat(prev.taxes.sgstRate) || 0)
+                              : prev.taxes.igstRate,
                         },
                       }));
                     }}
@@ -1549,17 +1554,23 @@ const CreateInvoicePage = () => {
                         id="invoice-tax-rate"
                         type="number"
                         step="0.1"
-                        value={invoiceData.taxes.cgstRate}
-                        onChange={(e) =>
+                        value={
+                          invoiceData.taxes.taxType === "IGST"
+                            ? invoiceData.taxes.igstRate
+                            : invoiceData.taxes.taxType === "NONE"
+                              ? 0
+                              : invoiceData.taxes.cgstRate
+                        }
+                        onChange={(e) => {
+                          const rate = parseFloat(e.target.value) || 0;
                           setInvoiceData((prev) => ({
                             ...prev,
-                            taxes: {
-                              ...prev.taxes,
-                              cgstRate: parseFloat(e.target.value) || 0,
-                              sgstRate: parseFloat(e.target.value) || 0,
-                            },
-                          }))
-                        }
+                            taxes:
+                              prev.taxes.taxType === "IGST"
+                                ? { ...prev.taxes, igstRate: rate }
+                                : { ...prev.taxes, cgstRate: rate, sgstRate: rate },
+                          }));
+                        }}
                         disabled={invoiceData.taxes.taxType === "NONE"}
                         className={styles.paymentDateInput}
                       />
@@ -1750,8 +1761,12 @@ const CreateInvoicePage = () => {
               <span className={styles.totalAmount}>{fmt(calc.total)}</span>
               <div className={styles.taxBreakdown}>
                 <span>
-                  CGST {invoiceData.taxes.cgstRate}% + SGST{" "}
-                  {invoiceData.taxes.sgstRate}%
+                  {(() => {
+                    const t = resolveTaxRates(invoiceData.taxes);
+                    if (t.taxType === "NONE") return "No tax";
+                    if (t.taxType === "IGST") return `IGST ${t.igstRate}%`;
+                    return `CGST ${t.cgstRate}% + SGST ${t.sgstRate}%`;
+                  })()}
                 </span>
                 {advanceApplied > 0 && (
                   <span style={{ color: "#10b981" }}>
