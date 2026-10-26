@@ -889,6 +889,11 @@ const InvoiceTable = ({
               onExportTrigger={handleDeepExport} // New prop for async deep fetch
               onBillBookExport={handleBillBookExport}
               isLoading={exporting}
+              periodSummaryFilters={{
+                dateFrom: filters.dateFrom || null,
+                dateTo: filters.dateTo || null,
+                customerId: filters.customerId || null,
+              }}
             />
           </div>
         </div>
