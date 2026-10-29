@@ -1,10 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
 import { buildExportFilename } from '../../../utils/exportFilename';
 import { flattenInvoiceDataByPayment } from '../../../utils/exportUtils';
+import {
+  appendInvoicePeriodSummaryPage,
+  fetchInvoicePeriodSummary,
+  stampPdfPageFooters,
+} from '../../../utils/invoicePeriodSummary';
 import './ImportExportMenu.css';
 
 const MM_TO_PT = 72 / 25.4;
@@ -335,6 +340,7 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
  * @param {boolean} props.isLoading - Loading state for async export.
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
+ * @param {object} props.periodSummaryFilters - dateFrom/dateTo/customerId for the invoice PDF summary page
  */
 const ImportExportMenu = ({ 
   data = [], 
@@ -347,9 +353,13 @@ const ImportExportMenu = ({
   onBillBookExport,
   isLoading = false,
   selectedCount = 0,
-  resourceName = 'items'
+  resourceName = 'items',
+  periodSummaryFilters = null,
 }) => {
   const hasSelection = selectedCount > 0;
+
+  // Rows the last export was built from; the invoice PDF summary page is computed from them.
+  const sourceRowsRef = useRef([]);
 
   // Column picker state
   const [colPicker, setColPicker] = useState(null); // null | { format, columns, flattenedData }
@@ -403,6 +413,8 @@ const ImportExportMenu = ({
       const result = rowFlattener(item);
       return Array.isArray(result) ? result : [result];
     });
+
+    sourceRowsRef.current = dataToExport;
 
     // Post-processing for Invoices (Continuous Serial No. and Aggregation Row)
     if (resourceName === 'invoices' && flattened.length > 0) {
@@ -637,6 +649,20 @@ const ImportExportMenu = ({
       }
     }
 
+    // Invoice PDFs end with a PERIOD SUMMARY page (sales, GST, collections, inventory flow).
+    // A failed fetch must not block the export, so the page is simply left out.
+    let periodSummary = null;
+    if (isInvoice) {
+      try {
+        periodSummary = await fetchInvoicePeriodSummary(
+          periodSummaryFilters || {},
+          sourceRowsRef.current || [],
+        );
+      } catch (err) {
+        console.error('Period summary fetch failed', err);
+      }
+    }
+
     const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: FS_LANDSCAPE_FORMAT_PT });
     const pageW = doc.internal.pageSize.getWidth();
 
@@ -766,6 +792,8 @@ const ImportExportMenu = ({
           }
         },
         didDrawPage: (data) => {
+          // With a summary page the footers are stamped once at the end, with the final count.
+          if (periodSummary) return;
           const pageCount = doc.internal.getNumberOfPages();
           doc.setFontSize(8);
           doc.setTextColor(80);
@@ -777,6 +805,11 @@ const ImportExportMenu = ({
           );
         },
       });
+
+      if (periodSummary) {
+        appendInvoicePeriodSummaryPage(doc, periodSummary);
+        stampPdfPageFooters(doc);
+      }
 
     } else {
       // ── Generic single-level table ────────────────────────────────────────

@@ -40,7 +40,20 @@ export const calcItemAmount = (item) => {
   };
 };
 
-export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0) => {
+/**
+ * Rates that actually apply for a tax type: NONE carries no tax, IGST only IGST,
+ * CGST_SGST only CGST + SGST. Stored rates are kept as-is in form state so switching
+ * the type back restores them.
+ */
+export const resolveTaxRates = (taxes = {}) => {
+  const taxType = taxes.taxType || 'CGST_SGST';
+  const rate = (value) => parseFloat(value) || 0;
+  if (taxType === 'NONE') return { taxType, cgstRate: 0, sgstRate: 0, igstRate: 0 };
+  if (taxType === 'IGST') return { taxType, cgstRate: 0, sgstRate: 0, igstRate: rate(taxes.igstRate) };
+  return { taxType, cgstRate: rate(taxes.cgstRate), sgstRate: rate(taxes.sgstRate), igstRate: 0 };
+};
+
+export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0, igstRate = 0) => {
   let subtotal = 0;
   const hydratedItems = items.map(item => {
     const { effectiveRate, netWeight, amount, hallmarkCharge } = calcItemAmount(item);
@@ -50,7 +63,8 @@ export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0) => 
 
   const cgst = Math.round(subtotal * ((cgstRate || 0) / 100) * 100) / 100;
   const sgst = Math.round(subtotal * ((sgstRate || 0) / 100) * 100) / 100;
-  const gross = subtotal + cgst + sgst;
+  const igst = Math.round(subtotal * ((igstRate || 0) / 100) * 100) / 100;
+  const gross = subtotal + cgst + sgst + igst;
   const total = Math.round(gross);
   const roundOff = total - gross;
 
@@ -59,6 +73,7 @@ export const calcInvoiceTotals = (items, cgstRate, sgstRate, paidAmount = 0) => 
     subtotal,
     cgst,
     sgst,
+    igst,
     taxable: subtotal,
     roundOff,
     total,
