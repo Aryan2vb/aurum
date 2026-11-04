@@ -454,6 +454,83 @@ const InvoiceTable = ({
     ].filter(Boolean).length;
   }, [filters, searchQuery]);
 
+  // The invoice list API caps rows per request, so an export has to page through the
+  // result set. Throws unless every row the server reports was actually received.
+  const fetchAllInvoicesForExport = async () => {
+    const REQUEST_LIMIT = 200;
+    const PARALLEL_PAGES = 3;
+    const MAX_ATTEMPTS = 3;
+
+    const fetchPage = async (page) => {
+      let lastError;
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+        try {
+          const response = await getInvoices({
+            ...filters,
+            search: searchQuery,
+            page,
+            limit: REQUEST_LIMIT,
+            includeItems: true,
+            sortBy: 'invoiceDate',
+            sortOrder: 'asc',
+          });
+          if (!response || !Array.isArray(response.data)) {
+            throw new Error(`Invalid response for page ${page}`);
+          }
+          return response;
+        } catch (error) {
+          lastError = error;
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+          }
+        }
+      }
+      throw lastError;
+    };
+
+    const first = await fetchPage(1);
+    const total = Number(first.meta?.total);
+    if (!Number.isFinite(total)) {
+      throw new Error('Server did not report a total, cannot verify the export is complete');
+    }
+
+    // The server may clamp the limit, so size pages by what it really returned.
+    const pageSize = Number(first.meta?.limit) || first.data.length || REQUEST_LIMIT;
+    const totalPages = Math.ceil(total / pageSize);
+
+    const pages = { 1: first.data };
+    const remaining = [];
+    for (let page = 2; page <= totalPages; page += 1) remaining.push(page);
+
+    for (let i = 0; i < remaining.length; i += PARALLEL_PAGES) {
+      const batch = remaining.slice(i, i + PARALLEL_PAGES);
+      const results = await Promise.all(batch.map(fetchPage));
+      batch.forEach((page, idx) => {
+        pages[page] = results[idx].data;
+      });
+    }
+
+    const rows = Object.keys(pages)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .flatMap((page) => pages[page]);
+
+    // Drop rows duplicated by a page boundary shifting mid-export.
+    const seen = new Set();
+    const unique = rows.filter((row) => {
+      const key = row.id ?? row.invoiceId;
+      if (key === undefined || key === null) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (unique.length !== total) {
+      throw new Error(`Expected ${total} invoices but received ${unique.length}`);
+    }
+    return unique;
+  };
+
   const handleDeepExport = async () => {
     try {
       setExporting(true);
@@ -462,28 +539,18 @@ const InvoiceTable = ({
         selectedRows.map(r => r.original.invoiceId || r.original.id)
       );
 
-      const response = await getInvoices({
-        ...filters,
-        search: searchQuery,
-        limit: 1000,
-        includeItems: true,
-        sortBy: 'invoiceDate',
-        sortOrder: 'asc',
-      });
+      const invoices = await fetchAllInvoicesForExport();
+      const mappedData = invoices.map((invoice) => ({
+        ...invoice,
+        remainingBalance: Number(invoice.totalAmount) - Number(invoice.paidAmount),
+      }));
 
-      if (response && response.data) {
-        const mappedData = response.data.map((invoice) => ({
-          ...invoice,
-          remainingBalance: Number(invoice.totalAmount) - Number(invoice.paidAmount),
-        }));
-
-        return selectedInvoiceIds.size > 0
-          ? mappedData.filter(inv => selectedInvoiceIds.has(inv.id))
-          : mappedData;
-      }
-      return [];
+      return selectedInvoiceIds.size > 0
+        ? mappedData.filter(inv => selectedInvoiceIds.has(inv.id))
+        : mappedData;
     } catch (error) {
       console.error('Deep export failed', error);
+      alert(`Export failed: ${error.message}. No file was generated, please try again.`);
       return [];
     } finally {
       setExporting(false);
