@@ -7,6 +7,7 @@ import './SlideOver.css';
  * @param {boolean} props.isOpen - Whether panel is open
  * @param {function} props.onClose - Close handler
  * @param {string} props.title - Panel title
+ * @param {React.ReactNode} props.headerActions - Optional header buttons, shown to the left of the close button
  * @param {React.ReactNode} props.children - Panel content
  * @param {string} props.className - Additional class names
  * @param {number|string} props.width - Panel width (default: '500px', can be '100vw' for mobile)
@@ -15,6 +16,7 @@ const SlideOver = ({
   isOpen,
   onClose,
   title,
+  headerActions = null,
   children,
   className = '',
   width = 500
@@ -64,15 +66,18 @@ const SlideOver = ({
         {title && (
           <div className="slideover-header">
             <h2 id="slideover-title" className="slideover-title">{title}</h2>
-            <button 
-              className="slideover-close"
-              onClick={onClose}
-              aria-label="Close panel"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 6 6 18M6 6l12 12"/>
-              </svg>
-            </button>
+            <div className="slideover-header-actions">
+              {headerActions}
+              <button 
+                className="slideover-close"
+                onClick={onClose}
+                aria-label="Close panel"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
           </div>
         )}
         

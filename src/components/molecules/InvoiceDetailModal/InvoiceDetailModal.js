@@ -1,12 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaWhatsapp } from 'react-icons/fa';
 import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
-import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
+import { getInvoiceById, getInvoiceHtmlUrl, getInvoicePdfUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
 import { applyAdvanceToInvoice, getAdvanceBalance } from '../../../services/advanceService';
 import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import { usePermission } from '../../../hooks/usePermission';
+import { buildInvoiceWhatsAppMessage, buildWhatsAppUrl, isMobileDevice } from '../../../utils/invoiceWhatsApp';
+import { buildFirmIdentity, readFirmIdentitySettingsCache } from '../../../utils/firmIdentity';
 import './InvoiceDetailModal.css';
 
 // Format currency
@@ -63,6 +66,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
   const [commitLoading, setCommitLoading] = useState(false);
   const [negotiateError, setNegotiateError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [negotiationMode, setNegotiationMode] = useState('MAKING_CHARGES');
   const [filterMetalType, setFilterMetalType] = useState('ALL');
 
@@ -192,6 +196,94 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
     }
   };
 
+  // The PDF is rendered by the server and can take a few seconds, so start fetching it as soon as
+  // the user points at the WhatsApp button; by the click it is usually ready. Cached per invoice.
+  const pdfPrefetchRef = useRef(null);
+
+  useEffect(() => {
+    pdfPrefetchRef.current = null;
+  }, [invoiceId, isOpen, invoice?.updatedAt, invoice?.totalAmount]);
+
+  const preparePdf = useCallback(() => {
+    if (pdfPrefetchRef.current?.invoiceId === invoiceId) return pdfPrefetchRef.current.promise;
+    const promise = (async () => {
+      const response = await getInvoiceViewToken(invoiceId);
+      if (!response?.signature) throw new Error('Failed to generate a secure PDF link');
+      const pdfUrl = getInvoicePdfUrl(invoiceId, response.signature);
+      const pdfResponse = await fetch(pdfUrl);
+      if (!pdfResponse.ok) {
+        let detail = '';
+        try {
+          detail = (await pdfResponse.json())?.message || '';
+        } catch (parseError) {
+          // body was not JSON; the status code is enough
+        }
+        throw new Error(`PDF request failed (${pdfResponse.status})${detail ? `: ${detail}` : ''}`);
+      }
+      const blob = await pdfResponse.blob();
+      return { pdfUrl, blob };
+    })();
+    pdfPrefetchRef.current = { invoiceId, promise };
+    promise.catch(() => {
+      if (pdfPrefetchRef.current?.promise === promise) pdfPrefetchRef.current = null;
+    });
+    return promise;
+  }, [invoiceId]);
+
+  const downloadBlob = (blob, fileName) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = objectUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+  };
+
+  // WhatsApp has no link that opens a chat with a file attached. On phones/tablets the share sheet
+  // lists WhatsApp and gets the PDF itself. On desktop the PDF is downloaded and the customer's
+  // chat opens with the message, ready for the file to be attached.
+  const handleShareWhatsApp = async () => {
+    const buyerInfo = invoice?.buyerSnapshot?.data || invoice?.buyerSnapshot || {};
+    const phone = buyerInfo.phone || invoice?.customer?.contactDetails?.[0]?.primaryPhone || '';
+    const messageParts = {
+      customerName: buyerInfo.name || invoice?.customer?.fullName,
+      invoiceNumber: invoice?.invoiceNumber,
+      amount: invoice?.totalAmount,
+      firmName: buildFirmIdentity(readFirmIdentitySettingsCache() || {}, '').displayName,
+    };
+    const fileName = `${String(invoice?.invoiceNumber || 'invoice').replace(/[\\/]/g, '-')}.pdf`;
+
+    setSharing(true);
+    try {
+      const { blob } = await preparePdf();
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+
+      if (isMobileDevice() && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], text: buildInvoiceWhatsAppMessage(messageParts) });
+          return;
+        } catch (error) {
+          if (error?.name === 'AbortError') return; // user closed the share sheet
+          console.warn('File share failed, falling back to download + chat', error);
+        }
+      }
+
+      downloadBlob(blob, fileName);
+      const chatUrl = buildWhatsAppUrl(
+        phone,
+        buildInvoiceWhatsAppMessage({ ...messageParts, attachedNote: true })
+      );
+      if (!window.open(chatUrl, '_blank')) window.location.href = chatUrl;
+    } catch (error) {
+      console.error('Failed to share invoice on WhatsApp', error);
+      alert(`Could not prepare the invoice PDF: ${error?.message || 'unknown error'}`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const buyer = invoice?.buyerSnapshot?.data || invoice?.buyerSnapshot || {};
@@ -205,6 +297,21 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
       onClose={onClose}
       title={invoice?.invoiceNumber || 'Invoice Details'}
       width={800}
+      headerActions={invoice ? (
+        <button
+          type="button"
+          className="slideover-action slideover-action--labeled whatsapp"
+          onClick={handleShareWhatsApp}
+          onMouseEnter={() => preparePdf().catch(() => {})}
+          onFocus={() => preparePdf().catch(() => {})}
+          disabled={sharing}
+          title="Send this invoice on WhatsApp"
+          aria-label="Send this invoice on WhatsApp"
+        >
+          <FaWhatsapp size={18} />
+          <span>{sharing ? 'Preparing…' : 'Send over WhatsApp'}</span>
+        </button>
+      ) : null}
     >
       <div className="invoice-detail-modal">
         {loading ? (
