@@ -33,6 +33,7 @@ import {
   INVOICE_TEMPLATES,
   resolveInvoiceTemplate,
 } from "../../utils/invoiceTemplates";
+import { sortPaymentsByDate } from "../../utils/invoicePayments";
 import { calcInvoiceTotals, parsePurity, resolveTaxRates } from "../../utils/invoiceCalc";
 import { getHighValueInvoiceKycError } from "../../utils/customerKyc";
 import { getFooterLibrary } from "../../services/footerLibraryService";
@@ -303,13 +304,13 @@ const CreateInvoicePage = () => {
           }
           if (inv.payments?.length) {
             setPayments(
-              inv.payments.map((p) => ({
+              sortPaymentsByDate(inv.payments.map((p) => ({
                 mode: p.mode,
                 amount: p.amount,
                 reference: p.reference || "",
                 paidAt: toDateInputValue(p.paidAt || p.createdAt),
                 originalPaidAt: toDateInputValue(p.paidAt || p.createdAt),
-              })),
+              }))),
             );
           } else {
             setPayments([
@@ -532,7 +533,7 @@ const CreateInvoicePage = () => {
       cashReceived: parseFloat(paidAmount) || 0,
       amtBalance: previewCalc.outstanding,
       hsnSummary: hsnSummary,
-      payments: payments.map((p) => ({
+      payments: sortPaymentsByDate(payments).map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
         paidAt: p.paidAt,
@@ -752,6 +753,7 @@ const CreateInvoicePage = () => {
 
   const buildPayload = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
+    const paymentsByDate = sortPaymentsByDate(payments);
     const payload = {
       customerId: selectedCustomerId,
       footerAssetId: selectedFooterAssetId || undefined,
@@ -761,7 +763,7 @@ const CreateInvoicePage = () => {
         canEditSequence && Number.isFinite(parsedManualSequence)
           ? parsedManualSequence
           : undefined,
-      payments: payments.map((p) => ({
+      payments: paymentsByDate.map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
         reference: p.reference || undefined,
@@ -771,7 +773,7 @@ const CreateInvoicePage = () => {
       autoCreateUdhar: autoCreateUdhar,
       templateType: theme,
       ...resolveTaxRates(invoiceData.taxes),
-      modeOfPayment: payments[0]?.mode || "UPI",
+      modeOfPayment: paymentsByDate[0]?.mode || "UPI",
       items: invoiceData.items.map((item) => {
         const { purityValue, purityBasis } = parsePurity(
           item.purity && item.purity !== "None" ? item.purity : "22K",
