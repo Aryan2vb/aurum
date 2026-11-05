@@ -186,7 +186,6 @@ const DashboardHeader = ({
         <Text variant="heading" weight="bold">{title}</Text>
         <div className="header-right">
           <FirmIdentityBadge identity={firmIdentity} />
-          <div className="header-actions">
             <button className="header-action-btn">
               <Icon name="share" size={20} />
             </button>
@@ -249,7 +248,6 @@ const DashboardHeader = ({
             <Button variant="secondary" size="small">
               Customize Widget
             </Button>
-          </div>
         </div>
       </div>
       {showTabs && (
