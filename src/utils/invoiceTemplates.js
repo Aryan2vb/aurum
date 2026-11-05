@@ -605,6 +605,7 @@ export function generateJewelleryInvoiceHtml(data) {
         .header-center { text-align: center; flex: 1; }
         .mantra { font-size: 14px; font-weight: bold; margin-bottom: 2px; }
         .company-name { font-size: 20px; font-weight: bold; margin-bottom: 2px; }
+        .company-gstin { font-size: 11px; font-weight: bold; margin-bottom: 2px; }
         .company-addr { font-size: 11px; color: #333; }
         .company-phone { font-size: 11px; font-weight: bold; }
         .header-right { text-align: right; flex-shrink: 0; }
@@ -651,6 +652,7 @@ export function generateJewelleryInvoiceHtml(data) {
             <div class="header-center">
                 <div class="mantra">${coAny.mantra || 'ॐ भूर्भुवः स्वः'}</div>
                 <div class="company-name">${company.name || ''}</div>
+                ${company.gstin ? `<div class="company-gstin">GSTIN : ${company.gstin}</div>` : ''}
                 <div class="company-addr">${company.address || ''}</div>
                 <div class="company-phone">PHONE : ${coAny.phone || ''}</div>
             </div>
@@ -669,7 +671,6 @@ export function generateJewelleryInvoiceHtml(data) {
             <div class="meta-info">
                 <div><strong>INVOICE NO:</strong> ${metadata.invoiceNo || ''}</div>
                 <div><strong>DATE:</strong> ${metadata.date || ''}</div>
-                <div><strong>GSTIN :</strong> ${company.gstin || ''}</div>
             </div>
         </div>
         <table class="items-table">

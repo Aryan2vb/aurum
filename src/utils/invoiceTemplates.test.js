@@ -204,3 +204,31 @@ describe('standard invoice payment placement', () => {
     expect(new Set(rowWidths(html))).toEqual(new Set([8]));
   });
 });
+
+describe('jewellery template shop GSTIN', () => {
+  const data = (gstin) => ({
+    company: { name: 'Test Jewellers', address: 'Main Road', gstin },
+    buyer: {},
+    metadata: { invoiceNo: 'INV-1', date: '2026-11-05' },
+    items: [],
+    taxes: { cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0 },
+    hsnSummary: [],
+    roundOff: 0,
+    totalAmount: 0,
+  });
+
+  test('prints the GSTIN on the line after the shop name, not under invoice no and date', () => {
+    const html = generateJewelleryInvoiceHtml(data('23AAAAA0000A1Z5'));
+    const name = html.indexOf('<div class="company-name">Test Jewellers</div>');
+    const gstin = html.indexOf('<div class="company-gstin">GSTIN : 23AAAAA0000A1Z5</div>');
+    const address = html.indexOf('<div class="company-addr">Main Road</div>');
+    expect(name).toBeGreaterThan(-1);
+    expect(gstin).toBeGreaterThan(name);
+    expect(address).toBeGreaterThan(gstin);
+    expect(html).not.toContain('<strong>GSTIN :</strong>');
+  });
+
+  test('leaves the GSTIN line out when the shop has none', () => {
+    expect(generateJewelleryInvoiceHtml(data(''))).not.toContain('class="company-gstin"');
+  });
+});
