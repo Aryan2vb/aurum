@@ -7,7 +7,7 @@ export const normalizeWhatsAppPhone = (phone) => {
   return digits;
 };
 
-export const buildInvoiceWhatsAppMessage = ({ customerName, invoiceNumber, amount, firmName, pdfUrl, attachedNote }) => {
+export const buildInvoiceWhatsAppMessage = ({ customerName, invoiceNumber, amount, firmName, invoiceUrl }) => {
   const greeting = customerName ? `Hi ${customerName}` : 'Hello';
   const total = Number(amount);
   const amountText = Number.isFinite(total) && total > 0
@@ -15,8 +15,7 @@ export const buildInvoiceWhatsAppMessage = ({ customerName, invoiceNumber, amoun
     : '';
   const from = firmName ? ` from ${firmName}` : '';
   const lines = [`${greeting}, please find your invoice ${invoiceNumber || ''}${amountText}${from}.`.replace(/\s+\./, '.')];
-  if (pdfUrl) lines.push('', `Download PDF: ${pdfUrl}`);
-  if (attachedNote) lines.push('', 'The invoice PDF is attached.');
+  if (invoiceUrl) lines.push('', `View your invoice: ${invoiceUrl}`);
   lines.push('', 'Thank you!');
   return lines.join('\n');
 };
@@ -25,13 +24,4 @@ export const buildWhatsAppUrl = (phone, message) => {
   const normalized = normalizeWhatsAppPhone(phone);
   const base = normalized ? `https://wa.me/${normalized}` : 'https://wa.me/';
   return `${base}?text=${encodeURIComponent(message)}`;
-};
-
-// True on phones and tablets, where the share sheet lists WhatsApp directly. On desktop (a Mac's
-// share sheet offers AirDrop, Mail, ...) we open the WhatsApp chat instead. iPadOS reports "Macintosh".
-export const isMobileDevice = (nav = typeof navigator !== 'undefined' ? navigator : {}) => {
-  if (nav.userAgentData?.mobile) return true;
-  const ua = nav.userAgent || '';
-  if (/Android|iPhone|iPad|iPod/i.test(ua)) return true;
-  return /Macintosh/i.test(ua) && (nav.maxTouchPoints || 0) > 1;
 };

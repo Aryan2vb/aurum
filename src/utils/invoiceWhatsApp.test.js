@@ -1,4 +1,4 @@
-import { normalizeWhatsAppPhone, buildInvoiceWhatsAppMessage, buildWhatsAppUrl, isMobileDevice } from './invoiceWhatsApp';
+import { normalizeWhatsAppPhone, buildInvoiceWhatsAppMessage, buildWhatsAppUrl } from './invoiceWhatsApp';
 
 describe('invoiceWhatsApp', () => {
   test('normalizes Indian numbers', () => {
@@ -8,18 +8,12 @@ describe('invoiceWhatsApp', () => {
     expect(normalizeWhatsAppPhone('')).toBe('');
   });
 
-  test('builds a short message with the pdf link', () => {
+  test('builds a short message with the invoice link', () => {
     const msg = buildInvoiceWhatsAppMessage({
-      customerName: 'Mrs. Shah', invoiceNumber: 'RK/200/26-27', amount: 12500, firmName: 'RK Jewellers', pdfUrl: 'https://x/pdf',
+      customerName: 'Mrs. Shah', invoiceNumber: 'RK/200/26-27', amount: 12500, firmName: 'RK Jewellers', invoiceUrl: 'https://api.example.com/invoices/1/html?signature=abc',
     });
     expect(msg).toContain('Hi Mrs. Shah, please find your invoice RK/200/26-27 of ₹12,500 from RK Jewellers.');
-    expect(msg).toContain('Download PDF: https://x/pdf');
-  });
-
-  test('can say the pdf is attached instead of linking it', () => {
-    const msg = buildInvoiceWhatsAppMessage({ invoiceNumber: 'INV-1', attachedNote: true });
-    expect(msg).toContain('The invoice PDF is attached.');
-    expect(msg).not.toContain('Download PDF');
+    expect(msg).toContain('View your invoice: https://api.example.com/invoices/1/html?signature=abc');
   });
 
   test('omits optional parts', () => {
@@ -30,13 +24,5 @@ describe('invoiceWhatsApp', () => {
   test('wa.me url falls back to the contact picker without a phone', () => {
     expect(buildWhatsAppUrl('9876543210', 'hi')).toBe('https://wa.me/919876543210?text=hi');
     expect(buildWhatsAppUrl('', 'hi')).toBe('https://wa.me/?text=hi');
-  });
-
-  test('detects mobile devices but not a Mac', () => {
-    expect(isMobileDevice({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' })).toBe(true);
-    expect(isMobileDevice({ userAgent: 'Mozilla/5.0 (Linux; Android 14)' })).toBe(true);
-    expect(isMobileDevice({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 5 })).toBe(true);
-    expect(isMobileDevice({ userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', maxTouchPoints: 0 })).toBe(false);
-    expect(isMobileDevice({ userAgent: 'Mozilla/5.0 (Windows NT 10.0)' })).toBe(false);
   });
 });
