@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaWhatsapp } from 'react-icons/fa';
 import SlideOver from '../../atoms/SlideOver/SlideOver';
 import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
@@ -7,6 +8,8 @@ import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationP
 import { applyAdvanceToInvoice, getAdvanceBalance } from '../../../services/advanceService';
 import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import { usePermission } from '../../../hooks/usePermission';
+import { buildInvoiceWhatsAppMessage, buildWhatsAppUrl } from '../../../utils/invoiceWhatsApp';
+import { buildFirmIdentity, readFirmIdentitySettingsCache } from '../../../utils/firmIdentity';
 import './InvoiceDetailModal.css';
 
 // Format currency
@@ -63,6 +66,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
   const [commitLoading, setCommitLoading] = useState(false);
   const [negotiateError, setNegotiateError] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [negotiationMode, setNegotiationMode] = useState('MAKING_CHARGES');
   const [filterMetalType, setFilterMetalType] = useState('ALL');
 
@@ -192,6 +196,41 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
     }
   };
 
+  // Sends the customer a WhatsApp message with a signed link to the invoice page (valid 7 days).
+  // The chat window is opened synchronously on click, before the link is fetched, so popup
+  // blockers allow it; it is pointed at wa.me once the link is ready.
+  const handleShareWhatsApp = async () => {
+    const buyerInfo = invoice?.buyerSnapshot?.data || invoice?.buyerSnapshot || {};
+    const phone = buyerInfo.phone || invoice?.customer?.contactDetails?.[0]?.primaryPhone || '';
+    const chatWindow = window.open('', '_blank');
+
+    setSharing(true);
+    try {
+      const response = await getInvoiceViewToken(invoiceId);
+      if (!response?.signature) throw new Error('Failed to generate a secure invoice link');
+      const message = buildInvoiceWhatsAppMessage({
+        customerName: buyerInfo.name || invoice?.customer?.fullName,
+        invoiceNumber: invoice?.invoiceNumber,
+        amount: invoice?.totalAmount,
+        firmName: buildFirmIdentity(readFirmIdentitySettingsCache() || {}, '').displayName,
+        invoiceUrl: getInvoiceHtmlUrl(invoiceId, response.signature),
+      });
+      const chatUrl = buildWhatsAppUrl(phone, message);
+      if (chatWindow) {
+        chatWindow.opener = null;
+        chatWindow.location.href = chatUrl;
+      } else {
+        window.location.href = chatUrl;
+      }
+    } catch (error) {
+      chatWindow?.close();
+      console.error('Failed to share invoice on WhatsApp', error);
+      alert(`Could not prepare the invoice link: ${error?.message || 'unknown error'}`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   const buyer = invoice?.buyerSnapshot?.data || invoice?.buyerSnapshot || {};
@@ -205,6 +244,19 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
       onClose={onClose}
       title={invoice?.invoiceNumber || 'Invoice Details'}
       width={800}
+      headerActions={invoice ? (
+        <button
+          type="button"
+          className="slideover-action slideover-action--labeled whatsapp"
+          onClick={handleShareWhatsApp}
+          disabled={sharing}
+          title="Send this invoice on WhatsApp"
+          aria-label="Send this invoice on WhatsApp"
+        >
+          <FaWhatsapp size={18} />
+          <span>{sharing ? 'Preparing…' : 'Send over WhatsApp'}</span>
+        </button>
+      ) : null}
     >
       <div className="invoice-detail-modal">
         {loading ? (

@@ -322,6 +322,48 @@ const fmtPct = (part, whole) => {
   return `${(((parseFloat(part) || 0) / w) * 100).toFixed(0)}%`;
 };
 
+const CALCULATION_NOTES = [
+  [
+    'Invoices, Sales, Taxable, Collected, GST',
+    'Taken from the sales, GST and collections reports for the period above (and the selected customer, if any). They are not re-added from the invoice table.',
+  ],
+  [
+    'Avg bill / Max bill',
+    'Avg bill = total amount of all exported invoices divided by their count; Max bill = the largest single invoice. Draft invoices are left out of both.',
+  ],
+  [
+    'Line items',
+    'Number of item rows across the exported invoices (drafts excluded).',
+  ],
+  [
+    'Metal rate Rs/gm',
+    'One rate per item row: the effective rate charged, or the metal rate on the row if none. Rows are grouped by metal and purity. Low and High are the smallest and largest rate; Avg is the plain average of those rates, so every item row counts once whatever its weight. Rows with no rate are skipped.',
+  ],
+  [
+    'Labour Rs/gm (effective)',
+    'One value per item row: the Rs/gm entered if labour is charged per gram, otherwise labour amount divided by net weight (flat and % labour). Grouped by metal and purity; Low, High and Avg work as for the metal rate. Rows with no labour are skipped.',
+  ],
+  [
+    'Labour by type',
+    'Labour amounts added up by how they were charged (per gram, flat per item, % on metal). Total is all labour in the exported invoices.',
+  ],
+  [
+    'Total Hallmark',
+    'Sum of hallmarking charges on every item row of the exported invoices.',
+  ],
+  [
+    'Collections',
+    'Payments received in the period, grouped by payment mode. % is that mode divided by total collected.',
+  ],
+  [
+    'Gold / Silver by purity',
+    'Item count, gross weight and net weight per purity from the inventory-flow report for the period.',
+  ],
+];
+
+// Conservative height (pt) of the caption plus the notes table at 7pt, used to decide on a page break.
+const CALCULATION_NOTES_HEIGHT = 170;
+
 /**
  * Append a PERIOD SUMMARY page on A4 landscape with comfortable spacing.
  */
@@ -558,6 +600,28 @@ export const appendInvoicePeriodSummaryPage = (doc, periodSummary) => {
       fmtAmt(stats.totalHallmark),
     ]],
     columnWidths: [contentW / 2, contentW / 2],
+  });
+  y = (doc.lastAutoTable?.finalY || y) + SECTION_GAP;
+
+  // ── How the figures are calculated ──
+  // Keep the notes in one piece: if they would not fit under the tables, start a fresh page.
+  const pageH = doc.internal.pageSize.getHeight();
+  if (y + CALCULATION_NOTES_HEIGHT > pageH - 30) {
+    doc.addPage('a4', 'landscape');
+    y = 40;
+  }
+  drawCaption(doc, 'How these figures are calculated', MARGIN, y);
+  y += 6;
+  autoTable(doc, {
+    ...tableDefaults,
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    tableWidth: contentW,
+    head: [['Figure', 'How it is calculated']],
+    body: CALCULATION_NOTES,
+    styles: { ...tableDefaults.styles, fontSize: 7, cellPadding: 2, halign: 'left' },
+    headStyles: { ...tableDefaults.headStyles, fontSize: 7, cellPadding: 2, halign: 'left' },
+    columnStyles: { 0: { cellWidth: contentW * 0.16, fontStyle: 'bold' } },
   });
 };
 

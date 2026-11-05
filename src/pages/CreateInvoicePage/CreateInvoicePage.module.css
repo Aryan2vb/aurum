@@ -914,21 +914,27 @@
 }
 
 .addSmallBtn {
-    background: var(--bg-secondary);
-    border: 1px solid var(--accent);
-    color: var(--accent);
+    background: var(--accent);
+    border: none;
+    color: var(--on-accent);
     font-size: 0.75rem;
     font-weight: 700;
     min-height: 34px;
     padding: 0.4rem 0.7rem;
     border-radius: 0.4rem;
     cursor: pointer;
-    transition: all 0.15s;
+    transition:
+        background 0.15s,
+        transform 0.1s;
 }
 
 .addSmallBtn:hover {
-    background: var(--accent);
-    color: var(--accent-contrast, white);
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.addSmallBtn:active {
+    transform: translateY(0);
 }
 
 .paymentRow {
