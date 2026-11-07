@@ -2665,3 +2665,216 @@
 .paymentsSection:has(:global(.date-picker.is-open)) {
   z-index: 1000;
 }
+
+/* ══════════════════════════════════════════════════════════
+   iPad portrait tuning
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 1. Invoice No / Date / Format box (561–900px) ──
+   The old grid had a fixed 2nd row (40px), so the Format switch spilled
+   out of the box, and width:100% stretched the Invoice No. field.
+   Use a content-sized, wrapping flex box instead. */
+@media (min-width: 561px) and (max-width: 900px) {
+  .topRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .invoiceControls {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .dateAndSeqGroup {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--spacing-sm) var(--spacing-md);
+    width: fit-content;
+    max-width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .seqField   { width: 215px; }
+  .dateField  { min-width: 140px; }
+
+  .formatOption { padding: 0.45rem 0.75rem; }
+}
+
+/* ── 2. Smaller customer search + compact inputs (769–1100px) ── */
+@media (min-width: 769px) and (max-width: 1100px) {
+  /* customer search */
+  .customerSearchWrap,
+  .selectedCustomerContainer {
+    max-width: 400px;
+  }
+
+  .customerSearchInput {
+    max-width: 400px;
+    min-height: 36px;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  .selectedCustomer {
+    width: min(100%, 400px);
+    min-height: 36px;
+  }
+
+  /* line-item inputs: 5 columns → 3 rows instead of 4, and shorter boxes */
+  .itemCard {
+    padding: 0.5rem var(--spacing-md);
+  }
+
+  .itemFieldGrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px var(--spacing-sm);
+  }
+
+  .itemDescInput {
+    min-height: 32px;
+  }
+
+  .fieldInput,
+  .fieldSelect,
+  .fieldComputed {
+    min-height: 30px;
+    height: 30px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+  }
+
+  .metalCell {
+    min-height: 30px;
+    height: 30px;
+  }
+
+  .metalCell button {
+    height: 26px;
+  }
+
+  .fieldLabel {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ── 3. Tax & Settings card was full-width → cap it (769–900px) ── */
+@media (min-width: 769px) and (max-width: 900px) {
+  .settingsCard {
+    width: min(100%, 440px);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   iPad portrait – round 2
+   ══════════════════════════════════════════════════════════ */
+@media (min-width: 769px) and (max-width: 1100px) {
+  /* Selected customer + name-format box use the full row (no empty strip on
+     the right) and the 4 name-format radios flow horizontally. */
+  .selectedCustomerContainer {
+    max-width: none;
+  }
+
+  .selectedCustomer {
+    width: 100%;
+  }
+
+  .selectedCustomerAddress {
+    max-width: none;
+  }
+
+  .nameFormatOptions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.25rem;
+  }
+
+  /* Payments / Split now sits above Advanced: keep columns even & compact */
+  .paymentsSection {
+    max-width: 600px;
+  }
+
+  .paymentTableHeader,
+  .paymentRow {
+    grid-template-columns:
+      minmax(110px, 1fr)
+      minmax(120px, 1fr)
+      minmax(130px, 1fr)
+      36px;
+  }
+
+  /* Advanced now holds only Tax & Settings: single compact card */
+  .advancedSection {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settingsCard {
+    grid-column: 1;
+    width: min(100%, 340px);
+  }
+
+  .settingsTableHeader,
+  .settingsRow {
+    grid-template-columns: minmax(0, 1fr) 64px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Advance row (customer has an advance balance)
+   The row shares the 4-column payment grid
+   [mode | amount | date | action]. It used to span 2 columns for the
+   "Payment source" cell, which pushed Amount into the date column,
+   Date into the 36px action column (text wrapped) and the clear button
+   onto a second line.
+   ══════════════════════════════════════════════════════════ */
+.advancePaymentRow .advanceRowLabel {
+  grid-column: auto;
+}
+
+/* Pill on top, "Available: ₹x" underneath → fits the narrow mode column */
+.advanceRowLabel > div {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 0.65rem;
+}
+
+.advancePill {
+  padding: 1px 8px;
+}
+
+.advanceRowAvail {
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+/* Hide the "Payment source" caption on table layout, like the other rows
+   hide their captions (the header row already labels the columns). */
+@media (min-width: 769px) {
+  .paymentRow .advanceRowLabel > label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+/* Deposit history chip row: align with row padding */
+.advanceHistory {
+  margin: 0 var(--spacing-md) var(--spacing-xs);
+}
+
+/* Hide the page's inner scrollbar (scrolling still works) — same approach
+   as .dashboard-main in DashboardTemplate.css */
+.pageWrapper {
+  scrollbar-width: none;       /* Firefox */
+  -ms-overflow-style: none;    /* old Edge / IE */
+}
+
+.pageWrapper::-webkit-scrollbar {
+  display: none;               /* Chrome, Safari, iPad */
+}

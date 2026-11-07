@@ -245,9 +245,11 @@ const DashboardHeader = ({
             <button className="header-action-btn">
               <Icon name="add" size={20} />
             </button>
-            <Button variant="secondary" size="small">
-              Customize Widget
-            </Button>
+            <div className="header-customize-widget">
+              <Button variant="secondary" size="small">
+                Customize Widget
+              </Button>
+            </div>
         </div>
       </div>
       {showTabs && (

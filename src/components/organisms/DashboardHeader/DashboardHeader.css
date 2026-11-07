@@ -580,3 +580,57 @@
 @media (max-width: 768px) {
   .team-stack { display: none; }
 }
+
+/* ============================================
+   iPad portrait (769–1024px): keep the whole
+   header on ONE line with the page title
+   ============================================ */
+.header-customize-widget { display: block; }
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .header-top {
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .header-top > :first-child {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .header-top .text--heading,
+  .header-top .text-heading {
+    font-size: 20px !important;
+  }
+
+  .header-right {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .firm-identity-badge {
+    min-width: 0;
+    max-width: 250px;
+    padding: 5px 8px;
+    gap: 8px;
+    flex-shrink: 1;
+  }
+
+  .firm-identity-logo {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+
+  .firm-identity-name {
+    max-width: 170px;
+    font-size: 12px;
+  }
+
+  .header-action-btn { padding: 6px; }
+  .team-stack { margin-left: 0; }
+
+  /* No room for the text button next to everything else */
+  .header-customize-widget { display: none; }
+}
