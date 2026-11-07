@@ -1216,9 +1216,9 @@ const CreateInvoicePage = () => {
                   {canEditSequence && sequenceData ? (
                     <div className={styles.seqInputWrapper}>
                       <span className={styles.seqPrefix}>{sequenceData.prefix} / </span>
-                      <input 
-                        type="number" 
-                        className={styles.seqInput} 
+                      <input
+                        type="number"
+                        className={styles.seqInput}
                         value={manualSequence}
                         onChange={(e) => {
                           sequenceEditedRef.current = true;
@@ -1231,8 +1231,8 @@ const CreateInvoicePage = () => {
                   ) : (
                     <div className={styles.staticSeqWrapper}>
                       <span className={styles.staticSeq}>
-                        {id && invoiceData.metadata.invoiceNo && invoiceData.metadata.invoiceNo !== 'PREVIEW' 
-                          ? invoiceData.metadata.invoiceNo 
+                        {id && invoiceData.metadata.invoiceNo && invoiceData.metadata.invoiceNo !== 'PREVIEW'
+                          ? invoiceData.metadata.invoiceNo
                           : 'Auto-generated'}
                       </span>
                     </div>
@@ -1499,6 +1499,167 @@ const CreateInvoicePage = () => {
               </div>
             </section>
 
+            {/* Payments / Split — now above Advanced */}
+            <div className={styles.paymentsSection}>
+              <div className={styles.sectionHeader}>
+                <label>Payments / Split</label>
+                <button
+                  type="button"
+                  className={styles.addSmallBtn}
+                  onClick={handleAddPayment}
+                >
+                  + Add Mode
+                </button>
+              </div>
+              <div className={styles.paymentTableHeader} aria-hidden="true">
+                <span>Mode</span>
+                <span>Amount</span>
+                <span>Payment date</span>
+                <span></span>
+              </div>
+              {payments.map((p, idx) => (
+                <div key={idx} className={styles.paymentRow}>
+                  <div className={styles.paymentField}>
+                    <label htmlFor={`payment-mode-${idx}`}>Payment mode</label>
+                    <select
+                      id={`payment-mode-${idx}`}
+                      value={p.mode}
+                      onChange={(e) =>
+                        handleUpdatePayment(idx, "mode", e.target.value)
+                      }
+                      className={styles.paymentModeSelect}
+                    >
+                      {paymentModes.map((m) => (
+                        <option key={m} value={m}>
+                          {m.replaceAll("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.paymentField}>
+                    <label htmlFor={`payment-amount-${idx}`}>Amount</label>
+                    <div className={styles.paymentAmountWrap}>
+                      <span className={styles.currencyPrefix}>₹</span>
+                      <input
+                        id={`payment-amount-${idx}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={p.amount}
+                        onChange={(e) =>
+                          handleUpdatePayment(idx, "amount", e.target.value)
+                        }
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.paymentField}>
+                    <label htmlFor={`payment-date-${idx}`}>Payment date</label>
+                    <DatePicker
+                      id={`payment-date-${idx}`}
+                      value={p.paidAt || invoiceDate}
+                      max={[invoiceDate, toDateInputValue()].sort()[0]}
+                      required
+                      align="right"
+                      onChange={(ymd) => handleUpdatePayment(idx, "paidAt", ymd)}
+                      triggerClassName={styles.paymentDateInput}
+                    />
+                  </div>
+                  <div className={styles.paymentAction}>
+                    <span aria-hidden="true">Action</span>
+                    <button
+                      type="button"
+                      className={styles.removePaymentBtn}
+                      onClick={() => handleRemovePayment(idx)}
+                      disabled={payments.length === 1}
+                      aria-label={`Remove ${p.mode} payment`}
+                      title={payments.length === 1 ? "At least one payment row is required" : "Remove payment"}
+                    >
+                      <Icon name="close" size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Advance row — only shown when selected customer has advance balance */}
+              {advanceBalance > 0 && (
+                <div className={styles.advanceRowWrap}>
+                  <div className={`${styles.paymentRow} ${styles.advancePaymentRow}`}>
+                    <div className={styles.advanceRowLabel}>
+                      <label>Payment source</label>
+                      <div>
+                        <span className={styles.advancePill}>Advance</span>
+                        <span className={styles.advanceRowAvail}>
+                          Available: ₹{advanceBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={styles.paymentField}>
+                      <label htmlFor="advance-payment-amount">Amount</label>
+                      <div className={styles.paymentAmountWrap}>
+                        <span className={styles.currencyPrefix}>₹</span>
+                        <input
+                          id="advance-payment-amount"
+                          type="number"
+                          min="0"
+                          max={advanceBalance}
+                          step="0.01"
+                          value={advanceApplied || ''}
+                          placeholder="0.00"
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setAdvanceApplied(Math.min(val, advanceBalance));
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.paymentField}>
+                      <label htmlFor="advance-payment-date">Payment date</label>
+                      <DatePicker
+                        id="advance-payment-date"
+                        value={advanceDate}
+                        max={toDateInputValue()}
+                        align="right"
+                        triggerClassName={styles.paymentDateInput}
+                        onChange={setAdvanceDate}
+                      />
+                    </div>
+                    <div className={styles.paymentAction}>
+                      <span aria-hidden="true">Action</span>
+                      <button
+                        type="button"
+                        className={styles.removePaymentBtn}
+                        onClick={() => setAdvanceApplied(0)}
+                        disabled={advanceApplied <= 0}
+                        aria-label="Clear advance payment"
+                        title={advanceApplied > 0 ? "Clear advance payment" : "No advance applied"}
+                      >
+                        <Icon name="close" size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Advance receipt history — shows when/how deposits were made */}
+                  {advanceLedgerEntries.length > 0 && (
+                    <div className={styles.advanceHistory}>
+                      <span className={styles.advanceHistoryLabel}>Deposits:</span>
+                      {advanceLedgerEntries
+                        .filter((e) => e.type === 'ADVANCE_RECEIVED')
+                        .map((e) => (
+                          <span key={e.id} className={styles.advanceHistoryChip}>
+                            ₹{parseFloat(e.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                            {' on '}
+                            {toDateInputValue(e.createdAt)}
+                            {e.paymentMethod ? ` · ${e.paymentMethod}` : ''}
+                          </span>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Advanced Section */}
             <button
               className={styles.advancedToggle}
@@ -1592,166 +1753,6 @@ const CreateInvoicePage = () => {
                 <label>State Code</label>
                 <input value={invoiceData.buyer.stateCode} onChange={e => setInvoiceData(prev => ({ ...prev, buyer: { ...prev.buyer, stateCode: e.target.value } }))} placeholder="07" />
               </div> */}
-                <div className={styles.paymentsSection}>
-                  <div className={styles.sectionHeader}>
-                    <label>Payments / Split</label>
-                    <button
-                      type="button"
-                      className={styles.addSmallBtn}
-                      onClick={handleAddPayment}
-                    >
-                      + Add Mode
-                    </button>
-                  </div>
-                  <div className={styles.paymentTableHeader} aria-hidden="true">
-                    <span>Mode</span>
-                    <span>Amount</span>
-                    <span>Payment date</span>
-                    <span></span>
-                  </div>
-                  {payments.map((p, idx) => (
-                    <div key={idx} className={styles.paymentRow}>
-                      <div className={styles.paymentField}>
-                        <label htmlFor={`payment-mode-${idx}`}>Payment mode</label>
-                        <select
-                          id={`payment-mode-${idx}`}
-                          value={p.mode}
-                          onChange={(e) =>
-                            handleUpdatePayment(idx, "mode", e.target.value)
-                          }
-                          className={styles.paymentModeSelect}
-                        >
-                          {paymentModes.map((m) => (
-                            <option key={m} value={m}>
-                              {m.replaceAll("_", " ")}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className={styles.paymentField}>
-                        <label htmlFor={`payment-amount-${idx}`}>Amount</label>
-                        <div className={styles.paymentAmountWrap}>
-                          <span className={styles.currencyPrefix}>₹</span>
-                          <input
-                            id={`payment-amount-${idx}`}
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={p.amount}
-                            onChange={(e) =>
-                              handleUpdatePayment(idx, "amount", e.target.value)
-                            }
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-                      <div className={styles.paymentField}>
-                        <label htmlFor={`payment-date-${idx}`}>Payment date</label>
-                        <DatePicker
-                          id={`payment-date-${idx}`}
-                          value={p.paidAt || invoiceDate}
-                          max={[invoiceDate, toDateInputValue()].sort()[0]}
-                          required
-                          align="right"
-                          onChange={(ymd) => handleUpdatePayment(idx, "paidAt", ymd)}
-                          triggerClassName={styles.paymentDateInput}
-                        />
-                      </div>
-                      <div className={styles.paymentAction}>
-                        <span aria-hidden="true">Action</span>
-                        <button
-                          type="button"
-                          className={styles.removePaymentBtn}
-                          onClick={() => handleRemovePayment(idx)}
-                          disabled={payments.length === 1}
-                          aria-label={`Remove ${p.mode} payment`}
-                          title={payments.length === 1 ? "At least one payment row is required" : "Remove payment"}
-                        >
-                          <Icon name="close" size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Advance row — only shown when selected customer has advance balance */}
-                  {advanceBalance > 0 && (
-                    <div className={styles.advanceRowWrap}>
-                      <div className={`${styles.paymentRow} ${styles.advancePaymentRow}`}>
-                        <div className={styles.advanceRowLabel}>
-                          <label>Payment source</label>
-                          <div>
-                            <span className={styles.advancePill}>Advance</span>
-                            <span className={styles.advanceRowAvail}>
-                              Available: ₹{advanceBalance.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className={styles.paymentField}>
-                          <label htmlFor="advance-payment-amount">Amount</label>
-                          <div className={styles.paymentAmountWrap}>
-                            <span className={styles.currencyPrefix}>₹</span>
-                            <input
-                              id="advance-payment-amount"
-                              type="number"
-                              min="0"
-                              max={advanceBalance}
-                              step="0.01"
-                              value={advanceApplied || ''}
-                              placeholder="0.00"
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0;
-                                setAdvanceApplied(Math.min(val, advanceBalance));
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className={styles.paymentField}>
-                          <label htmlFor="advance-payment-date">Payment date</label>
-                          <DatePicker
-                            id="advance-payment-date"
-                            value={advanceDate}
-                            max={toDateInputValue()}
-                            align="right"
-                            triggerClassName={styles.paymentDateInput}
-                            onChange={setAdvanceDate}
-                          />
-                        </div>
-                        <div className={styles.paymentAction}>
-                          <span aria-hidden="true">Action</span>
-                          <button
-                            type="button"
-                            className={styles.removePaymentBtn}
-                            onClick={() => setAdvanceApplied(0)}
-                            disabled={advanceApplied <= 0}
-                            aria-label="Clear advance payment"
-                            title={advanceApplied > 0 ? "Clear advance payment" : "No advance applied"}
-                          >
-                            <Icon name="delete" size={15} />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Advance receipt history — shows when/how deposits were made */}
-                      {advanceLedgerEntries.length > 0 && (
-                        <div className={styles.advanceHistory}>
-                          <span className={styles.advanceHistoryLabel}>Deposits:</span>
-                          {advanceLedgerEntries
-                            .filter((e) => e.type === 'ADVANCE_RECEIVED')
-                            .map((e) => (
-                              <span key={e.id} className={styles.advanceHistoryChip}>
-                                ₹{parseFloat(e.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                                {' on '}
-                                {toDateInputValue(e.createdAt)}
-                                {e.paymentMethod ? ` · ${e.paymentMethod}` : ''}
-                              </span>
-                            ))
-                          }
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
               </div>
             )}
           </div>
@@ -1983,8 +1984,8 @@ const CreateInvoicePage = () => {
                         <span>{detail.invoiceNumber}</span>
                         {(detail.minDate || detail.maxDate) && (
                           <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '2px' }}>
-                            Expected: {detail.minDate ? new Date(detail.minDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Start'} 
-                            {' — '} 
+                            Expected: {detail.minDate ? new Date(detail.minDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Start'}
+                            {' — '}
                             {detail.maxDate ? new Date(detail.maxDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : 'Now'}
                           </span>
                         )}
