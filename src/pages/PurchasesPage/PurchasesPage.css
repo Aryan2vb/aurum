@@ -1,0 +1,2569 @@
+.purchase-bill-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  min-height: calc(100vh - 60px);
+  background: transparent;
+  color: var(--text-primary);
+}
+
+/* Hide number input arrows for cleaner look */
+.purchase-bill-page input[type="number"]::-webkit-inner-spin-button, 
+.purchase-bill-page input[type="number"]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+.purchase-bill-page input[type="number"] { 
+  -moz-appearance: textfield; 
+}
+
+/* Attio Container Style */
+.purchase-bill-container.glass-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 var(--shadow);
+  overflow: hidden;
+}
+
+/* Header Top */
+.attio-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.attio-header-top h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Header Action Buttons */
+.attio-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attio-action-clear,
+.attio-action-print,
+.attio-action-save {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.attio-action-clear {
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+}
+.attio-action-clear:hover { background: var(--border-light); color: var(--text-primary); }
+
+.attio-action-print {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+}
+.attio-action-print:hover { background: var(--bg-tertiary); border-color: var(--border-color); color: var(--text-primary); }
+
+.attio-action-save {
+  color: var(--on-accent);
+  background: var(--accent);
+  border: 1px solid transparent;
+}
+.attio-action-save:hover { background: var(--accent-hover); }
+.attio-action-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Fluid, auto-wrapping label-above field grid */
+.attio-properties-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.875rem 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: color-mix(in srgb, var(--bg-tertiary) 55%, var(--bg-secondary));
+  border-bottom: 1px solid var(--border-light);
+}
+
+.attio-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  min-width: 0;
+}
+
+.attio-field-wide {
+  grid-column: span 2;
+}
+
+.attio-field-compact {
+  width: 100%;
+  max-width: 190px;
+}
+
+.attio-field-address {
+  width: 100%;
+  max-width: 400px;
+}
+
+.attio-prop-label {
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Input/value side fills its cell */
+.attio-field > *:not(.attio-prop-label) {
+  width: 100%;
+  min-width: 0;
+}
+
+.attio-field-static {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+}
+
+/* Smooth Minimalist Inline Input */
+.inline-input {
+  width: 100%;
+  background: var(--bg-tertiary); /* Changed from transparent for better visibility */
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.375rem 0.5rem; /* Slightly increased padding */
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.inline-input:hover:not([readonly]):not(:focus) {
+  border-color: var(--border-color);
+  background: var(--border-light); /* Darker on hover */
+}
+
+.inline-input:focus:not([readonly]) {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.inline-input.text-gray,
+.inline-input[readonly] {
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.vendor-select-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.25rem;
+}
+.vendor-select-row .inline-input { flex: 1; }
+
+.icon-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  padding: 0.25rem;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.icon-action-btn:hover { background: var(--border-light); color: var(--text-secondary); }
+
+/* Attio Dynamic Badge */
+.party-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* Dense Minimal Data Entry Table Layout */
+.purchase-grid-wrap {
+  padding: 0.5rem 1.5rem 1.25rem 1.5rem;
+  overflow-x: auto;
+}
+
+.purchase-entry-grid.simple-grid {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures specified column structural widths are locked */
+}
+
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid.simple-grid td {
+  border: none;
+  border-right: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+  padding: 0.375rem 0.25rem;
+  vertical-align: middle;
+}
+
+.purchase-entry-grid.simple-grid th:last-child,
+.purchase-entry-grid.simple-grid td:last-child {
+  border-right: none;
+}
+
+.purchase-entry-grid.simple-grid th {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Reset heavy row styles */
+.purchase-entry-grid input,
+.purchase-entry-grid select {
+  width: 100%;
+  min-height: auto;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0.25rem 0.375rem;
+  outline: none;
+  font-size: 0.84rem;
+  transition: all 0.15s ease;
+}
+
+.purchase-entry-grid input:hover:not(:focus),
+.purchase-entry-grid select:hover:not(:focus) {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.purchase-entry-grid input:focus,
+.purchase-entry-grid select:focus {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.attio-grid-row:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Row Action Utility Visibility */
+.attio-grid-row:hover .grid-remove-btn {
+  opacity: 1;
+}
+
+.grid-remove-btn {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  color: var(--error);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-remove-btn:hover {
+  background: color-mix(in srgb, var(--error) 16%, transparent);
+}
+
+.grid-remove-btn:disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed;
+}
+
+/* Keyboard users never trigger the row hover that reveals these buttons. */
+.grid-remove-btn:focus-visible,
+.grid-remove-btn.hover-show:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Vendor Management Modal Layout */
+.vendor-modal-wide {
+  width: 900px !important;
+  max-width: 95vw;
+  height: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.vendor-modal-wide .stock-modal-header {
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.75rem;
+}
+
+.vendor-manage-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.vendor-manage-sidebar {
+  width: 250px;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  gap: 1rem;
+  background: var(--bg-tertiary);
+}
+
+.vendor-search-wrap {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.vendor-search-input {
+  flex: 1;
+  padding: 0.375rem 0.625rem !important;
+  font-size: 0.8125rem;
+}
+
+.add-vendor-btn {
+  padding: 0.375rem 0.625rem;
+  min-height: auto;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.vendor-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vendor-list-item {
+  padding: 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+}
+
+.vendor-list-item:hover {
+  background: var(--border-light);
+}
+
+.vendor-list-item.active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.vendor-item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.vendor-item-sub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.vendor-manage-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+
+.vendor-form-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.5rem;
+}
+
+.vendor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.vendor-form-grid .form-group.full-width {
+  grid-column: span 2;
+}
+
+.vendor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+/* History & Stats Section */
+.vendor-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.vendor-stats-mini-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.vendor-stat-mini {
+  flex: 1;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.vendor-stat-mini span {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.vendor-stat-mini strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.vendor-history-table-wrapper {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vendor-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.vendor-history-table th,
+.vendor-history-table td {
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.vendor-history-table th {
+  background: var(--bg-tertiary);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.vendor-history-table tr:last-child td {
+  border-bottom: none;
+}
+
+.no-history,
+.no-vendors-found {
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+.grid-remove-btn.hover-show {
+  opacity: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  margin: 0 auto;
+}
+
+.attio-grid-row:hover .grid-remove-btn.hover-show {
+  opacity: 1;
+}
+
+.grid-remove-btn.hover-show:hover {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+/* Footer & Totaling Adjustments */
+.purchase-entry-grid tfoot td {
+  border-bottom: none;
+  padding-top: 0.75rem;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.computed-cell {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  padding-right: 0.375rem !important;
+}
+
+.total-cell {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.grid-add-btn.attio-secondary-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all 0.15s ease;
+}
+.grid-add-btn.attio-secondary-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+/* Financial Section Styling */
+.attio-totals-section {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-light);
+  gap: 3rem;
+}
+
+.attio-footer-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
+  max-width: 400px;
+}
+
+.attio-contextual-totals {
+  display: flex;
+  gap: 2.5rem;
+}
+
+.metal-weights-box {
+  gap: 2rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+
+.ctx-total {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ctx-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.ctx-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.attio-financials {
+  width: 100%;
+  max-width: 320px;
+  font-size: 0.84rem;
+}
+
+.attio-financials-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1rem 1.125rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.fin-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.fin-val {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.fin-tax-row {
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border-light);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.tax-select {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0.3125rem 0.5rem !important;
+  background: var(--bg-tertiary);
+}
+
+.fin-tax-rate {
+  flex-shrink: 0;
+  min-width: 2.25rem;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.fin-tax-breakdown {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: -0.25rem;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+}
+
+.grand-row {
+  padding: 0.75rem 0.875rem;
+  margin: 0.25rem -0.375rem 0;
+  border-top: none;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-tertiary));
+  border-radius: 8px;
+}
+
+.fin-adjustment-row {
+  align-items: center;
+}
+
+.fin-adjustment-input {
+  width: 7rem;
+  max-width: 45%;
+}
+
+.fin-label-bold {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fin-val-bold {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Remarks Input Area */
+.remark-input-box {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.remark-input-box:focus {
+  border-color: var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow-hover);
+}
+
+.remark-input-box::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* History Grid Elements */
+.purchases-history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.purchase-form-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.purchase-edit-chip {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  width: fit-content;
+  font-weight: 500;
+}
+
+.purchase-bill-container.is-editing {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent), 0 1px 3px 0 var(--shadow);
+}
+
+.purchase-history-hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.purchase-history-search {
+  min-width: 180px;
+  height: 32px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.purchase-history-search:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.purchase-due-amt {
+  color: var(--error);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.purchase-due-clear {
+  color: var(--text-tertiary);
+}
+
+.purchase-stat.due-stat strong {
+  color: var(--error);
+}
+
+.purchase-history-row.is-active {
+  background: var(--border-light);
+}
+
+.attio-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.purchase-payments-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.purchase-payments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.purchase-payments-empty {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+}
+
+.purchase-payment-row {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr 0.9fr 0.9fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.purchase-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: var(--border-light);
+  color: var(--text-secondary);
+}
+
+.purchase-status-badge.status-paid {
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success);
+}
+
+.purchase-status-badge.status-partial {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.purchase-status-badge.status-unpaid {
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+  color: var(--error);
+}
+
+.purchase-row-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.row-action-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.row-action-btn:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.purchase-history-row {
+  cursor: pointer;
+}
+
+.purchase-history-row:hover {
+  background: var(--bg-tertiary);
+}
+
+.purchase-stat {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.purchase-stat span,
+.vendor-cell span {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.purchase-stat strong,
+.vendor-cell strong {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.vendor-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.saas-input,
+.saas-select,
+.saas-textarea {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.saas-input:hover:not(:disabled):not([readonly]),
+.saas-select:hover:not(:disabled),
+.saas-textarea:hover:not(:disabled) {
+  border-color: var(--border-light);
+  background-color: var(--bg-secondary);
+}
+
+.saas-input:focus,
+.saas-select:focus,
+.saas-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  background-color: var(--bg-primary);
+}
+
+.saas-input[readonly] {
+  color: var(--text-secondary);
+  background: transparent;
+  border-color: transparent;
+  font-weight: 600;
+  padding-left: 0;
+  padding-right: 0;
+}
+.saas-input[readonly]:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.saas-textarea {
+  min-height: 74px;
+  resize: vertical;
+}
+
+.purchase-bill-page .attio-primary-btn,
+.purchase-bill-page .attio-secondary-btn {
+  min-height: 40px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.purchase-bill-page .attio-primary-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-glow {
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.btn-glow:hover {
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.purchase-bill-page .attio-primary-btn {
+  background: var(--accent);
+  color: var(--on-accent);
+  border: 1px solid transparent;
+}
+
+.purchase-bill-page .attio-primary-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.purchase-bill-page .attio-secondary-btn {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.purchase-bill-page .attio-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.text-danger:hover {
+  color: var(--error) !important;
+  border-color: color-mix(in srgb, var(--error) 30%, transparent) !important;
+  background: color-mix(in srgb, var(--error) 5%, transparent) !important;
+}
+
+.purchase-bill-page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.vendor-modal {
+  width: 420px;
+}
+
+.stock-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgba(15, 23, 42, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.stock-modal-content {
+  width: 460px;
+  max-width: 100%;
+  padding: 1.35rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+}
+
+
+
+.stock-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.stock-modal-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+}
+
+.stock-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.stock-modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.stock-modal-form,
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
+  gap: 0.4rem;
+}
+
+.stock-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-light);
+}
+
+@media print {
+  .sidebar,
+  .mobile-menu-button,
+  .bottom-nav,
+  .dashboard-header,
+  .purchases-history-panel,
+  .purchase-actions {
+    display: none !important;
+  }
+
+  .purchase-bill-page {
+    padding: 0;
+    background: var(--bg-secondary);
+  }
+
+  .purchase-bill {
+    border: none;
+    color: #000;
+  }
+}
+
+@media (max-width: 1100px) {
+  .purchase-bill-header,
+  .purchase-bill-footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .party-field {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .purchase-bill-page {
+    padding: 0.75rem;
+  }
+
+  .purchase-bill-header,
+  .purchase-bill-footer,
+  .purchase-stats-row,
+  .totals-mini,
+  .gst-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .attio-properties-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .attio-field-wide {
+    grid-column: span 2;
+  }
+
+  .attio-financials {
+    max-width: 100%;
+  }
+
+  .purchase-payment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .remark-field {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* 2. Fix Touch Device Delete Buttons */
+@media (hover: none) and (pointer: coarse) {
+  .grid-remove-btn.hover-show {
+    opacity: 1; /* Always visible on touch screens */
+    color: var(--error);
+    background: color-mix(in srgb, var(--error) 10%, transparent);
+  }
+}
+
+/* 4. Fix Mobile Vendor Modal */
+@media (max-width: 768px) {
+  .vendor-manage-layout {
+    flex-direction: column; /* Stack vertically on mobile */
+  }
+
+  .vendor-manage-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    max-height: 250px; /* Prevent sidebar from taking over the screen */
+  }
+  
+  .vendor-manage-main {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .vendor-form-grid {
+    grid-template-columns: 1fr; /* Stack form fields */
+  }
+  
+  .vendor-form-grid .form-group.full-width {
+    grid-column: span 1;
+  }
+  
+  .vendor-modal-wide {
+    height: 85vh; /* Give more height on mobile */
+  }
+}
+
+/* Compact action buttons in history panel header */
+.attio-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.attio-header-right .attio-secondary-btn {
+  min-height: 32px !important;
+  height: 32px;
+  padding: 0 0.75rem !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.attio-header-right .attio-secondary-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.attio-header-right .attio-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Date range filter pill */
+.purchase-date-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0 0.5rem;
+  height: 32px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.purchase-date-filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.purchase-date-input {
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 450;
+  padding: 0;
+  height: 100%;
+  cursor: pointer;
+  outline: none;
+  width: 118px;
+  color-scheme: dark;
+}
+
+.purchase-date-input::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+  filter: invert(var(--calendar-invert, 0));
+}
+
+.purchase-date-input:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+}
+
+.purchase-date-separator {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+}
+
+.purchase-date-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.purchase-date-clear:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
+/* History table — theme-safe (scoped so we don't depend on InvoiceTable.css) */
+.purchases-history-panel .attio-table-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: visible;
+  color: var(--text-primary);
+}
+
+.purchases-history-panel .attio-table-wrapper {
+  overflow: auto;
+  border-radius: 0 0 12px 12px;
+}
+
+.purchases-history-panel .attio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  position: relative;
+  z-index: 200;
+  flex-wrap: wrap;
+  row-gap: 0.625rem;
+}
+
+.purchases-history-panel .saas-view-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.purchases-history-panel .attio-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  background: var(--bg-secondary);
+}
+
+.purchases-history-panel .attio-th,
+.purchases-history-panel .attio-td {
+  padding: 0.55rem 0.75rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.purchases-history-panel .attio-th {
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--bg-primary);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.purchases-history-panel .attio-td {
+  font-size: 0.84rem;
+  vertical-align: middle;
+}
+
+.purchases-history-panel .purchase-history-row:hover {
+  background: var(--bg-hover);
+}
+
+.purchases-history-panel .purchase-history-row.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.purchases-history-panel .attio-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.purchase-entry-grid input:focus,
+.purchase-entry-grid select:focus {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.purchase-stat {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.remark-input-box {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.remark-input-box:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.attio-totals-section {
+  background: var(--bg-tertiary);
+  border-top-color: var(--border-light);
+}
+
+.grand-row {
+  background: var(--bg-hover);
+}
+
+.tax-select {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+}
+
+/* Optional supplier invoice attachment */
+.purchase-attachment-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* Full-hit overlay on Attach label (Settings upload pattern) */
+.purchase-attachment-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+  font-size: 0;
+}
+
+.purchase-attachment-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.purchase-attachment-thumb {
+  max-width: 180px;
+  max-height: 140px;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.purchase-attachment-pdf {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
+.purchase-attachment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.purchase-attach-btn {
+  min-height: 32px !important;
+  height: 32px;
+  padding: 0 0.65rem !important;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.purchase-attach-choose {
+  min-height: 36px !important;
+  padding: 0 0.85rem !important;
+  font-size: 0.8125rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+}
+
+/* Purchase bill reference layout */
+.purchase-bill-page {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding: 2rem 1rem;
+}
+
+.purchase-bill-container.glass-panel {
+  border-color: #e4e4e7;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px -2px rgb(0 0 0 / 5%), 0 1px 2px rgb(0 0 0 / 2%);
+}
+
+.attio-header-top {
+  min-height: 65px;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-bottom-color: #f4f4f5;
+}
+
+.attio-header-top h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.attio-header-actions {
+  gap: 0.75rem;
+}
+
+.attio-action-clear,
+.attio-action-save {
+  min-height: 30px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.attio-action-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline: 1rem;
+  color: #fff;
+  background: #18181b;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+.attio-action-save:hover {
+  background: #27272a;
+}
+
+.attio-properties-grid {
+  grid-template-columns:
+    minmax(0, 2.2fr)
+    minmax(0, 1.1fr)
+    minmax(0, 1.1fr)
+    minmax(0, 0.8fr)
+    minmax(0, 1.1fr)
+    minmax(0, 2.1fr);
+  gap: 1rem;
+  padding: 1.5rem;
+  background: #fafafa;
+  border-bottom-color: #f4f4f5;
+}
+
+.attio-field-wide {
+  grid-column: auto;
+}
+
+.attio-field-compact,
+.attio-field-address {
+  max-width: none;
+}
+
+.attio-field {
+  gap: 0.375rem;
+}
+
+.attio-prop-label,
+.purchase-attachment-block > .ctx-label,
+.purchase-payments-header > .ctx-label,
+.metal-weights-box .ctx-label {
+  color: #71717a;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1rem;
+  text-transform: uppercase;
+}
+
+.attio-properties-grid .inline-input {
+  min-height: 34px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #27272a;
+  font-size: 0.8125rem;
+}
+
+.attio-properties-grid .inline-input:hover:not([readonly]):not(:focus) {
+  border-color: #d4d4d8;
+  background: #fff;
+}
+
+.attio-properties-grid .inline-input:focus:not([readonly]) {
+  border-color: #d4d4d8;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgb(24 24 27 / 10%);
+}
+
+.attio-field-static {
+  min-height: 34px;
+}
+
+.party-badge {
+  padding: 0.25rem 0.625rem;
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: rgb(187 247 208 / 50%);
+}
+
+.icon-action-btn {
+  flex: 0 0 30px;
+  height: 30px;
+  justify-content: center;
+  margin-left: 0.25rem;
+  color: #a1a1aa;
+}
+
+.purchase-grid-wrap {
+  padding: 0;
+  background: #fff;
+}
+
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid.simple-grid td {
+  border-right: 0;
+  border-bottom: 1px solid #f4f4f5;
+  padding: 0.375rem 0.5rem;
+}
+
+.purchase-entry-grid.simple-grid th {
+  padding: 0.625rem 1rem;
+  color: #71717a;
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.purchase-entry-grid.simple-grid th:first-child,
+.purchase-entry-grid.simple-grid td:first-child {
+  padding-left: 1.5rem;
+}
+
+.purchase-entry-grid.simple-grid th:nth-last-child(2),
+.purchase-entry-grid.simple-grid td:nth-last-child(2) {
+  padding-right: 1.5rem;
+}
+
+.purchase-entry-grid input,
+.purchase-entry-grid select {
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+}
+
+.purchase-entry-grid input:focus,
+.purchase-entry-grid select:focus {
+  border-color: #e4e4e7;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgb(24 24 27 / 10%);
+}
+
+.purchase-entry-grid .total-cell.is-zero {
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.attio-grid-row:hover {
+  background: rgb(250 250 250 / 60%);
+}
+
+.purchase-entry-grid tfoot td {
+  padding-block: 0.75rem;
+  background: #fafafa;
+  border-top: 1px solid #e4e4e7;
+  border-bottom: 0;
+  color: #71717a;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.grid-add-btn.attio-secondary-btn {
+  min-height: 30px !important;
+  padding: 0.375rem 0.75rem !important;
+  margin: 0 !important;
+  color: #52525b;
+  background: #fff;
+  border-color: #e4e4e7;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 3%);
+}
+
+.attio-totals-section {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  background: #fff;
+  border-top: 1px solid #e4e4e7;
+}
+
+.attio-footer-left {
+  max-width: none;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border-right: 1px solid #e4e4e7;
+}
+
+.remark-input-box {
+  min-height: 38px;
+  padding: 0.625rem 0.75rem;
+  border-color: #e4e4e7;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #27272a;
+  font-size: 0.8125rem;
+  box-shadow: none;
+}
+
+.remark-input-box:focus {
+  border-color: #d4d4d8;
+  box-shadow: 0 0 0 2px rgb(24 24 27 / 10%);
+}
+
+.purchase-attachment-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.purchase-attachment-limit,
+.purchase-payment-label {
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.purchase-attach-choose {
+  min-height: 30px !important;
+  height: 30px;
+  padding-inline: 0.75rem !important;
+  border-color: #e4e4e7 !important;
+  background: #fff !important;
+  color: #3f3f46 !important;
+  font-size: 0.75rem;
+}
+
+.purchase-footer-divider {
+  height: 1px;
+  background: #f4f4f5;
+}
+
+.purchase-payments-block {
+  gap: 0.75rem;
+}
+
+.purchase-payments-header .grid-add-btn {
+  min-height: 24px !important;
+  padding: 0.25rem 0.625rem !important;
+  border: 0;
+  background: #f4f4f5;
+  box-shadow: none;
+  font-size: 0.6875rem;
+}
+
+.purchase-payment-row {
+  grid-template-columns: minmax(105px, 0.8fr) minmax(150px, 1.2fr) auto 96px auto 128px 28px;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: #fafafa;
+  border: 1px solid #f4f4f5;
+  border-radius: 8px;
+}
+
+.purchase-payment-row .inline-input,
+.purchase-payment-row select {
+  min-height: 30px;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fff;
+  color: #27272a;
+  font-size: 0.75rem;
+}
+
+.purchase-payments-block > .attio-contextual-totals {
+  gap: 2rem;
+  margin-top: 0 !important;
+  padding-inline: 0.5rem;
+}
+
+.purchase-payments-block .ctx-label {
+  color: #a1a1aa;
+  font-size: 0.6875rem;
+}
+
+.purchase-payments-block .ctx-value {
+  color: #27272a;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.purchase-payments-block .ctx-total:last-child .ctx-value {
+  color: #d97706;
+}
+
+.metal-weights-box {
+  gap: 2rem;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: #fafafa;
+  border: 0;
+  border-radius: 8px;
+}
+
+.metal-weights-box .ctx-value {
+  color: #27272a;
+  font-size: 0.875rem;
+}
+
+.attio-financials {
+  max-width: none;
+  padding: 1.5rem;
+  background: rgb(250 250 250 / 60%);
+}
+
+.attio-financials-card {
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #fff;
+  border-color: #e4e4e7;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.fin-row {
+  color: #52525b;
+  font-size: 0.8125rem;
+}
+
+.fin-tax-row {
+  padding: 0;
+  border: 0;
+}
+
+.tax-select {
+  max-width: 140px;
+  min-height: 26px;
+  padding: 0.25rem 0.5rem !important;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #3f3f46;
+}
+
+.fin-tax-breakdown {
+  color: #a1a1aa;
+}
+
+.grand-row,
+.grand-row:last-child {
+  margin: 0.25rem 0 0;
+  padding: 1rem 0 0;
+  background: transparent;
+  border-top: 1px solid #e4e4e7;
+  border-radius: 0;
+}
+
+.fin-label-bold {
+  color: #18181b;
+  font-size: 0.875rem;
+}
+
+.fin-val-bold {
+  color: #18181b;
+  font-size: 1.25rem;
+  letter-spacing: -0.025em;
+}
+
+@media (max-width: 1024px) {
+  .attio-properties-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .attio-field-address {
+    grid-column: span 2;
+  }
+
+  .attio-totals-section {
+    grid-template-columns: 1fr;
+  }
+
+  .attio-footer-left {
+    border-right: 0;
+    border-bottom: 1px solid #e4e4e7;
+  }
+
+  .purchase-payment-row {
+    grid-template-columns: 1fr 1fr auto 96px auto 128px 28px;
+  }
+}
+
+@media (max-width: 720px) {
+  .purchase-bill-page {
+    padding: 0.75rem;
+  }
+
+  .attio-header-top {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .attio-header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .attio-properties-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .attio-field-wide {
+    grid-column: auto;
+  }
+
+  .attio-field-compact,
+  .attio-field-address {
+    max-width: none;
+  }
+
+  .purchase-grid-wrap {
+    overflow-x: auto;
+  }
+
+  .purchase-entry-grid.simple-grid {
+    min-width: 760px;
+  }
+
+  .attio-footer-left,
+  .attio-financials {
+    padding: 1rem;
+  }
+
+  .purchase-payment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .purchase-payment-label {
+    display: none;
+  }
+}
+
+/* Header attachment action — file input overlays the whole control */
+.attio-action-attach {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 30px;
+  padding: 0.375rem 0.75rem;
+  overflow: hidden;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.attio-action-attach:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.attio-action-attach.has-attachment {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-secondary));
+}
+
+.attio-action-remove-attachment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: -0.5rem;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.attio-action-remove-attachment:hover {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+/* Keep the reference layout fully theme-aware */
+.purchase-bill-container.glass-panel,
+.attio-header-top,
+.purchase-grid-wrap,
+.attio-totals-section {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.purchase-bill-container.glass-panel {
+  box-shadow: 0 2px 8px -2px var(--shadow), 0 1px 2px var(--shadow);
+}
+
+.attio-action-save {
+  color: var(--on-accent);
+  background: var(--accent);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.attio-action-save:hover {
+  background: var(--accent-hover);
+}
+
+.attio-properties-grid,
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid tfoot td,
+.remark-input-box,
+.purchase-payment-row,
+.metal-weights-box {
+  background: var(--bg-tertiary);
+}
+
+.attio-properties-grid,
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid.simple-grid td,
+.purchase-entry-grid tfoot td,
+.attio-footer-left,
+.purchase-footer-divider {
+  border-color: var(--border-light);
+}
+
+.attio-prop-label,
+.purchase-attachment-block > .ctx-label,
+.purchase-payments-header > .ctx-label,
+.metal-weights-box .ctx-label,
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid tfoot td {
+  color: var(--text-secondary);
+}
+
+.attio-properties-grid .inline-input,
+.purchase-entry-grid input:focus,
+.purchase-entry-grid select:focus,
+.grid-add-btn.attio-secondary-btn,
+.purchase-attach-choose,
+.purchase-payment-row .inline-input,
+.purchase-payment-row select,
+.attio-financials-card {
+  color: var(--text-primary) !important;
+  background: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.attio-properties-grid .inline-input:hover:not([readonly]):not(:focus),
+.attio-properties-grid .inline-input:focus:not([readonly]),
+.remark-input-box:focus {
+  background: var(--bg-secondary);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 20%, transparent);
+}
+
+.party-badge {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+}
+
+.icon-action-btn,
+.purchase-entry-grid .total-cell.is-zero,
+.purchase-attachment-limit,
+.purchase-payment-label,
+.purchase-payments-block .ctx-label,
+.fin-tax-breakdown {
+  color: var(--text-tertiary);
+}
+
+.attio-grid-row:hover {
+  background: var(--bg-hover);
+}
+
+.grid-add-btn.attio-secondary-btn {
+  color: var(--text-secondary) !important;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.remark-input-box,
+.purchase-payments-block .ctx-value,
+.metal-weights-box .ctx-value,
+.fin-label-bold,
+.fin-val-bold {
+  color: var(--text-primary);
+}
+
+.purchase-payments-header .grid-add-btn {
+  background: var(--bg-hover) !important;
+  border-color: transparent !important;
+}
+
+.purchase-payments-block .ctx-total:last-child .ctx-value {
+  color: var(--accent);
+}
+
+.attio-financials {
+  background: color-mix(in srgb, var(--bg-tertiary) 65%, var(--bg-secondary));
+}
+
+.fin-row,
+.tax-select {
+  color: var(--text-secondary);
+}
+
+.tax-select {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.grand-row,
+.grand-row:last-child {
+  border-color: var(--border-color);
+}
+
+.financial-note-input {
+  margin-top: 0.25rem;
+}
+
+/* Visible column separators for fast row scanning */
+.purchase-entry-grid.simple-grid th,
+.purchase-entry-grid.simple-grid td {
+  border-right: 1px solid var(--border-light);
+}
+
+.purchase-entry-grid.simple-grid th:last-child,
+.purchase-entry-grid.simple-grid td:last-child {
+  border-right: 0;
+}
+
+/* Compact Attio-style payment split table */
+.purchase-payment-table {
+  overflow: visible;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.purchase-payment-table-head,
+.purchase-payment-row {
+  display: grid;
+  grid-template-columns: 120px 190px 130px 132px minmax(28px, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.purchase-payment-mode-cell {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.375rem;
+  align-items: center;
+  min-width: 0;
+  position: relative;
+}
+
+.purchase-payment-mode-cell.has-warning {
+  grid-template-columns: minmax(0, 1fr) 18px;
+}
+
+.purchase-payment-mode-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-status-overdue, #f59e0b);
+  cursor: help;
+  position: relative;
+  z-index: 3;
+}
+
+.purchase-payment-mode-warning .icon {
+  color: var(--color-status-overdue, #f59e0b) !important;
+}
+
+.purchase-payment-mode-warning::after {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  z-index: 20;
+  width: 280px;
+  padding: 0.625rem 0.75rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px var(--shadow);
+  content: attr(data-tooltip);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.purchase-payment-mode-warning:hover::after,
+.purchase-payment-mode-warning:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.purchase-payment-row .payment-account-field {
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
+.purchase-payment-row .payment-account-field > span,
+.purchase-payment-row .payment-account-field > small {
+  display: none;
+}
+
+.purchase-payment-table-head {
+  padding: 0.5rem 0.75rem;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-radius: 8px 8px 0 0;
+}
+
+.purchase-payment-table-head > span,
+.purchase-payment-row > * {
+  min-width: 0;
+}
+
+.purchase-payment-table-head > span:nth-child(3) {
+  padding-right: 0.5rem;
+  text-align: right;
+}
+
+.purchase-payment-row {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+}
+
+.purchase-payment-row:last-child {
+  border-bottom: 0;
+}
+
+.purchase-payment-row:hover {
+  background: var(--bg-hover);
+}
+
+.purchase-payment-row > input[type='number'] {
+  width: 130px;
+  max-width: 100%;
+  justify-self: end;
+}
+
+.purchase-payment-row .inline-input,
+.purchase-payment-row select {
+  min-height: 30px;
+  padding: 0.375rem 0.5rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 0.75rem;
+}
+
+.purchase-payment-row .inline-input:hover,
+.purchase-payment-row select:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.purchase-payment-row .inline-input:focus,
+.purchase-payment-row select:focus {
+  background: var(--bg-secondary);
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 18%, transparent);
+}
+
+.purchase-payment-row .grid-remove-btn {
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  color: var(--text-tertiary);
+  justify-self: end;
+}
+
+.purchase-payment-account-static {
+  overflow: hidden;
+  padding-inline: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 30px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purchase-payment-summary {
+  flex: 1;
+  align-self: stretch;
+  align-items: center;
+  gap: 2rem !important;
+  margin-top: 0 !important;
+  padding: 0.625rem 0.875rem !important;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.purchase-footer-metrics {
+  display: flex;
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.purchase-footer-metrics .metal-weights-box {
+  flex: 1;
+  margin-top: 0;
+  align-items: center;
+}
+
+.purchase-payments-empty {
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .purchase-payment-table-head {
+    display: none;
+  }
+
+  .purchase-payment-row {
+    grid-template-columns: 1fr;
+    gap: 0.375rem;
+    padding: 0.75rem;
+  }
+
+  .purchase-payment-row > input[type='number'] {
+    width: 100%;
+  }
+
+  .purchase-payment-row .grid-remove-btn {
+    justify-self: end;
+  }
+
+  .purchase-payment-summary {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .purchase-footer-metrics {
+    flex-direction: column;
+  }
+}
+
+/* Purchase history summary strip */
+.purchase-stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+.purchase-stats-row .purchase-stat {
+  min-width: 0;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--border-light);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.purchase-stats-row .purchase-stat:last-child {
+  border-right: 0;
+}
+
+.purchase-stats-row .purchase-stat span {
+  color: var(--text-tertiary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.purchase-stats-row .purchase-stat strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purchase-stats-row .purchase-stat.due-stat {
+  background: color-mix(in srgb, var(--error) 6%, var(--bg-secondary));
+}
+
+.purchase-stats-row .purchase-stat.due-stat strong {
+  color: var(--error);
+}
+
+@media (max-width: 720px) {
+  .purchase-stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-stats-row .purchase-stat:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .purchase-stats-row .purchase-stat:nth-child(-n + 4) {
+    border-bottom: 1px solid var(--border-light);
+  }
+}
+
+/* ─── Attio Table Attachment Cell & Quick Upload ────────────────────────── */
+.attio-table-doc-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.attio-table-doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-color));
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.attio-table-doc-badge .icon {
+  color: var(--accent);
+}
+
+.attio-table-doc-badge:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg-secondary));
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 1px 6px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.attio-table-doc-replace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.attio-table-doc-replace:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: var(--border-light);
+}
+
+.attio-table-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.attio-table-upload-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-style: solid;
+}
+
+.attio-table-upload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attio-table-uploading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.attio-table-no-doc {
+  color: var(--text-tertiary);
+}
+
+

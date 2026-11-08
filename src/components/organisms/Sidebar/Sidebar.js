@@ -39,7 +39,8 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     sales: true,
-    insights: true,
+    inventory: true,
+    finance: true,
   });
   const dropdownRef = useRef(null);
   const accountMenuRef = useRef(null);
@@ -95,10 +96,20 @@ const Sidebar = ({ collapsed, onToggleCollapse, mobileOpen, onMobileClose, firmI
       ].filter((item) => canAccessModule(item.module)),
     },
     {
-      id: 'insights',
-      label: 'Insights',
-      iconName: 'analytics',
+      id: 'inventory',
+      label: 'Inventory',
+      iconName: 'product',
       items: [
+        { iconName: 'product', label: 'Stock', path: '/stock', color: '#8b5cf6', module: 'stock' },
+        { iconName: 'order', label: 'Purchases', path: '/purchases', color: '#ec4899', module: 'purchases' },
+      ].filter((item) => canAccessModule(item.module)),
+    },
+    {
+      id: 'finance',
+      label: 'Finance',
+      iconName: 'book',
+      items: [
+        { iconName: 'book', label: 'Cash & Bank Book', path: '/books', color: '#0f766e', module: 'books' },
         { iconName: 'dashboard', label: 'Reports', path: '/reports', color: '#64748b', module: 'reports' },
       ].filter((item) => canAccessModule(item.module)),
     },

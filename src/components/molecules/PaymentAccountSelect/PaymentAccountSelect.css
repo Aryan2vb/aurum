@@ -1,0 +1,26 @@
+.payment-account-field {
+  display: flex;
+  min-width: 180px;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payment-account-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color, #dbe1e8);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1f2937);
+  font: inherit;
+  font-size: 13px;
+}
+
+.payment-account-field small {
+  color: var(--color-risk-high, #dc2626);
+  font-weight: 400;
+}
