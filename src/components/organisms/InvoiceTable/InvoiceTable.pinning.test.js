@@ -50,23 +50,27 @@ describe('InvoiceTable column pinning', () => {
     expect(container.querySelectorAll('tbody tr:first-child td.attio-cell-pinned')).toHaveLength(4);
   });
 
-  it('unpins and pins a column from its header, and remembers the choice', async () => {
+  it('pins another column after the fixed ones, unpins it, and remembers the choice', async () => {
     await render();
-    const unpin = container.querySelector('button[aria-label="Unpin Actions"]');
-    await act(async () => unpin.click());
-    expect(pinnedHeaderIds(container)).toEqual(['select', 'sn', 'invoiceNumber']);
-
-    const pinStatus = Array.from(container.querySelectorAll('button.attio-pin-btn')).find((b) =>
-      b.getAttribute('aria-label').startsWith('Pin ') && b.closest('th').classList.contains('attio-col-status'),
-    );
+    const pinStatus = container.querySelector('thead th.attio-col-status button[aria-label^="Pin "]');
     expect(pinStatus).toBeTruthy();
     await act(async () => pinStatus.click());
-    expect(pinnedHeaderIds(container)).toEqual(['select', 'sn', 'invoiceNumber', 'status']);
-    // the newly pinned column moves into the panel, right after the other pinned ones
-    expect(headerIds(container).slice(0, 4)).toEqual(['select', 'sn', 'invoiceNumber', 'status']);
+    expect(pinnedHeaderIds(container)).toEqual(['select', 'sn', 'actions', 'invoiceNumber', 'status']);
+    expect(headerIds(container).slice(0, 5)).toEqual(['select', 'sn', 'actions', 'invoiceNumber', 'status']);
     expect(container.querySelector('thead th.attio-cell-pinned-last').classList).toContain('attio-col-status');
-    expect(JSON.parse(localStorage.getItem('invoiceTableColumnPinning')).left).toContain('sn');
-    expect(JSON.parse(localStorage.getItem('invoiceTableColumnPinning')).left).not.toContain('actions');
+    expect(JSON.parse(localStorage.getItem('invoiceTableColumnPinning')).left).toContain('status');
+
+    await act(async () => container.querySelector('thead th.attio-col-status button[aria-label^="Unpin "]').click());
+    expect(pinnedHeaderIds(container)).toEqual(['select', 'sn', 'actions', 'invoiceNumber']);
+  });
+
+  it('S.N, Actions and Invoice No. stay fixed even if a saved choice left them out', async () => {
+    localStorage.setItem('invoiceTableColumnPinning', JSON.stringify({ left: ['select', 'status'], right: [] }));
+    await render();
+    expect(pinnedHeaderIds(container)).toEqual(['select', 'sn', 'actions', 'invoiceNumber', 'status']);
+    ['sn', 'actions', 'invoiceNumber'].forEach((id) => {
+      expect(container.querySelector(`thead th.attio-col-${id} .attio-pin-btn`)).toBeNull();
+    });
   });
 
   it('the checkbox column has no pin button and stays pinned', async () => {
