@@ -830,18 +830,8 @@ const ImportExportMenu = ({
         styles: { fontSize: 8, cellPadding: 3, halign: 'center', valign: 'middle', fillColor: false, lineColor: [80, 80, 80], lineWidth: 0.4 },
         headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [220, 220, 220] },
-        didDrawPage: (data) => {
-          const pageCount = doc.internal.getNumberOfPages();
-          doc.setFontSize(8);
-          doc.setTextColor(80);
-          doc.text(
-            `Page ${data.pageNumber} of ${pageCount}`,
-            pageW / 2,
-            doc.internal.pageSize.getHeight() - 12,
-            { align: 'center' }
-          );
-        },
       });
+      stampPdfPageFooters(doc);
     }
 
     doc.save(buildExportFilename(filename, 'pdf', filenameQualifier));

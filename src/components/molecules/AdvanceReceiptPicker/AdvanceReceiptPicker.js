@@ -27,6 +27,19 @@ const toYmd = (value) => (value ? String(value).slice(0, 10) : '');
 const getCustomerDisplayName = (c) => c?.fullName || c?.name || 'Customer';
 const getCustomerDisplayPhone = (c) => c?.contactDetails?.[0]?.primaryPhone || c?.phone || '';
 
+const toSelection = (receipt, customerId, customerName, applyAmount) => ({
+  advanceEntryId: receipt.id,
+  sourceCustomerId: customerId,
+  sourceCustomerName: customerName,
+  transactionDate: receipt.transactionDate,
+  paymentMethod: receipt.paymentMethod,
+  reference: receipt.reference,
+  description: receipt.description,
+  originalAmount: parseFloat(receipt.originalAmount) || parseFloat(receipt.amount) || 0,
+  remainingAmount: parseFloat(receipt.remainingAmount) || 0,
+  applyAmount,
+});
+
 const formatCurrency = (n) =>
   new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(n);
 
@@ -121,6 +134,16 @@ const AdvanceReceiptPicker = ({
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryCustomerId]);
+
+  // A name change (customer object finished loading) must not drop added cross-customer groups.
+  useEffect(() => {
+    if (!primaryCustomerId || !primaryCustomerName) return;
+    setAvailableByCustomer((prev) =>
+      prev[primaryCustomerId] && prev[primaryCustomerId].customerName !== primaryCustomerName
+        ? { ...prev, [primaryCustomerId]: { ...prev[primaryCustomerId], customerName: primaryCustomerName } }
+        : prev,
+    );
   }, [primaryCustomerId, primaryCustomerName]);
 
   // ── Selection helpers ──
@@ -144,26 +167,13 @@ const AdvanceReceiptPicker = ({
           selectedAdvances.filter((a) => a.advanceEntryId !== receipt.id),
         );
       } else {
-        // Select — default applyAmount: fill remaining invoice balance if > 0, else full receipt remaining
+        // Select — default to what the invoice still needs (or the whole receipt if the total is unknown)
         const remaining = parseFloat(receipt.remainingAmount) || 0;
-        const defaultAmount =
-          invoiceTotal > 0 && remainingInvoiceBalance > 0
-            ? Math.min(remaining, remainingInvoiceBalance)
-            : remaining;
+        const defaultAmount = invoiceTotal > 0 ? Math.min(remaining, remainingInvoiceBalance) : remaining;
+        if (defaultAmount <= 0) return;
         onSelectedAdvancesChange([
           ...selectedAdvances,
-          {
-            advanceEntryId: receipt.id,
-            sourceCustomerId: customerId,
-            sourceCustomerName: customerName,
-            transactionDate: receipt.transactionDate,
-            paymentMethod: receipt.paymentMethod,
-            reference: receipt.reference,
-            description: receipt.description,
-            originalAmount: parseFloat(receipt.originalAmount) || parseFloat(receipt.amount) || 0,
-            remainingAmount: remaining,
-            applyAmount: Math.max(defaultAmount, 0.01),
-          },
+          toSelection(receipt, customerId, customerName, Math.round(defaultAmount * 100) / 100),
         ]);
       }
     },
@@ -202,19 +212,8 @@ const AdvanceReceiptPicker = ({
       if (budgetLeft <= 0) break;
       const remaining = parseFloat(r.remainingAmount) || 0;
       if (remaining <= 0) continue;
-      const apply = Math.min(remaining, budgetLeft);
-      newSelected.push({
-        advanceEntryId: r.id,
-        sourceCustomerId: r._custId,
-        sourceCustomerName: r._custName,
-        transactionDate: r.transactionDate,
-        paymentMethod: r.paymentMethod,
-        reference: r.reference,
-        description: r.description,
-        originalAmount: parseFloat(r.originalAmount) || parseFloat(r.amount) || 0,
-        remainingAmount: remaining,
-        applyAmount: apply,
-      });
+      const apply = Math.round(Math.min(remaining, budgetLeft) * 100) / 100;
+      newSelected.push(toSelection(r, r._custId, r._custName, apply));
       budgetLeft -= apply;
     }
     onSelectedAdvancesChange(newSelected);
@@ -228,18 +227,7 @@ const AdvanceReceiptPicker = ({
     onSelectedAdvancesChange(
       allReceipts
         .filter((r) => (parseFloat(r.remainingAmount) || 0) > 0)
-        .map((r) => ({
-          advanceEntryId: r.id,
-          sourceCustomerId: r._custId,
-          sourceCustomerName: r._custName,
-          transactionDate: r.transactionDate,
-          paymentMethod: r.paymentMethod,
-          reference: r.reference,
-          description: r.description,
-          originalAmount: parseFloat(r.originalAmount) || parseFloat(r.amount) || 0,
-          remainingAmount: parseFloat(r.remainingAmount) || 0,
-          applyAmount: parseFloat(r.remainingAmount) || 0,
-        })),
+        .map((r) => toSelection(r, r._custId, r._custName, parseFloat(r.remainingAmount) || 0)),
     );
   }, [availableByCustomer, onSelectedAdvancesChange]);
 
@@ -425,6 +413,8 @@ const AdvanceReceiptPicker = ({
                       type="checkbox"
                       className="advance-picker__checkbox"
                       checked={selected}
+                      disabled={!selected && invoiceTotal > 0 && remainingInvoiceBalance <= 0}
+                      title={!selected && invoiceTotal > 0 && remainingInvoiceBalance <= 0 ? 'Invoice is already fully covered' : undefined}
                       onChange={() => toggleReceipt(receipt, custId, customerName)}
                     />
                     <div className="advance-picker__receipt-info">

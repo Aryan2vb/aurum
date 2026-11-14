@@ -272,4 +272,31 @@ describe('AdvanceReceiptPicker', () => {
     });
     expect(container.textContent).toContain('1 selected receipt(s) have a date after the invoice date');
   });
+
+  it('does not let a receipt overpay an invoice that is already covered', async () => {
+    advanceService.getAvailableAdvances.mockResolvedValue(makeMonthlyReceipts(2));
+    const onChangeSpy = jest.fn();
+    await renderPicker(
+      <ControlledPicker invoiceTotal={50000} directPaymentsTotal={50000} onChangeSpy={onChangeSpy} />,
+    );
+
+    const boxes = container.querySelectorAll('input[type="checkbox"]');
+    expect(boxes.length).toBe(2);
+    expect(boxes[0].disabled).toBe(true);
+    await act(async () => {
+      Simulate.change(boxes[0]);
+    });
+    expect(onChangeSpy).not.toHaveBeenCalled();
+  });
+
+  it('defaults a ticked receipt to what the invoice still needs', async () => {
+    advanceService.getAvailableAdvances.mockResolvedValue(makeMonthlyReceipts(1));
+    const onChangeSpy = jest.fn();
+    await renderPicker(<ControlledPicker invoiceTotal={30000} directPaymentsTotal={26000} onChangeSpy={onChangeSpy} />);
+
+    await act(async () => {
+      Simulate.change(container.querySelector('input[type="checkbox"]'));
+    });
+    expect(onChangeSpy).toHaveBeenLastCalledWith([expect.objectContaining({ advanceEntryId: 'adv-1', applyAmount: 4000 })]);
+  });
 });

@@ -364,7 +364,7 @@ const CreateInvoicePage = () => {
                 sourceCustomerId: a.sourceCustomerId || inv.customerId,
                 sourceCustomerName: a.sourceCustomerName || inv.customer?.fullName || "",
                 transactionDate: a.transactionDate || a.paidAt || "",
-                paymentMethod: a.paymentMethod || a.mode || "UPI",
+                paymentMethod: a.paymentMethod || a.mode || "CREDIT",
                 reference: a.reference || "",
                 description: a.description || "",
                 originalAmount: parseFloat(a.originalAmount || a.amount) || 0,

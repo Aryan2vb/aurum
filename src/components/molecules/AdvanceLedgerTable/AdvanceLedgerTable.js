@@ -77,6 +77,8 @@ const AdvanceEntryDetail = ({ entry, onClose, onDeleted }) => {
         amount: Number(editForm.amount), paymentMethod: editForm.paymentMethod,
         reference: editForm.reference, notes: editForm.description, receivedAt: editForm.transactionDate,
       });
+      setDeleting(false);
+      setEditing(false);
       onDeleted?.();
     } catch (err) { setError(err.message || 'Failed to update advance'); setDeleting(false); }
   };
@@ -86,6 +88,8 @@ const AdvanceEntryDetail = ({ entry, onClose, onDeleted }) => {
     try {
       setDeleting(true); setError(null);
       await correctAdvanceEntry(entry.customerId, entry.id, { ...correctionForm, amount: Number(correctionForm.amount) });
+      setDeleting(false);
+      setCorrectionOpen(false);
       onDeleted?.();
     } catch (err) { setError(err.message || 'Failed to record correction'); setDeleting(false); }
   };
@@ -211,6 +215,7 @@ const AdvanceLedgerTable = ({ entries = [], loading, onRefresh, customerId, vari
 
   const detail = (
     <AdvanceEntryDetail
+      key={selected?.id || 'none'}
       entry={selected}
       onClose={() => setSelected(null)}
       onDeleted={() => { setSelected(null); onRefresh?.(); }}
