@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardTemplate from '../../components/templates/DashboardTemplate/DashboardTemplate';
 import SearchBar from '../../components/molecules/SearchBar/SearchBar';
@@ -7,6 +7,7 @@ import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import ConfirmationModal from '../../components/atoms/ConfirmationModal/ConfirmationModal';
 import SlideOver from '../../components/atoms/SlideOver/SlideOver';
+import AdvanceReceiptPicker from '../../components/molecules/AdvanceReceiptPicker/AdvanceReceiptPicker';
 import { getDocuments, searchCustomers } from '../../services/customersService';
 import {
   createInvoice,
@@ -17,6 +18,11 @@ import {
   getSequenceAvailability,
 } from '../../services/invoicesService';
 import { calcInvoiceTotals } from '../../utils/invoiceCalc';
+import {
+  buildAdvanceAllocations,
+  buildMergedInvoicePayments,
+  getTotalAdvanceApplied,
+} from '../../utils/invoicePayments';
 import { getHighValueInvoiceKycError } from '../../utils/customerKyc';
 import styles from './CreateInvoicePageMobile.module.css';
 
@@ -73,6 +79,7 @@ const CreateInvoicePageMobile = () => {
   const navigate = useNavigate();
   const [theme, setTheme] = useState('jewellery');
   const [paidAmount, setPaidAmount] = useState(0);
+  const [selectedAdvances, setSelectedAdvances] = useState([]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(true);
   const [loading, setLoading] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -238,10 +245,16 @@ const CreateInvoicePageMobile = () => {
     setMissingPanelOpen(false);
   };
 
+  const advanceAppliedAmount = useMemo(
+    () => getTotalAdvanceApplied(selectedAdvances),
+    [selectedAdvances],
+  );
+  const totalPaidAmount = (parseFloat(paidAmount) || 0) + advanceAppliedAmount;
+
   // Live totals for Calculation Hub
   const calc = React.useMemo(() =>
-    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, paidAmount),
-  [invoiceData, paidAmount]);
+    calcInvoiceTotals(invoiceData.items, invoiceData.taxes.cgstRate, invoiceData.taxes.sgstRate, totalPaidAmount),
+  [invoiceData, totalPaidAmount]);
 
   const performSearch = useCallback(async (query) => {
     if (query.length < 2) {
@@ -279,6 +292,7 @@ const CreateInvoicePageMobile = () => {
     pendingItemDescriptionFocusRef.current = true;
     const location = customer.locations?.[0];
     setSelectedCustomerId(customer.id);
+    setSelectedAdvances([]);
     setSearchQuery('');
     setSearchResults([]);
     setInvoiceData(prev => ({
@@ -373,6 +387,12 @@ const CreateInvoicePageMobile = () => {
 
   const buildPayload = () => {
     const parsedManualSequence = parseInt(manualSequence, 10);
+    const advAllocations = buildAdvanceAllocations(selectedAdvances);
+    const directAmt = parseFloat(paidAmount) || 0;
+    const directPayments = directAmt > 0
+      ? [{ mode: invoiceData.metadata.modeOfPayment, amount: directAmt, paidAt: invoiceDate }]
+      : [];
+    const mergedPayments = buildMergedInvoicePayments(directPayments, selectedAdvances);
 
     return {
       customerId: selectedCustomerId,
@@ -380,7 +400,7 @@ const CreateInvoicePageMobile = () => {
       invoiceDate,
       manualSequence: Number.isFinite(parsedManualSequence) ? parsedManualSequence : undefined,
       templateType: theme,
-      modeOfPayment: invoiceData.metadata.modeOfPayment,
+      modeOfPayment: mergedPayments[0]?.mode || invoiceData.metadata.modeOfPayment,
       metalRateSource: 'manual',
       metalRateDate: new Date().toISOString(),
       taxType: invoiceData.taxes.cgstRate > 0 ? 'CGST_SGST' : 'NONE',
@@ -391,7 +411,9 @@ const CreateInvoicePageMobile = () => {
       buyerState: invoiceData.buyer.state || '',
       buyerStateCode: invoiceData.buyer.stateCode || '',
       autoCreateUdhar: isCredit ? true : autoCreateUdhar,
-      paidAmount: parseFloat(paidAmount) || 0,
+      paidAmount: totalPaidAmount,
+      ...(directPayments.length > 0 ? { payments: directPayments } : {}),
+      ...(advAllocations.length > 0 ? { advanceAllocations: advAllocations } : {}),
       notes: invoiceData.declaration,
       deliveryNote: '',
       dispatchDocNo: '',
@@ -482,7 +504,34 @@ const CreateInvoicePageMobile = () => {
     return true;
   };
 
+  const getAdvanceValidationError = () => {
+    const invalidAmt = selectedAdvances.find((a) => {
+      const amt = parseFloat(a.applyAmount) || 0;
+      return amt <= 0 || amt > (parseFloat(a.remainingAmount) || 0);
+    });
+    if (invalidAmt) {
+      return 'Every selected advance receipt must have an amount between ₹0.01 and its remaining balance';
+    }
+    if (
+      selectedAdvances.some(
+        (a) => a.transactionDate && invoiceDate && String(a.transactionDate).slice(0, 10) > invoiceDate,
+      )
+    ) {
+      return 'Selected advance receipt date cannot be after the invoice date';
+    }
+    if (advanceAppliedAmount > calc.total) {
+      return 'Total applied advance exceeds the invoice total.';
+    }
+    return '';
+  };
+
   const handleConfirm = async () => {
+    const advError = getAdvanceValidationError();
+    if (advError) {
+      alert(advError);
+      return;
+    }
+
     const kycError = await getInvoiceKycError();
     if (kycError) {
       alert(kycError);
@@ -510,6 +559,12 @@ const CreateInvoicePageMobile = () => {
   };
 
   const handleSaveDraft = async () => {
+    const advError = getAdvanceValidationError();
+    if (advError) {
+      alert(advError);
+      return;
+    }
+
     const proceedWithDraftSave = async () => {
       setConfirmation(prev => ({ ...prev, isOpen: false }));
       try {
@@ -816,14 +871,27 @@ const CreateInvoicePageMobile = () => {
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>Payment</h2>
             <div className={styles.paymentSection}>
+              {selectedCustomerId && (
+                <div style={{ marginBottom: 12 }}>
+                  <AdvanceReceiptPicker
+                    primaryCustomerId={selectedCustomerId}
+                    primaryCustomerName={invoiceData.buyer.name}
+                    selectedAdvances={selectedAdvances}
+                    onSelectedAdvancesChange={setSelectedAdvances}
+                    invoiceDate={invoiceDate}
+                    invoiceTotal={calc.total}
+                    directPaymentsTotal={parseFloat(paidAmount) || 0}
+                  />
+                </div>
+              )}
               <div className={styles.paymentField}>
                 <label>Amount Received (₹)</label>
                 <Input
                   type="number"
                   value={paidAmount}
                   min={0}
-                  max={calc.total}
-                  onChange={e => setPaidAmount(Math.min(parseFloat(e.target.value) || 0, calc.total))}
+                  max={Math.max(0, calc.total - advanceAppliedAmount)}
+                  onChange={e => setPaidAmount(Math.min(parseFloat(e.target.value) || 0, Math.max(0, calc.total - advanceAppliedAmount)))}
                 />
               </div>
               <div className={styles.balanceInfo}>

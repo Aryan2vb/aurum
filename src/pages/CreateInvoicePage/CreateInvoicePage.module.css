@@ -464,6 +464,47 @@
     color: var(--text-primary);
 }
 
+.billToSwitchBox {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--accent);
+    border-radius: 0.45rem;
+}
+
+.billToSwitchInputRow {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.billToSwitchInput {
+    flex: 1;
+    padding: 0.35rem 0.55rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.35rem;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+.billToSwitchResults {
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+    background: var(--bg-primary);
+}
+
+.billToSwitchEmpty {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    padding: 0.25rem 0.4rem;
+}
+
 .searchResults {
     position: absolute;
     top: 100%;

@@ -16,4 +16,12 @@ describe('ImportExportMenu PDF export settings', () => {
     expect(source).toContain('Bill Book PDF');
     expect(source).toContain('onBillBookExport');
   });
+
+  it('supports advances resource with column picker and groups', () => {
+    const source = fs.readFileSync(path.join(__dirname, 'ImportExportMenu.js'), 'utf8');
+
+    expect(source).toContain("resourceName === 'advances'");
+    expect(source).toContain('ADVANCE_COLUMNS');
+    expect(source).toContain('ADVANCE_COLUMN_GROUPS');
+  });
 });

@@ -44,6 +44,27 @@ describe('invoice payment dates', () => {
   ])('shows the selected payment date in the %s template', (_name, generateHtml) => {
     expect(generateHtml(invoiceData)).toContain('CASH: ₹100.00 · 22/05/26');
   });
+
+  test.each([
+    ['classic', generateInvoiceHtml],
+    ['modern', generateModernInvoiceHtml],
+    ['jewellery', generateJewelleryInvoiceHtml],
+  ])('labels advance-backed installments with original mode and date without printing cross-customer name (%s)', (_name, generateHtml) => {
+    const html = generateHtml({
+      ...invoiceData,
+      totalAmount: 50000,
+      amtBalance: 15000,
+      payments: [
+        { mode: 'UPI', amount: 10000, paidAt: '2026-01-10', source: 'ADVANCE', sourceCustomerName: 'Sita Devi' },
+        { mode: 'CASH', amount: 10000, paidAt: '2026-02-10', source: 'ADVANCE', sourceCustomerName: 'Sita Devi' },
+        { mode: 'CASH', amount: 15000, paidAt: '2026-11-10', source: 'DIRECT' },
+      ],
+    });
+    expect(html).toContain('UPI (Advance): ₹10,000.00 · 10/01/26');
+    expect(html).toContain('CASH (Advance): ₹10,000.00 · 10/02/26');
+    expect(html).toContain('CASH: ₹15,000.00 · 10/11/26');
+    expect(html).not.toContain('Sita Devi');
+  });
 });
 
 

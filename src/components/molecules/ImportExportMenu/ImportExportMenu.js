@@ -4,7 +4,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dropdown';
 import { buildExportFilename } from '../../../utils/exportFilename';
-import { flattenInvoiceDataByPayment } from '../../../utils/exportUtils';
+import { flattenInvoiceDataByPayment, ADVANCE_COLUMN_GROUPS, ADVANCE_COLUMNS } from '../../../utils/exportUtils';
 import {
   appendInvoicePeriodSummaryPage,
   fetchInvoicePeriodSummary,
@@ -113,7 +113,7 @@ const INVOICE_COLUMN_GROUPS = [
         <path d="M2 10h20"/>
       </svg>
     ),
-    cols: ['Payment Date', 'Payment Mode', 'Payment Amount', 'Payment Ref'],
+    cols: ['Payment Date', 'Payment Mode', 'Payment Source', 'Payment Amount', 'Payment Ref'],
   },
 ];
 
@@ -141,13 +141,16 @@ const GroupCheckbox = ({ state, onChange }) => (
 // ============================================
 // COLUMN PICKER MODAL
 // ============================================
-const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
+const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat, columnGroups }) => {
+  // Use the provided column groups (advance, etc.) or fall back to invoice groups
+  const groupSource = columnGroups || INVOICE_COLUMN_GROUPS;
+
   // Only include groups whose columns exist in the provided `columns` list
-  const activeGroups = INVOICE_COLUMN_GROUPS
+  const activeGroups = groupSource
     .map(g => ({ ...g, cols: g.cols.filter(c => columns.includes(c)) }))
     .filter(g => g.cols.length > 0);
 
-  // If none of the groups cover all columns (non-invoice resource), fall back to a flat list
+  // If none of the groups cover all columns, fall back to a flat list
   const coveredCols = new Set(activeGroups.flatMap(g => g.cols));
   const uncoveredCols = columns.filter(c => !coveredCols.has(c));
   const groups = uncoveredCols.length > 0
@@ -284,6 +287,7 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
                         key={col}
                         className={`col-picker-item ${selected[col] ? 'checked' : ''}`}
                         onClick={e => e.stopPropagation()}
+                        title={col}
                       >
                         <input
                           type="checkbox"
@@ -341,6 +345,7 @@ const ColumnPickerModal = ({ columns, onConfirm, onCancel, exportFormat }) => {
  * @param {number} props.selectedCount - Number of selected items (for display)
  * @param {string} props.resourceName - Name of the resource (e.g., 'customers', 'invoices')
  * @param {object} props.periodSummaryFilters - dateFrom/dateTo/customerId for the invoice PDF summary page
+ * @param {Array} props.columnGroups - Optional column group definitions for the column picker (defaults to invoice groups)
  */
 const ImportExportMenu = ({ 
   data = [], 
@@ -355,6 +360,7 @@ const ImportExportMenu = ({
   selectedCount = 0,
   resourceName = 'items',
   periodSummaryFilters = null,
+  columnGroups = null,
 }) => {
   const hasSelection = selectedCount > 0;
 
@@ -374,11 +380,11 @@ const ImportExportMenu = ({
     'UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other',
     'Gst No',
     // ── Payment breakdown (one row per payment) ──
-    'Payment Date', 'Payment Mode', 'Payment Amount', 'Payment Ref',
+    'Payment Date', 'Payment Mode', 'Payment Source', 'Payment Amount', 'Payment Ref',
   ];
 
   // Columns that trigger per-payment row expansion
-  const PAYMENT_DETAIL_COLS = new Set(['Payment Date', 'Payment Mode', 'Payment Amount', 'Payment Ref']);
+  const PAYMENT_DETAIL_COLS = new Set(['Payment Date', 'Payment Mode', 'Payment Source', 'Payment Amount', 'Payment Ref']);
 
   // selectedCols is optional — when provided and includes any PAYMENT_DETAIL_COLS,
   // we switch to the payment-aware flattener (one row per payment).
@@ -467,6 +473,8 @@ const ImportExportMenu = ({
     let columns;
     if (resourceName === 'invoices') {
       columns = INVOICE_COLUMNS;
+    } else if (resourceName === 'advances') {
+      columns = ADVANCE_COLUMNS;
     } else {
       // For non-invoice resources, derive columns from the already-loaded data
       const headersSet = new Set();
@@ -510,13 +518,13 @@ const ImportExportMenu = ({
         { label: 'Customer Details',    cols: ['Customer Name', 'Last Name', 'Address', 'Contact No.'] },
         { label: 'Item Details',        cols: ['Metal', 'Hsn', 'Item Name', 'Purity', 'Net Wt. Gold', 'Net Wt. Silver', 'Metel Rate PG', 'Labour PG', 'Labour Total', 'Hallmark Chrgs', 'Amount', 'CGST', 'SGST', 'Round off'] },
         { label: 'Payment Details',     cols: ['UPI', 'Swipe', 'Cheque', 'Bank Transfer', 'Cash', 'Other'] },
-        { label: 'Payment Breakdown',   cols: ['Payment Date', 'Payment Mode', 'Payment Amount', 'Payment Ref'] },
+        { label: 'Payment Breakdown',   cols: ['Payment Date', 'Payment Mode', 'Payment Source', 'Payment Amount', 'Payment Ref'] },
       ];
       // Columns that stand alone — header spans both rows (no group sub-label)
       const SOLO_COLS = new Set([
         'Serial No.', 'Invoice No.', 'Date', 'Total', 'Gst No',
         // Payment breakdown columns: each stands alone (no sub-row needed)
-        'Payment Date', 'Payment Mode', 'Payment Amount', 'Payment Ref',
+        'Payment Date', 'Payment Mode', 'Payment Source', 'Payment Amount', 'Payment Ref',
       ]);
 
       // Build group header row (row 1) and sub-label row (row 2)
@@ -672,7 +680,7 @@ const ImportExportMenu = ({
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    const title = isInvoice ? 'INVOICE REPORT' : `${(resourceName || 'REPORT').toUpperCase()}`;
+    const title = isInvoice ? 'INVOICE REPORT' : (filename && filename !== 'export' ? filename.toUpperCase() : `${(resourceName || 'REPORT').toUpperCase()}`);
     doc.text(title, 28, 23);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -822,6 +830,17 @@ const ImportExportMenu = ({
         styles: { fontSize: 8, cellPadding: 3, halign: 'center', valign: 'middle', fillColor: false, lineColor: [80, 80, 80], lineWidth: 0.4 },
         headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [220, 220, 220] },
+        didDrawPage: (data) => {
+          const pageCount = doc.internal.getNumberOfPages();
+          doc.setFontSize(8);
+          doc.setTextColor(80);
+          doc.text(
+            `Page ${data.pageNumber} of ${pageCount}`,
+            pageW / 2,
+            doc.internal.pageSize.getHeight() - 12,
+            { align: 'center' }
+          );
+        },
       });
     }
 
@@ -915,6 +934,7 @@ const ImportExportMenu = ({
         <ColumnPickerModal
           columns={colPicker.columns}
           exportFormat={colPicker.format}
+          columnGroups={columnGroups || (resourceName === 'advances' ? ADVANCE_COLUMN_GROUPS : null)}
           onConfirm={handleColPickerConfirm}
           onCancel={handleColPickerCancel}
         />

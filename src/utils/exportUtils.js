@@ -2,6 +2,81 @@
  * Utility functions for flattening nested objects for CSV/Excel export
  */
 
+// ── Advance balance columns (customer-level summary) ────────────────────────
+export const ADVANCE_COLUMNS = [
+  'Customer Name', 'Customer Code', 'Phone',
+  'Balance Status',
+  'Total Received', 'Applied to Invoices', 'Refunded', 'Transferred Out', 'Transferred In',
+  'Available Balance',
+  'First Received Date', 'Last Activity Date',
+];
+
+export const ADVANCE_COLUMN_GROUPS = [
+  {
+    id: 'customer',
+    label: 'Customer',
+    cols: ['Customer Name', 'Customer Code', 'Phone'],
+  },
+  {
+    id: 'balance',
+    label: 'Balance Summary',
+    cols: [
+      'Balance Status',
+      'Total Received', 'Applied to Invoices', 'Refunded', 'Transferred Out', 'Transferred In',
+      'Available Balance',
+    ],
+  },
+  {
+    id: 'dates',
+    label: 'Dates',
+    cols: ['First Received Date', 'Last Activity Date'],
+  },
+];
+
+/**
+ * Flatten a single advance customer-balance row for export.
+ */
+export const flattenAdvanceData = (row) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return `${String(d.getDate()).padStart(2,'0')} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const available = Number(row.availableBalance || 0);
+
+  // Derive first-received date
+  const firstReceived = row.firstReceivedAt || (row.transactions || []).reduce((earliest, t) => {
+    const tDate = t.date || t.createdAt;
+    if (!tDate) return earliest;
+    return !earliest || new Date(tDate) < new Date(earliest) ? tDate : earliest;
+  }, null) || (row.deposits || [])[0]?.date;
+
+  // Derive last-activity date from transactions or fallback
+  const lastActivity = (row.transactions || []).reduce((latest, t) => {
+    const tDate = t.date || t.createdAt;
+    if (!tDate) return latest;
+    return !latest || new Date(tDate) > new Date(latest) ? tDate : latest;
+  }, null) || row.lastReceivedAt;
+
+  return {
+    'Customer Name':       row.customerName || '',
+    'Customer Code':       row.customerCode || '',
+    'Phone':               row.phone || '',
+    'Balance Status':      available > 0 ? 'Available' : 'Settled',
+    'Total Received':      Number(row.totalReceived || 0).toFixed(2),
+    'Applied to Invoices': Number(row.totalApplied || 0).toFixed(2),
+    'Refunded':            Number(row.totalRefunded || 0).toFixed(2),
+    'Transferred Out':     Number(row.totalTransferOut || 0).toFixed(2),
+    'Transferred In':      Number(row.totalTransferIn || 0).toFixed(2),
+    'Available Balance':   available.toFixed(2),
+    'First Received Date': formatDate(firstReceived),
+    'Last Activity Date':  formatDate(lastActivity),
+  };
+};
+
 /**
  * Flatten nested customer object into a single-level object
  */
@@ -321,6 +396,7 @@ export const flattenInvoiceDataByPayment = (invoice) => {
     PAYMENT_COLS_TO_STRIP.forEach(col => { delete stripped[col]; });
     stripped['Payment Date']   = '';
     stripped['Payment Mode']   = '';
+    stripped['Payment Source'] = '';
     stripped['Payment Amount'] = '';
     stripped['Payment Ref']    = '';
     return stripped;
@@ -334,6 +410,7 @@ export const flattenInvoiceDataByPayment = (invoice) => {
       if (idx === 0 && mode && paid > 0) {
         row['Payment Date']   = formatDateLocal(invoice.updatedAt || invoice.invoiceDate);
         row['Payment Mode']   = MODE_LABELS[mode] || mode;
+        row['Payment Source'] = 'Direct';
         row['Payment Amount'] = paid.toFixed(2);
       }
     });
@@ -345,6 +422,9 @@ export const flattenInvoiceDataByPayment = (invoice) => {
   payments.forEach((payment) => {
     const payDate   = formatDateLocal(payment.paidAt || payment.createdAt);
     const payMode   = MODE_LABELS[payment.mode] || payment.mode || '';
+    const paySource = payment.source === 'ADVANCE'
+      ? (payment.sourceCustomerName ? `Advance (${payment.sourceCustomerName})` : 'Advance')
+      : 'Direct';
     const payAmount = Number(payment.amount || 0).toFixed(2);
     const payRef    = payment.reference || payment.notes || '';
 
@@ -353,6 +433,7 @@ export const flattenInvoiceDataByPayment = (invoice) => {
         ...row,
         'Payment Date':   payDate,
         'Payment Mode':   payMode,
+        'Payment Source': paySource,
         'Payment Amount': payAmount,
         'Payment Ref':    payRef,
       });

@@ -141,3 +141,103 @@
   color: var(--text-tertiary);
   font-family: monospace;
 }
+.advance-ledger-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.advance-ledger-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.advance-ledger-item:hover .advance-ledger-item-label {
+  color: var(--accent);
+}
+
+.advance-ledger-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.advance-ledger-item-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.advance-ledger-item-meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.advance-detail-actions { display: flex; gap: 8px; margin-top: 12px; }
+.advance-detail-row input, .advance-detail-row select, .advance-detail-row textarea { max-width: 100%; min-width: 0; padding: 7px 9px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); font: inherit; }
+.advance-detail-row textarea { min-height: 64px; resize: vertical; }
+
+.advance-receipt-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.advance-receipt-badge--available {
+  background: color-mix(in srgb, var(--color-status-paid) 14%, transparent);
+  color: var(--color-status-paid);
+}
+.advance-receipt-badge--partial {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.advance-receipt-badge--used {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.advance-detail-allocations {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
+}
+.advance-detail-allocations-title {
+  margin: 0 0 8px;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+.advance-detail-allocations-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.advance-detail-allocation-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}

@@ -3,6 +3,11 @@ import { calcItemAmount } from './invoiceCalc';
 const formatPaymentDate = (value) => {
     if (!value) return '';
 
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [year, month, day] = value.split('-');
+        return `${day}/${month}/${year.slice(-2)}`;
+    }
+
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return '';
 
@@ -12,8 +17,10 @@ const formatPaymentDate = (value) => {
     return `${day}/${month}/${year}`;
 };
 
-const formatPaymentLine = (payment, formatAmount) =>
-    `${payment.mode}: ₹${formatAmount(payment.amount || 0)}${payment.paidAt ? ` · ${formatPaymentDate(payment.paidAt)}` : ''}`;
+const formatPaymentLine = (payment, formatAmount) => {
+    const modeLabel = payment.source === 'ADVANCE' ? `${payment.mode} (Advance)` : payment.mode;
+    return `${modeLabel}: ₹${formatAmount(payment.amount || 0)}${payment.paidAt ? ` · ${formatPaymentDate(payment.paidAt)}` : ''}`;
+};
 
 /** Print formats an invoice can use. `standard` is the plain GST layout. */
 export const INVOICE_TEMPLATES = [
@@ -212,7 +219,7 @@ export function generateInvoiceHtml(data) {
       </div>
       <div class="company-right">
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Invoice No.</div><div class="font-bold">${metadata.invoiceNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Dated</div><div class="font-bold">${metadata.date || ''}</div></div></div>
-        <div class="meta-row"><div class="meta-cell"><div class="meta-label">Delivery Note</div><div>${metadata.deliveryNote || ''}</div></div><div class="meta-cell"><div class="meta-label">Mode of Payment</div><div>${data.payments?.length ? data.payments.map(p => p.mode).join(', ') : (metadata.modeOfPayment || '')}</div></div></div>
+        <div class="meta-row"><div class="meta-cell"><div class="meta-label">Delivery Note</div><div>${metadata.deliveryNote || ''}</div></div><div class="meta-cell"><div class="meta-label">Mode of Payment</div><div>${data.payments?.length ? [...new Set(data.payments.map(p => p.mode))].join(', ') : (metadata.modeOfPayment || '')}</div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Reference No. &amp; Date</div><div>${metadata.referenceNo || ''} ${metadata.referenceDate || ''}</div></div><div class="meta-cell"><div class="meta-label">Other References</div><div></div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Buyer's Order No.</div><div>${metadata.buyerOrderNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Dated</div><div>${metadata.buyerOrderDate || ''}</div></div></div>
         <div class="meta-row"><div class="meta-cell"><div class="meta-label">Dispatch Doc No.</div><div>${metadata.dispatchDocNo || ''}</div></div><div class="meta-cell"><div class="meta-label">Delivery Note Date</div><div>${metadata.deliveryNoteDate || ''}</div></div></div>
@@ -381,7 +388,7 @@ export function generateModernInvoiceHtml(data) {
                 <div class="invoice-meta">
                     <div><strong>${metadata.invoiceNo || ''}</strong></div>
                     <div>Date: <strong>${metadata.date || ''}</strong></div>
-                    ${data.payments?.length ? `<div>Payment: ${data.payments.map(p => p.mode).join(', ')}</div>` : (metadata.modeOfPayment ? `<div>Payment: ${metadata.modeOfPayment}</div>` : '')}
+                    ${data.payments?.length ? `<div>Payment: ${[...new Set(data.payments.map(p => p.mode))].join(', ')}</div>` : (metadata.modeOfPayment ? `<div>Payment: ${metadata.modeOfPayment}</div>` : '')}
                 </div>
             </div>
         </div>

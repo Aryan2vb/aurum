@@ -317,6 +317,17 @@
   border: 1px solid var(--border-color);
 }
 
+.payment-advance-badge {
+  display: inline-block;
+  margin-left: 6px;
+  background: color-mix(in srgb, var(--color-status-paid) 14%, transparent);
+  color: var(--color-status-paid);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
 /* Actions */
 .invoice-actions {
   display: flex;
