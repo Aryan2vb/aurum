@@ -476,26 +476,43 @@ input:checked + .slider:before {
 
 /* ── Pinned block (checkbox, SN, Actions, Invoice No.) reads as a raised panel ── */
 
-/* A firmer divider on the right edge of the pinned block */
-.attio-th.attio-th-pinned-invoiceNumber,
-.attio-td.attio-td-pinned-invoiceNumber,
-.attio-tf.attio-tf-pinned-invoiceNumber {
+/* With border-collapse: collapse, browsers don't paint a sticky cell's own borders where
+   the cell is, so the pinned edge was invisible. Use separate borders (no spacing) and draw
+   the row lines on the cells instead of the <tr>. */
+.attio-table.attio-table--pinned {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.attio-table--pinned thead tr,
+.attio-table--pinned tbody tr {
+  border-bottom: none;
+}
+.attio-table--pinned thead .attio-th {
+  border-bottom: 1px solid var(--ct-border);
+}
+.attio-table--pinned tbody .attio-td {
+  border-bottom: 1px solid var(--ct-border-light);
+}
+
+/* Right edge of the pinned block: a clear divider in header, rows and totals */
+.attio-table--pinned .attio-th.attio-th-pinned-invoiceNumber,
+.attio-table--pinned .attio-td.attio-td-pinned-invoiceNumber,
+.attio-table--pinned .attio-tf.attio-tf-pinned-invoiceNumber {
   border-right: 1px solid var(--ct-border);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Soft shadow cast over the columns scrolling underneath. A box-shadow is used because
-   cells clip overflowing content (ellipsis), which would cut off a pseudo-element. */
-.attio-table-wrapper.is-scrolled-x .attio-th.attio-th-pinned-invoiceNumber,
-.attio-table-wrapper.is-scrolled-x .attio-td.attio-td-pinned-invoiceNumber,
-.attio-table-wrapper.is-scrolled-x .attio-tf.attio-tf-pinned-invoiceNumber {
-  border-right-color: color-mix(in srgb, var(--ct-border) 55%, var(--ct-text-muted, #888));
-  box-shadow: 8px 0 10px -6px rgba(0, 0, 0, 0.14);
+/* While scrolled sideways: darker divider + shadow over the columns sliding underneath */
+.attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-th.attio-th-pinned-invoiceNumber,
+.attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-td.attio-td-pinned-invoiceNumber,
+.attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-tf.attio-tf-pinned-invoiceNumber {
+  border-right-color: color-mix(in srgb, var(--ct-text-muted, #888) 60%, var(--ct-border));
+  box-shadow: 6px 0 12px -4px rgba(0, 0, 0, 0.18);
 }
-[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-th.attio-th-pinned-invoiceNumber,
-[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-td.attio-td-pinned-invoiceNumber,
-[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-tf.attio-tf-pinned-invoiceNumber {
-  box-shadow: 8px 0 12px -6px rgba(0, 0, 0, 0.6);
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-th.attio-th-pinned-invoiceNumber,
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-td.attio-td-pinned-invoiceNumber,
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-table--pinned .attio-tf.attio-tf-pinned-invoiceNumber {
+  box-shadow: 6px 0 14px -4px rgba(0, 0, 0, 0.7);
 }
 
 /* Pinned cells follow the row's hover and selected states, so the row stays one band */

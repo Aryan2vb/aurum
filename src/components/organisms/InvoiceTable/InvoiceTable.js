@@ -1042,7 +1042,7 @@ const InvoiceTable = ({
         onScroll={handleWrapperScroll}
       >
         <table
-          className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}
+          className={`attio-table attio-table--pinned ${isLoading ? 'attio-skeleton-table' : ''}`}
           style={{ width: table.getTotalSize(), minWidth: table.getTotalSize(), ...tableVars }}
         >
           <thead>
