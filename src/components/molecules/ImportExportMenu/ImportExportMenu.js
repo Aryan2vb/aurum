@@ -6,6 +6,11 @@ import Dropdown, { DropdownItem, DropdownDivider } from '../../atoms/Dropdown/Dr
 import { buildExportFilename } from '../../../utils/exportFilename';
 import { flattenInvoiceDataByPayment, ADVANCE_COLUMN_GROUPS, ADVANCE_COLUMNS } from '../../../utils/exportUtils';
 import {
+  appendAdvanceSummaryPage,
+  appendAdvanceTotalsRow,
+  isAdvanceTotalsRow,
+} from '../../../utils/advanceReportSummary';
+import {
   appendInvoicePeriodSummaryPage,
   fetchInvoicePeriodSummary,
   stampPdfPageFooters,
@@ -456,6 +461,11 @@ const ImportExportMenu = ({
       flattened.push(totals);
     }
 
+    // Advances: TOTAL row at the bottom, like the invoice report
+    if (resourceName === 'advances' && flattened.length > 0) {
+      flattened = appendAdvanceTotalsRow(flattened);
+    }
+
     return flattened;
   };
 
@@ -647,8 +657,13 @@ const ImportExportMenu = ({
 
     // Separate totals row from data rows
     const isInvoice = resourceName === 'invoices';
+    const isAdvance = resourceName === 'advances';
     let dataRows = flattenedData;
     let totalsRow = null;
+    if (isAdvance && isAdvanceTotalsRow(flattenedData[flattenedData.length - 1])) {
+      totalsRow = flattenedData[flattenedData.length - 1];
+      dataRows = flattenedData.slice(0, -1);
+    }
     if (isInvoice && flattenedData.length > 0) {
       const lastRow = flattenedData[flattenedData.length - 1];
       if (lastRow['Serial No.'] === 'TOTAL') {
@@ -822,15 +837,28 @@ const ImportExportMenu = ({
     } else {
       // ── Generic single-level table ────────────────────────────────────────
       const headers = Object.keys(flattenedData[0] || {});
+      const body = dataRows.map(row => headers.map(h => row[h] ?? ''));
+      if (totalsRow) body.push(headers.map(h => totalsRow[h] ?? ''));
       autoTable(doc, {
         startY: 44,
         head: [headers],
-        body: dataRows.map(row => headers.map(h => row[h] ?? '')),
+        body,
         theme: 'grid',
         styles: { fontSize: 8, cellPadding: 3, halign: 'center', valign: 'middle', fillColor: false, lineColor: [80, 80, 80], lineWidth: 0.4 },
         headStyles: { fillColor: [60, 60, 60], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [220, 220, 220] },
+        didParseCell: (data) => {
+          // Totals row (last body row) — white fill, bold, thick top border (same as invoices)
+          if (data.section === 'body' && totalsRow && data.row.index === body.length - 1) {
+            data.cell.styles.fillColor = [255, 255, 255];
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.lineWidth = { top: 1.2, right: 0.4, bottom: 0.4, left: 0.4 };
+          }
+        },
       });
+      if (isAdvance) {
+        appendAdvanceSummaryPage(doc, sourceRowsRef.current || []);
+      }
       stampPdfPageFooters(doc);
     }
 

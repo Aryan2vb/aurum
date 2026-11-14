@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { getAdvanceTotalIn as getTotalIn } from '../../utils/advanceTotals';
 import path from 'path';
 
 describe('AdvancePage selection and exports', () => {
@@ -33,5 +34,22 @@ describe('AdvancePage selection and exports', () => {
     expect(advancePageSource).not.toContain('deleteAdvanceEntry');
     expect(advancePageSource).not.toContain('Delete this entry');
   });
-});
 
+  it('Received includes transfers in and corrections, so each row adds up to the balance', () => {
+    const row = {
+      customerName: 'Aryan Soni',
+      totalReceived: '10000',
+      totalApplied: '1000',
+      totalTransferOut: '0',
+      totalTransferIn: '1000',
+      totalRefunded: '0',
+      totalCorrectionCredit: '90',
+      totalCorrectionDebit: '0',
+      availableBalance: '10090',
+    };
+    const received = getTotalIn(row);
+    expect(received).toBe(11090);
+    const returned = Number(row.totalRefunded) + Number(row.totalTransferOut);
+    expect(received - Number(row.totalApplied) - returned).toBe(Number(row.availableBalance));
+  });
+});

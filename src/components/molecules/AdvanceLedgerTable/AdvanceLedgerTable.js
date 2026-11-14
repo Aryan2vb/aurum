@@ -110,10 +110,10 @@ const AdvanceEntryDetail = ({ entry, onClose, onDeleted }) => {
 
   const rows = [
     { label: 'Type',            value: <span className={`advance-ledger-pill advance-ledger-pill-${entry.type}`}>{meta.label}</span> },
-    { label: 'Amount',          value: <AmountDisplay value={amount} size="md" emphasis variant={meta.color} /> },
+    { label: 'Amount',          value: <AmountDisplay value={amount} size="md" emphasis variant="plain" /> },
     isCreditEntry && remainingAmt != null && {
       label: 'Remaining unapplied',
-      value: <AmountDisplay value={remainingAmt} size="md" variant={remainingAmt > 0 ? 'positive' : 'neutral'} />,
+      value: <AmountDisplay value={remainingAmt} size="md" variant="plain" />,
     },
     { label: 'Transaction date', value: <DateDisplay date={entry.transactionDate || entry.createdAt} format="absolute" /> },
     entry.paymentMethod && { label: 'Payment method', value: METHOD_LABELS[entry.paymentMethod] || entry.paymentMethod },
@@ -121,7 +121,7 @@ const AdvanceEntryDetail = ({ entry, onClose, onDeleted }) => {
     entry.referenceLedgerEntryId && { label: 'Linked receipt', value: <span className="advance-detail-id">{entry.referenceLedgerEntryId}</span> },
     entry.description && { label: 'Description',    value: entry.description },
     { label: 'Recorded on', value: <DateDisplay date={entry.createdAt} format="absolute" /> },
-    { label: 'Balance after',   value: <AmountDisplay value={Math.abs(balance)} size="md" variant={balance > 0 ? 'positive' : 'neutral'} /> },
+    { label: 'Balance after',   value: <AmountDisplay value={Math.abs(balance)} size="md" variant="plain" /> },
     entry.id && { label: 'Entry ID', value: <span className="advance-detail-id">{entry.id}</span> },
   ].filter(Boolean);
 
@@ -167,7 +167,7 @@ const AdvanceEntryDetail = ({ entry, onClose, onDeleted }) => {
                     {alloc.invoiceCustomerName ? ` · ${alloc.invoiceCustomerName}` : ''}
                     {alloc.allocatedAt ? ` · ${String(alloc.allocatedAt).slice(0, 10)}` : ''}
                   </span>
-                  <AmountDisplay value={alloc.amount} size="sm" variant="negative" />
+                  <AmountDisplay value={alloc.amount} size="sm" variant="plain" />
                 </li>
               ))}
             </ul>
@@ -243,12 +243,10 @@ const AdvanceLedgerTable = ({ entries = [], loading, onRefresh, customerId, vari
                       {entry.paymentMethod ? ` · ${METHOD_LABELS[entry.paymentMethod] || entry.paymentMethod}` : ''}
                     </span>
                   </span>
-                  <AmountDisplay
-                    value={amount}
-                    size="sm"
-                    emphasis
-                    variant={meta.color}
-                  />
+                  <span className="advance-ledger-item-amount">
+                    {meta.dir === 'debit' ? '−' : '+'}
+                    <AmountDisplay value={amount} size="sm" emphasis variant="plain" />
+                  </span>
                 </button>
               </li>
             );
@@ -303,19 +301,19 @@ const AdvanceLedgerTable = ({ entries = [], loading, onRefresh, customerId, vari
                   <td className="advance-ledger-td-desc">{entry.description || '—'}</td>
                   <td className="advance-ledger-td-amount">
                     {meta.dir === 'debit'
-                      ? <AmountDisplay value={amount} size="sm" variant="negative" />
+                      ? <AmountDisplay value={amount} size="sm" variant="plain" />
                       : <span className="advance-ledger-dash">—</span>}
                   </td>
                   <td className="advance-ledger-td-amount">
                     {meta.dir === 'credit'
-                      ? <AmountDisplay value={amount} size="sm" variant="positive" />
+                      ? <AmountDisplay value={amount} size="sm" variant="plain" />
                       : <span className="advance-ledger-dash">—</span>}
                   </td>
                   <td className="advance-ledger-td-amount">
                     <AmountDisplay
                       value={Math.abs(runningBalance)}
                       size="sm"
-                      variant={runningBalance > 0 ? 'positive' : 'neutral'}
+                      variant="plain"
                     />
                   </td>
                 </tr>

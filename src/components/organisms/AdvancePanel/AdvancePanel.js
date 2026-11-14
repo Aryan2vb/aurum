@@ -370,7 +370,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
             {balanceLoading ? (
               <em>Loading…</em>
             ) : (
-              <AmountDisplay value={balance ?? 0} size="lg" emphasis variant={balance > 0 ? 'positive' : 'neutral'} />
+              <AmountDisplay value={balance ?? 0} size="lg" emphasis variant="plain" />
             )}
             {!customerId && selectedCustomer && (
               <button type="button" className="advance-sheet-change" onClick={() => setSelectedCustomer(null)}>
@@ -434,7 +434,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                   </div>
                   <div className="advance-selected-customer-balance">
                     <span>Available</span>
-                    {balanceLoading ? <em>Loading…</em> : <AmountDisplay value={balance ?? 0} size="sm" emphasis variant={balance > 0 ? 'positive' : 'neutral'} />}
+                    {balanceLoading ? <em>Loading…</em> : <AmountDisplay value={balance ?? 0} size="sm" emphasis variant="plain" />}
                   </div>
                   <button type="button" className="advance-sheet-change" onClick={() => setSelectedCustomer(null)}>Change</button>
                 </div>

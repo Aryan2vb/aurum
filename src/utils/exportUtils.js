@@ -7,6 +7,7 @@ export const ADVANCE_COLUMNS = [
   'Customer Name', 'Customer Code', 'Phone',
   'Balance Status',
   'Total Received', 'Applied to Invoices', 'Refunded', 'Transferred Out', 'Transferred In',
+  'Corrections',
   'Available Balance',
   'First Received Date', 'Last Activity Date',
 ];
@@ -23,6 +24,7 @@ export const ADVANCE_COLUMN_GROUPS = [
     cols: [
       'Balance Status',
       'Total Received', 'Applied to Invoices', 'Refunded', 'Transferred Out', 'Transferred In',
+      'Corrections',
       'Available Balance',
     ],
   },
@@ -71,6 +73,7 @@ export const flattenAdvanceData = (row) => {
     'Refunded':            Number(row.totalRefunded || 0).toFixed(2),
     'Transferred Out':     Number(row.totalTransferOut || 0).toFixed(2),
     'Transferred In':      Number(row.totalTransferIn || 0).toFixed(2),
+    'Corrections':         (Number(row.totalCorrectionCredit || 0) - Number(row.totalCorrectionDebit || 0)).toFixed(2),
     'Available Balance':   available.toFixed(2),
     'First Received Date': formatDate(firstReceived),
     'Last Activity Date':  formatDate(lastActivity),

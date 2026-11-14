@@ -41,6 +41,25 @@ describe('flattenAdvanceData', () => {
     });
   });
 
+  it('exports net corrections so the row reconciles to the available balance', () => {
+    const f = flattenAdvanceData({
+      customerName: 'Aryan Soni',
+      totalReceived: '10000',
+      totalApplied: '1000',
+      totalTransferOut: '0',
+      totalTransferIn: '1000',
+      totalRefunded: '0',
+      totalCorrectionCredit: '90',
+      totalCorrectionDebit: '0',
+      availableBalance: '10090',
+    });
+    expect(f['Corrections']).toBe('90.00');
+    const total =
+      Number(f['Total Received']) + Number(f['Transferred In']) + Number(f['Corrections']) -
+      Number(f['Applied to Invoices']) - Number(f['Refunded']) - Number(f['Transferred Out']);
+    expect(total.toFixed(2)).toBe(f['Available Balance']);
+  });
+
   it('reports Settled status when available balance is zero', () => {
     const row = {
       customerName: 'Priya Sharma',

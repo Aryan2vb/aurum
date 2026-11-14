@@ -74,17 +74,9 @@
   white-space: nowrap;
 }
 
-.advance-ledger-pill-ADVANCE_RECEIVED,
-.advance-ledger-pill-ADVANCE_TRANSFER_IN {
-  background: color-mix(in srgb, var(--color-status-paid) 15%, transparent);
-  color: var(--color-status-paid);
-}
-
-.advance-ledger-pill-ADVANCE_APPLIED,
-.advance-ledger-pill-ADVANCE_TRANSFER_OUT,
-.advance-ledger-pill-ADVANCE_REFUND {
-  background: color-mix(in srgb, var(--color-status-overdue) 12%, transparent);
-  color: var(--color-status-overdue);
+.advance-ledger-pill {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 /* ── Clickable rows ── */
@@ -201,12 +193,13 @@
   white-space: nowrap;
 }
 .advance-receipt-badge--available {
-  background: color-mix(in srgb, var(--color-status-paid) 14%, transparent);
-  color: var(--color-status-paid);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 .advance-receipt-badge--partial {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--border-color);
 }
 .advance-receipt-badge--used {
   background: var(--bg-tertiary);
@@ -240,4 +233,13 @@
   gap: 8px;
   font-size: var(--font-size-sm);
   color: var(--text-primary);
+}
+
+.advance-ledger-item-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  color: var(--text-primary);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
 }

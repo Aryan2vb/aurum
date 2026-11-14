@@ -11,7 +11,6 @@ import Icon from '../../components/atoms/Icon/Icon';
 import Avatar from '../../components/atoms/Avatar/Avatar';
 import Checkbox from '../../components/atoms/Checkbox/Checkbox';
 import ColumnResizer from '../../components/atoms/ColumnResizer/ColumnResizer';
-import AmountDisplay from '../../components/atoms/AmountDisplay/AmountDisplay';
 import DateDisplay from '../../components/atoms/DateDisplay/DateDisplay';
 import DateRangeFilter, { parseLocalYmd, toLocalYmd } from '../../components/molecules/DateRangeFilter/DateRangeFilter';
 import EnumFilter from '../../components/molecules/EnumFilter/EnumFilter';
@@ -25,8 +24,11 @@ import { flattenAdvanceData, ADVANCE_COLUMN_GROUPS } from '../../utils/exportUti
 import { getDateRangeFilenameQualifier } from '../../utils/exportFilename';
 import '../../components/organisms/CustomerTable/CustomerTable.css';
 import './AdvancePage.css';
+import { getAdvanceTotalIn } from '../../utils/advanceTotals';
 
 const columnHelper = createColumnHelper();
+const getTotalIn = getAdvanceTotalIn;
+
 const fmtAmt = (v) => v == null ? '—' : '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const ADVANCE_STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Available balance' },
@@ -87,20 +89,35 @@ const buildColumns = () => [
       {isActiveAdvance(row.original) ? 'Available' : 'Settled'}
     </span>,
   }),
-  columnHelper.accessor('totalReceived', { id: 'totalReceived', header: 'Received', size: 120, cell: info => <AmountDisplay value={info.getValue()} size="sm" variant="positive" /> }),
+  columnHelper.accessor(getTotalIn, { id: 'totalReceived', header: 'Received', size: 120,
+    cell: ({ row, getValue }) => {
+      const r = row.original;
+      const parts = [
+        ['Deposits', Number(r.totalReceived || 0)],
+        ['Transfers in', Number(r.totalTransferIn || 0)],
+        ['Corrections', Number(r.totalCorrectionCredit || 0) - Number(r.totalCorrectionDebit || 0)],
+      ];
+      const breakdown = parts.filter(([, v]) => v !== 0);
+      return (
+        <span title={breakdown.length > 1 ? breakdown.map(([label, v]) => `${label}: ${v < 0 ? '−' : ''}${fmtAmt(Math.abs(v))}`).join('\n') : undefined}>
+          {fmtAmt(getValue())}
+        </span>
+      );
+    },
+  }),
   columnHelper.accessor('totalApplied', { id: 'totalApplied', header: 'Applied', size: 110,
-    cell: info => { const v = parseFloat(info.getValue() || 0); return v > 0 ? <AmountDisplay value={v} size="sm" variant="negative" /> : <span style={{ color: 'var(--text-tertiary)' }}>—</span>; },
+    cell: info => { const v = parseFloat(info.getValue() || 0); return v > 0 ? fmtAmt(v) : '—'; },
   }),
   columnHelper.display({ id: 'returned', header: 'Returned / sent', size: 138,
     accessorFn: (row) => Number(row.totalRefunded || 0) + Number(row.totalTransferOut || 0),
-    cell: ({ getValue }) => getValue() > 0 ? <AmountDisplay value={getValue()} size="sm" variant="negative" /> : <span style={{ color: 'var(--text-tertiary)' }}>—</span>,
+    cell: ({ getValue }) => getValue() > 0 ? fmtAmt(getValue()) : '—',
   }),
   columnHelper.display({ id: 'lastActivity', header: 'Last activity', size: 130,
     accessorFn: getLastActivityDate,
     cell: info => info.getValue() ? <DateDisplay date={info.getValue()} format="absolute" size="sm" /> : '—',
   }),
   columnHelper.accessor('availableBalance', { id: 'availableBalance', header: 'Balance', size: 120,
-    cell: info => <AmountDisplay value={info.getValue()} size="sm" emphasis variant="positive" />,
+    cell: info => fmtAmt(info.getValue()),
   }),
 ];
 
@@ -167,13 +184,6 @@ const AdvancePage = () => {
 
   const selectedCount = Object.keys(rowSelection).length;
 
-  // Export data: selected rows or all filtered rows
-  const exportData = useMemo(() => {
-    if (selectedCount > 0) {
-      return filteredData.filter(r => rowSelection[r.customerId]);
-    }
-    return filteredData;
-  }, [filteredData, rowSelection, selectedCount]);
 
   const filenameQualifier = useMemo(
     () => (dateFrom || dateTo) ? getDateRangeFilenameQualifier({ dateFrom, dateTo }) : undefined,
@@ -181,7 +191,7 @@ const AdvancePage = () => {
   );
 
   const totals = useMemo(() => ({
-    totalReceived: filteredData.reduce((s, r) => s + parseFloat(r.totalReceived || 0), 0),
+    totalReceived: filteredData.reduce((s, r) => s + getTotalIn(r), 0),
     totalApplied: filteredData.reduce((s, r) => s + parseFloat(r.totalApplied || 0), 0),
     totalReturned: filteredData.reduce((s, r) => s + parseFloat(r.totalRefunded || 0) + parseFloat(r.totalTransferOut || 0), 0),
     availableBalance: filteredData.reduce((s, r) => s + parseFloat(r.availableBalance || 0), 0),
@@ -199,6 +209,13 @@ const AdvancePage = () => {
     getSortedRowModel: getSortedRowModel(),
     ...resizeOptions,
   });
+
+  // Export data: selected rows or all filtered rows, in the table's current sort order
+  const sortedRows = table.getRowModel().rows;
+  const exportData = useMemo(() => {
+    const ordered = sortedRows.map((r) => r.original);
+    return selectedCount > 0 ? ordered.filter((r) => rowSelection[r.customerId]) : ordered;
+  }, [sortedRows, rowSelection, selectedCount]);
 
   const activeFilterCount = statusFilter.length + Number(Boolean(dateFrom || dateTo));
 
@@ -241,10 +258,6 @@ const AdvancePage = () => {
               value={statusFilter}
               options={ADVANCE_STATUS_OPTIONS}
               onChange={setStatusFilter}
-              colorMap={{
-                ACTIVE: { bg: 'rgba(34, 197, 94, 0.14)', color: '#16a34a' },
-                SETTLED: { bg: 'rgba(107, 114, 128, 0.14)', color: '#6b7280' },
-              }}
             />
             <DateRangeFilter
               label="Activity date"
@@ -332,7 +345,7 @@ const AdvancePage = () => {
                   <td className="attio-tf"><span className="attio-tf-value">{fmtAmt(totals.totalApplied)}</span></td>
                   <td className="attio-tf"><span className="attio-tf-value">{fmtAmt(totals.totalReturned)}</span></td>
                   <td className="attio-tf" />
-                  <td className="attio-tf"><span className="attio-tf-value" style={{ color: 'var(--color-status-paid)', fontWeight: 600 }}>{fmtAmt(totals.availableBalance)}</span></td>
+                  <td className="attio-tf"><span className="attio-tf-value">{fmtAmt(totals.availableBalance)}</span></td>
                 </tr></tfoot>
               )}
             </table>
