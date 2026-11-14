@@ -12,7 +12,7 @@ import {
 import Checkbox from '../../atoms/Checkbox/Checkbox';
 import ColumnResizer from '../../atoms/ColumnResizer/ColumnResizer';
 import ScrollToTopButton from '../../atoms/ScrollToTopButton/ScrollToTopButton';
-import { useColumnResize, pinnedLeft } from '../../../hooks/useColumnResize';
+import { useColumnResize } from '../../../hooks/useColumnResize';
 import Icon from '../../atoms/Icon/Icon';
 import EnumFilter from '../../molecules/EnumFilter/EnumFilter';
 import DateRangeFilter from '../../molecules/DateRangeFilter/DateRangeFilter';
@@ -115,7 +115,21 @@ const STATUS_COLORS = {
 // SKELETON LOADING
 // ============================================
 
-const PINNED_COLUMNS = ['sn', 'actions', 'invoiceNumber'];
+// Columns pinned to the left until the user changes them. 'select' is always pinned first.
+const DEFAULT_PINNED_COLUMNS = ['select', 'sn', 'actions', 'invoiceNumber'];
+const PIN_STORAGE_KEY = 'invoiceTableColumnPinning';
+const normalizePinning = (pinning) => ({
+  left: ['select', ...((pinning && pinning.left) || []).filter((id) => id !== 'select')],
+  right: [],
+});
+
+/** Class names for a pinned header/body/footer cell. */
+const pinClass = (columnId, pinnedIds, lastPinnedId) =>
+  pinnedIds.includes(columnId)
+    ? ` attio-cell-pinned${columnId === lastPinnedId ? ' attio-cell-pinned-last' : ''}`
+    : '';
+const pinStyle = (columnId, pinnedIds) =>
+  pinnedIds.includes(columnId) ? { left: `var(--pin-${columnId})` } : undefined;
 
 const SkeletonCell = ({ width = '60%' }) => (
   <div className="skeleton-cell">
@@ -123,19 +137,17 @@ const SkeletonCell = ({ width = '60%' }) => (
   </div>
 );
 
-const SkeletonRows = ({ rows = 10, columns }) => (
+const SkeletonRows = ({ rows = 10, columns, pinnedIds, lastPinnedId }) => (
   <>
     {Array.from({ length: rows }).map((_, rowIdx) => (
       <tr key={rowIdx} className="skeleton-row">
-        <td className="attio-td attio-td-checkbox">
-          <Checkbox disabled />
-        </td>
         {columns.map((col, colIdx) => (
-          <td 
-            key={col.id} 
-            className={`attio-td ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-td-pinned-${col.id}` : ''}`}
+          <td
+            key={col.id}
+            style={pinStyle(col.id, pinnedIds)}
+            className={`attio-td attio-col-${col.id}${col.id === 'select' ? ' attio-td-checkbox' : ''}${pinClass(col.id, pinnedIds, lastPinnedId)}`}
           >
-            <SkeletonCell width={['40%', '60%', '80%'][(rowIdx + colIdx) % 3]} />
+            {col.id === 'select' ? <Checkbox disabled /> : <SkeletonCell width={['40%', '60%', '80%'][(rowIdx + colIdx) % 3]} />}
           </td>
         ))}
       </tr>
@@ -147,10 +159,10 @@ const SkeletonRows = ({ rows = 10, columns }) => (
 // MAIN COMPONENT
 // ============================================
 // Memoised so dragging a column header (which only changes widths) doesn't re-render every row.
-const InvoiceTableBody = React.memo(({ rows, columns, isLoading }) => (
+const InvoiceTableBody = React.memo(({ rows, columns, isLoading, pinnedIds, lastPinnedId }) => (
   <tbody>
     {isLoading ? (
-      <SkeletonRows columns={columns} />
+      <SkeletonRows columns={columns} pinnedIds={pinnedIds} lastPinnedId={lastPinnedId} />
     ) : rows.length === 0 ? (
       <tr>
         <td colSpan={columns.length} className="attio-empty">
@@ -163,11 +175,11 @@ const InvoiceTableBody = React.memo(({ rows, columns, isLoading }) => (
     ) : (
       rows.map((row) => (
         <tr key={row.id} className={row.getIsSelected() ? 'attio-row-selected' : ''}>
-          {row.getVisibleCells().map((cell, idx) => (
+          {row.getVisibleCells().map((cell) => (
             <td
               key={cell.id}
-              style={PINNED_COLUMNS.includes(cell.column.id) ? { left: `var(--pin-${cell.column.id})` } : undefined}
-              className={`attio-td ${idx === 0 ? 'attio-td-checkbox' : ''} ${PINNED_COLUMNS.includes(cell.column.id) ? `attio-td-pinned-${cell.column.id}` : ''}`}
+              style={pinStyle(cell.column.id, pinnedIds)}
+              className={`attio-td attio-col-${cell.column.id}${cell.column.id === 'select' ? ' attio-td-checkbox' : ''}${pinClass(cell.column.id, pinnedIds, lastPinnedId)}`}
             >
               {flexRender(cell.column.columnDef.cell, cell.getContext())}
             </td>
@@ -207,6 +219,26 @@ const InvoiceTable = ({
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
   const tableWrapperRef = useRef(null);
+  // Which columns are pinned (stick to the left); chosen from the header, kept per browser
+  const [columnPinning, setColumnPinning] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PIN_STORAGE_KEY));
+      if (saved && Array.isArray(saved.left)) return normalizePinning(saved);
+    } catch {
+      /* storage unavailable */
+    }
+    return normalizePinning({ left: DEFAULT_PINNED_COLUMNS });
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(PIN_STORAGE_KEY, JSON.stringify(columnPinning));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [columnPinning]);
+  const handleColumnPinningChange = useCallback((updater) => {
+    setColumnPinning((prev) => normalizePinning(typeof updater === 'function' ? updater(prev) : updater));
+  }, []);
   // Shadow on the pinned columns appears only once the table is scrolled sideways
   const [isScrolledX, setIsScrolledX] = useState(false);
   const handleWrapperScroll = useCallback((e) => {
@@ -652,6 +684,7 @@ const InvoiceTable = ({
       ),
       size: 40,
       enableResizing: false,
+      enablePinning: false,
     }),
     columnHelper.accessor('sn', {
       id: 'sn',
@@ -919,8 +952,10 @@ const InvoiceTable = ({
   const table = useReactTable({
     data: processedData,
     columns,
-    state: { sorting, rowSelection, columnVisibility, columnSizing },
+    state: { sorting, rowSelection, columnVisibility, columnSizing, columnPinning },
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnPinningChange: handleColumnPinningChange,
+    enableColumnPinning: true,
     ...resizeOptions,
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
@@ -932,11 +967,36 @@ const InvoiceTable = ({
   tableRef.current = table;
 
   // Pinned offsets go through CSS variables so body cells don't re-render while a column is dragged.
-  const pinnedStyle = (columnId) =>
-    PINNED_COLUMNS.includes(columnId) ? { left: `var(--pin-${columnId})` } : undefined;
+  const leftPinnedColumns = table.getLeftVisibleLeafColumns();
+  const pinnedIds = leftPinnedColumns.map((c) => c.id);
+  const pinnedKey = pinnedIds.join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stablePinnedIds = useMemo(() => pinnedIds, [pinnedKey]);
+  const lastPinnedId = pinnedIds[pinnedIds.length - 1];
+  const orderedColumns = [
+    ...leftPinnedColumns,
+    ...table.getCenterVisibleLeafColumns(),
+    ...table.getRightVisibleLeafColumns(),
+  ];
+  const pinnedStyle = (columnId) => pinStyle(columnId, pinnedIds);
   const tableVars = Object.fromEntries(
-    PINNED_COLUMNS.map((id) => [`--pin-${id}`, `${pinnedLeft(table, id)}px`]),
+    leftPinnedColumns.map((c) => [`--pin-${c.id}`, `${c.getStart('left')}px`]),
   );
+
+  const togglePin = (column) => {
+    if (column.getIsPinned()) {
+      column.pin(false);
+      return;
+    }
+    // Keep room to scroll: pinned columns may take at most ~60% of the visible table
+    const wrapperWidth = tableWrapperRef.current?.clientWidth || 0;
+    const pinnedWidth = leftPinnedColumns.reduce((sum, c) => sum + c.getSize(), 0) + column.getSize();
+    if (wrapperWidth && pinnedWidth > wrapperWidth * 0.6) {
+      alert('Not enough room to pin another column. Unpin a column first, or narrow one.');
+      return;
+    }
+    column.pin('left');
+  };
 
   return (
     <div className="attio-table-container">
@@ -1048,18 +1108,37 @@ const InvoiceTable = ({
           <thead>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header, idx) => {
+                {headerGroup.headers.map((header) => {
                   const colType = columnTypes[header.id];
                   return (
                     <th
                       key={header.id}
-                      className={`attio-th ${idx === 0 ? 'attio-th-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(header.id) ? `attio-th-pinned-${header.id}` : ''}`}
+                      className={`attio-th attio-col-${header.id}${header.id === 'select' ? ' attio-th-checkbox' : ''}${pinClass(header.id, pinnedIds, lastPinnedId)}`}
                       style={{ width: header.getSize(), ...pinnedStyle(header.id) }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       <div className="attio-th-content">
                         {colType && <ColumnTypeIcon type={colType} />}
                         <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                        {header.column.getCanPin() && (() => {
+                          const pinned = Boolean(header.column.getIsPinned());
+                          const label = typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id;
+                          return (
+                            <button
+                              type="button"
+                              className={`attio-pin-btn${pinned ? ' is-pinned' : ''}`}
+                              aria-label={pinned ? `Unpin ${label}` : `Pin ${label}`}
+                              aria-pressed={pinned}
+                              title={pinned ? 'Unpin column' : 'Pin column to the left'}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePin(header.column);
+                              }}
+                            >
+                              <Icon name={pinned ? 'pin' : 'pinOutline'} size={13} color="currentColor" />
+                            </button>
+                          );
+                        })()}
                         {header.column.getIsSorted() && (
                           <svg className="attio-sort-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             {header.column.getIsSorted() === 'asc' ? <path d="m18 15-6-6-6 6"/> : <path d="m6 9 6 6 6-6"/>}
@@ -1075,15 +1154,17 @@ const InvoiceTable = ({
           </thead>
           <InvoiceTableBody
             rows={table.getRowModel().rows}
-            columns={columns}
+            columns={orderedColumns}
             isLoading={isLoading}
+            pinnedIds={stablePinnedIds}
+            lastPinnedId={lastPinnedId}
             rowSelection={rowSelection}
             columnVisibility={columnVisibility}
           />
           {!isLoading && data.length > 0 && (
             <tfoot>
               <tr>
-                {table.getVisibleFlatColumns().map((col) => {
+                {orderedColumns.map((col) => {
                   const totals = {
                     sn: String(aggregations.count),
                     ledgerNetWeightGold: Number(aggregations.goldWt).toFixed(3),
@@ -1102,7 +1183,7 @@ const InvoiceTable = ({
                   };
                   const val = totals[col.id];
                   return (
-                    <td key={col.id} style={pinnedStyle(col.id)} title={col.id === 'sn' ? `${aggregations.count} ${aggregations.label}` : undefined} className={`attio-tf ${col.id === 'select' ? 'attio-tf-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
+                    <td key={col.id} style={pinnedStyle(col.id)} title={col.id === 'sn' ? `${aggregations.count} ${aggregations.label}` : undefined} className={`attio-tf attio-col-${col.id}${pinClass(col.id, pinnedIds, lastPinnedId)}`}>
                       {val && <span className={`attio-tf-value${col.id === 'totalAmount' ? ' fw-600' : ''}`}>{val}</span>}
                     </td>
                   );
