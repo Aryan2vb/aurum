@@ -473,3 +473,49 @@ input:checked + .slider:before {
   left: 0;
   z-index: 5;
 }
+
+/* ── Pinned block (checkbox, SN, Actions, Invoice No.) reads as a raised panel ── */
+
+/* A firmer divider on the right edge of the pinned block */
+.attio-th.attio-th-pinned-invoiceNumber,
+.attio-td.attio-td-pinned-invoiceNumber,
+.attio-tf.attio-tf-pinned-invoiceNumber {
+  border-right: 1px solid var(--ct-border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Soft shadow cast over the columns scrolling underneath. A box-shadow is used because
+   cells clip overflowing content (ellipsis), which would cut off a pseudo-element. */
+.attio-table-wrapper.is-scrolled-x .attio-th.attio-th-pinned-invoiceNumber,
+.attio-table-wrapper.is-scrolled-x .attio-td.attio-td-pinned-invoiceNumber,
+.attio-table-wrapper.is-scrolled-x .attio-tf.attio-tf-pinned-invoiceNumber {
+  border-right-color: color-mix(in srgb, var(--ct-border) 55%, var(--ct-text-muted, #888));
+  box-shadow: 8px 0 10px -6px rgba(0, 0, 0, 0.14);
+}
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-th.attio-th-pinned-invoiceNumber,
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-td.attio-td-pinned-invoiceNumber,
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-tf.attio-tf-pinned-invoiceNumber {
+  box-shadow: 8px 0 12px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* Pinned cells follow the row's hover and selected states, so the row stays one band */
+.attio-table tbody tr:hover .attio-td-checkbox,
+.attio-table tbody tr:hover .attio-td-pinned-sn,
+.attio-table tbody tr:hover .attio-td-pinned-actions,
+.attio-table tbody tr:hover .attio-td-pinned-invoiceNumber {
+  background: var(--ct-hover);
+}
+.attio-row-selected .attio-td-checkbox,
+.attio-row-selected .attio-td-pinned-sn,
+.attio-row-selected .attio-td-pinned-actions,
+.attio-row-selected .attio-td-pinned-invoiceNumber {
+  background: var(--ct-selected);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attio-th.attio-th-pinned-invoiceNumber,
+  .attio-td.attio-td-pinned-invoiceNumber,
+  .attio-tf.attio-tf-pinned-invoiceNumber {
+    transition: none;
+  }
+}

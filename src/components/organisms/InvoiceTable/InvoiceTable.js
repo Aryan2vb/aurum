@@ -207,6 +207,12 @@ const InvoiceTable = ({
   const [exporting, setExporting] = useState(false);
   const tableRef = React.useRef(null);
   const tableWrapperRef = useRef(null);
+  // Shadow on the pinned columns appears only once the table is scrolled sideways
+  const [isScrolledX, setIsScrolledX] = useState(false);
+  const handleWrapperScroll = useCallback((e) => {
+    const scrolled = e.currentTarget.scrollLeft > 0;
+    setIsScrolledX((prev) => (prev === scrolled ? prev : scrolled));
+  }, []);
   const { can } = usePermission();
   const canWrite = can('write');
 
@@ -1031,8 +1037,9 @@ const InvoiceTable = ({
 
       {/* Table Content */}
       <div
-        className="attio-table-wrapper"
+        className={`attio-table-wrapper${isScrolledX ? ' is-scrolled-x' : ''}`}
         ref={tableWrapperRef}
+        onScroll={handleWrapperScroll}
       >
         <table
           className={`attio-table ${isLoading ? 'attio-skeleton-table' : ''}`}
