@@ -82,6 +82,14 @@ describe('AdvanceReceiptPicker', () => {
 
     await renderPicker(<ControlledPicker onChangeSpy={onChangeSpy} />);
 
+    // Long lists start collapsed to the oldest five
+    expect(container.querySelectorAll('input[type="checkbox"]')).toHaveLength(5);
+    const showMore = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent.includes('Show 5 more receipts'),
+    );
+    await act(async () => {
+      showMore.click();
+    });
     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
     expect(checkboxes).toHaveLength(10);
 
@@ -102,7 +110,7 @@ describe('AdvanceReceiptPicker', () => {
       ['adv-2', 'CASH', 10000],
       ['adv-3', 'UPI', 10000],
     ]);
-    expect(container.textContent).toContain('3 selected');
+    expect(container.textContent).toContain('from 3 receipts');
     expect(container.textContent).toContain('₹30,000');
   });
 
@@ -150,10 +158,8 @@ describe('AdvanceReceiptPicker', () => {
       <ControlledPicker invoiceTotal={55000} directPaymentsTotal={29000} onChangeSpy={onChangeSpy} />,
     );
 
-    const autoFillBtn = Array.from(container.querySelectorAll('button')).find(
-      (b) => b.textContent === 'Auto-fill',
-    );
-    expect(autoFillBtn).toBeTruthy();
+    const autoFillBtn = container.querySelector('.advance-picker__autofill');
+    expect(autoFillBtn.textContent).toBe('Use ₹26,000');
 
     await act(async () => {
       autoFillBtn.click();
@@ -197,7 +203,7 @@ describe('AdvanceReceiptPicker', () => {
       />,
     );
 
-    expect(container.textContent).toContain('No available advance receipts');
+    expect(container.textContent).toContain('No advance on file for Priya Sharma');
 
     const addCustomerBtn = Array.from(container.querySelectorAll('button')).find((b) =>
       b.textContent.includes('Use advance from another customer'),
@@ -267,10 +273,9 @@ describe('AdvanceReceiptPicker', () => {
     });
     expect(container.textContent).not.toContain('date after the invoice date');
 
-    await act(async () => {
-      checkboxes[1].click();
-    });
-    expect(container.textContent).toContain('1 selected receipt(s) have a date after the invoice date');
+    // A receipt dated after the invoice can't be picked
+    expect(checkboxes[1].disabled).toBe(true);
+    expect(container.textContent).toContain('Received after the invoice date');
   });
 
   it('does not let a receipt overpay an invoice that is already covered', async () => {
@@ -298,5 +303,48 @@ describe('AdvanceReceiptPicker', () => {
       Simulate.change(container.querySelector('input[type="checkbox"]'));
     });
     expect(onChangeSpy).toHaveBeenLastCalledWith([expect.objectContaining({ advanceEntryId: 'adv-1', applyAmount: 4000 })]);
+  });
+
+  it('editing an issued invoice: keeps its current receipts and counts what it already uses as available', async () => {
+    // r-full is fully used by this invoice, so the server no longer lists it as available.
+    // r-part has ₹2,000 left for others, plus ₹3,000 this invoice already uses.
+    advanceService.getAvailableAdvances.mockResolvedValue([
+      { id: 'r-part', transactionDate: '2026-02-10', paymentMethod: 'CASH', originalAmount: 5000, remainingAmount: 2000 },
+    ]);
+    const initialSelected = [
+      {
+        advanceEntryId: 'r-full', sourceCustomerId: 'cust-a', sourceCustomerName: 'Sita Devi',
+        transactionDate: '2026-01-10', paymentMethod: 'UPI', reference: 'UTR1',
+        originalAmount: 4000, remainingAmount: 4000, applyAmount: 4000,
+      },
+      {
+        advanceEntryId: 'r-part', sourceCustomerId: 'cust-a', sourceCustomerName: 'Sita Devi',
+        transactionDate: '2026-02-10', paymentMethod: 'CASH',
+        originalAmount: 5000, remainingAmount: 5000, applyAmount: 3000,
+      },
+    ];
+    const onChangeSpy = jest.fn();
+    await renderPicker(
+      <ControlledPicker
+        invoiceTotal={20000}
+        directPaymentsTotal={0}
+        initialSelected={initialSelected}
+        reservedByInvoice={{ 'r-full': 4000, 'r-part': 3000 }}
+        onChangeSpy={onChangeSpy}
+      />,
+    );
+
+    const boxes = container.querySelectorAll('input[type="checkbox"]');
+    expect(boxes).toHaveLength(2);
+    expect(boxes[0].checked).toBe(true);
+    expect(boxes[1].checked).toBe(true);
+
+    // Raising r-part is capped at 2,000 left + 3,000 already used = 5,000
+    const inputs = container.querySelectorAll('input[type="number"]');
+    await act(async () => {
+      Simulate.change(inputs[1], { target: { value: '9000' } });
+    });
+    const latest = onChangeSpy.mock.calls[onChangeSpy.mock.calls.length - 1][0];
+    expect(latest.find((a) => a.advanceEntryId === 'r-part').applyAmount).toBe(5000);
   });
 });

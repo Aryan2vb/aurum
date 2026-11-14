@@ -25,7 +25,6 @@ import {
   getMissingSequences,
   getSequenceAvailability,
 } from "../../services/invoicesService";
-import { getAdvanceBalance } from "../../services/advanceService";
 import {
   generateInvoiceHtml,
   generateJewelleryInvoiceHtml,
@@ -219,14 +218,12 @@ const CreateInvoicePage = () => {
   const [selectedCustomerObj, setSelectedCustomerObj] = useState(null);
   const [nameFormat, setNameFormat] = useState("default");
   const [isCustomerPanelOpen, setIsCustomerPanelOpen] = useState(false);
-  const [advanceBalance, setAdvanceBalance] = useState(null); // available advance for selected customer
   const [selectedAdvances, setSelectedAdvances] = useState([]); // receipt-level picked advances
-  const [lockedAdvancePayments, setLockedAdvancePayments] = useState([]); // finalized invoice's existing advance payments
-  const [billToSwitchOpen, setBillToSwitchOpen] = useState(false);
-  const [billToQuery, setBillToQuery] = useState("");
-  const [billToResults, setBillToResults] = useState([]);
-  const [billToSearching, setBillToSearching] = useState(false);
-  const billToDebounceRef = useRef(null);
+  // Issued invoice: lump-sum advance rows that aren't tied to a receipt (older invoices)
+  const [lockedAdvancePayments, setLockedAdvancePayments] = useState([]);
+  // Issued invoice: { [advanceEntryId]: amount } it already uses, and whether the user changed the advance
+  const [issuedAdvanceReserved, setIssuedAdvanceReserved] = useState({});
+  const [advanceDirty, setAdvanceDirty] = useState(false);
   const [payments, setPayments] = useState([]);
   const [autoCreateUdhar, setAutoCreateUdhar] = useState(false);
   const [invoiceDate, setInvoiceDate] = useState(toDateInputValue());
@@ -262,8 +259,11 @@ const CreateInvoicePage = () => {
   );
 
   const lockedAdvanceAmount = useMemo(
-    () => lockedAdvancePayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
-    [lockedAdvancePayments],
+    () =>
+      advanceDirty
+        ? 0
+        : lockedAdvancePayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0),
+    [lockedAdvancePayments, advanceDirty],
   );
 
   const advanceAppliedAmount = useMemo(
@@ -342,11 +342,6 @@ const CreateInvoicePage = () => {
             sequenceEditedRef.current = true;
             setManualSequence(String(inv.sequence));
           }
-          if (inv.customerId) {
-            getAdvanceBalance(inv.customerId)
-              .then((data) => setAdvanceBalance(parseFloat(data?.availableAdvance || 0)))
-              .catch(() => setAdvanceBalance(0));
-          }
           const rawPayments = Array.isArray(inv.payments) ? inv.payments : [];
           const directPayments = rawPayments.filter((p) => p.source !== "ADVANCE");
           const advancePayments = rawPayments.filter((p) => p.source === "ADVANCE");
@@ -373,9 +368,28 @@ const CreateInvoicePage = () => {
               })),
             );
           } else {
-            setSelectedAdvances([]);
+            // Receipt-linked advance is editable; lump-sum rows are shown read-only.
+            const issued = Array.isArray(inv.issuedAdvanceAllocations) ? inv.issuedAdvanceAllocations : [];
+            setSelectedAdvances(
+              issued.map((a) => ({
+                advanceEntryId: a.advanceEntryId,
+                sourceCustomerId: a.sourceCustomerId,
+                sourceCustomerName: a.sourceCustomerName || "",
+                transactionDate: a.transactionDate || "",
+                paymentMethod: a.paymentMethod || "CREDIT",
+                reference: a.reference || "",
+                description: a.description || "",
+                originalAmount: parseFloat(a.originalAmount) || 0,
+                remainingAmount: parseFloat(a.remainingAmount) || 0,
+                applyAmount: parseFloat(a.amount) || 0,
+              })),
+            );
+            setIssuedAdvanceReserved(
+              Object.fromEntries(issued.map((a) => [a.advanceEntryId, parseFloat(a.amount) || 0])),
+            );
+            setAdvanceDirty(false);
             setLockedAdvancePayments(
-              advancePayments.map((p) => ({
+              advancePayments.filter((p) => !p.advanceEntryId).map((p) => ({
                 mode: p.mode,
                 amount: parseFloat(p.amount) || 0,
                 reference: p.reference || "",
@@ -621,7 +635,7 @@ const CreateInvoicePage = () => {
       hsnSummary: hsnSummary,
       payments: sortPaymentsByDate([
         ...buildMergedInvoicePayments(payments, selectedAdvances),
-        ...lockedAdvancePayments,
+        ...(advanceDirty ? [] : lockedAdvancePayments),
       ]).map((p) => ({
         mode: p.mode,
         amount: parseFloat(p.amount) || 0,
@@ -650,7 +664,7 @@ const CreateInvoicePage = () => {
     } catch (e) {
       /* silent */
     }
-  }, [invoiceData, theme, paidAmount, invoiceDate, payments, selectedAdvances, lockedAdvancePayments, sequenceData, manualSequence, id]);
+  }, [invoiceData, theme, paidAmount, invoiceDate, payments, selectedAdvances, lockedAdvancePayments, advanceDirty, sequenceData, manualSequence, id]);
 
   const performSearch = useCallback(async (q) => {
     if (q.length < 2) {
@@ -721,12 +735,8 @@ const CreateInvoicePage = () => {
         stateCode: c.locations?.[0]?.stateCode || c.stateCode || "",
       },
     }));
-    // Load this customer's advance balance and most recent advance date in background
-    setAdvanceBalance(null);
-    setSelectedAdvances([]);
-    getAdvanceBalance(c.id)
-      .then((data) => setAdvanceBalance(parseFloat(data?.availableAdvance || 0)))
-      .catch(() => setAdvanceBalance(0));
+    // Receipts already picked (e.g. from the previous customer) stay selected and
+    // show as "From: <name>" in the advance section.
   };
 
   useEffect(() => {
@@ -762,74 +772,22 @@ const CreateInvoicePage = () => {
   };
 
   const clearCustomer = () => {
+    // Keep picked advance receipts so another customer's advance can be billed to the
+    // next customer chosen; they can be removed from the advance section.
+    const prevName = selectedCustomerObj?.fullName || selectedCustomerObj?.name || invoiceData.buyer.name;
+    setSelectedAdvances((prev) =>
+      prev.map((a) => ({ ...a, sourceCustomerName: a.sourceCustomerName || prevName })),
+    );
     setSelectedCustomerId("");
     setSelectedCustomerObj(null);
     setNameFormat("default");
-    setAdvanceBalance(null);
-    setSelectedAdvances([]);
     setLockedAdvancePayments([]);
-    setBillToSwitchOpen(false);
-    setBillToQuery("");
-    setBillToResults([]);
+    setIssuedAdvanceReserved({});
+    if (id && invoiceData.status !== "DRAFT") setAdvanceDirty(true);
     setInvoiceData((prev) => ({
       ...prev,
       buyer: { name: "", phone: "", address: "", stateCode: "" },
     }));
-  };
-
-  const handleBillToSearchChange = (e) => {
-    const q = e.target.value;
-    setBillToQuery(q);
-    clearTimeout(billToDebounceRef.current);
-    if (q.length < 2) {
-      setBillToResults([]);
-      setBillToSearching(false);
-      return;
-    }
-    setBillToSearching(true);
-    billToDebounceRef.current = setTimeout(async () => {
-      try {
-        const data = await searchCustomers({ query: q });
-        const results = (data.data || data || []).filter(
-          (c) => c.id !== selectedCustomerId,
-        );
-        setBillToResults(results);
-      } catch {
-        setBillToResults([]);
-      } finally {
-        setBillToSearching(false);
-      }
-    }, 350);
-  };
-
-  const handleBillToSelect = (newCustomer) => {
-    const prevName = selectedCustomerObj?.fullName || selectedCustomerObj?.name || invoiceData.buyer.name;
-    // Preserve already-picked advances from the previous customer (tag sourceCustomerName if missing)
-    setSelectedAdvances((prev) =>
-      prev.map((a) => ({
-        ...a,
-        sourceCustomerName: a.sourceCustomerName || prevName,
-      })),
-    );
-    setSelectedCustomerId(newCustomer.id);
-    setSelectedCustomerObj(newCustomer);
-    setNameFormat("default");
-    setBillToSwitchOpen(false);
-    setBillToQuery("");
-    setBillToResults([]);
-    setInvoiceData((prev) => ({
-      ...prev,
-      buyer: {
-        name: newCustomer.fullName || newCustomer.name || "",
-        phone: newCustomer.contactDetails?.[0]?.primaryPhone || newCustomer.phone || "",
-        address: formatCustomerAddress(newCustomer.locations?.[0]),
-        stateCode: newCustomer.locations?.[0]?.stateCode || newCustomer.stateCode || "",
-      },
-    }));
-    setAdvanceBalance(null);
-    getAdvanceBalance(newCustomer.id)
-      .then((data) => setAdvanceBalance(parseFloat(data?.availableAdvance || 0)))
-      .catch(() => setAdvanceBalance(0));
   };
 
   const updateItem = (idx, field, value) => {
@@ -904,7 +862,9 @@ const CreateInvoicePage = () => {
         reference: p.reference || undefined,
         paidAt: p.paidAt,
       })),
-      ...(advAllocations.length > 0 || (id && invoiceData.status === "DRAFT")
+      ...((id && invoiceData.status !== "DRAFT"
+        ? advanceDirty
+        : advAllocations.length > 0 || (id && invoiceData.status === "DRAFT"))
         ? { advanceAllocations: advAllocations }
         : {}),
       paidAmount, // keep for backward compatibility
@@ -1267,69 +1227,11 @@ const CreateInvoicePage = () => {
                       <button
                         type="button"
                         className={styles.changeBtn}
-                        onClick={() => setBillToSwitchOpen((v) => !v)}
-                        title="Keep picked advances and issue bill in another customer's name"
-                      >
-                        Bill to someone else
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.changeBtn}
                         onClick={clearCustomer}
                       >
                         Change
                       </button>
                     </div>
-
-                    {billToSwitchOpen && (
-                      <div className={styles.billToSwitchBox}>
-                        <div className={styles.billToSwitchInputRow}>
-                          <input
-                            className={styles.billToSwitchInput}
-                            placeholder="Switch Bill-To customer (keeps picked advances)..."
-                            value={billToQuery}
-                            onChange={handleBillToSearchChange}
-                            autoFocus
-                          />
-                          <button
-                            type="button"
-                            className={styles.changeBtn}
-                            onClick={() => {
-                              setBillToSwitchOpen(false);
-                              setBillToQuery("");
-                              setBillToResults([]);
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                        {billToSearching && (
-                          <div className={styles.billToSwitchEmpty}>Searching...</div>
-                        )}
-                        {billToResults.length > 0 && (
-                          <div className={styles.billToSwitchResults}>
-                            {billToResults.map((c) => (
-                              <div
-                                key={c.id}
-                                className={styles.searchResultItem}
-                                onClick={() => handleBillToSelect(c)}
-                              >
-                                <Avatar
-                                  name={c.fullName || c.name || "?"}
-                                  size="sm"
-                                />
-                                <div className={styles.searchResultInfo}>
-                                  <strong>{c.fullName || c.name}</strong>
-                                  <span className={styles.searchResultMeta}>
-                                    {c.contactDetails?.[0]?.primaryPhone || c.phone || "No phone"}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     {selectedCustomerObj && (selectedCustomerObj.fatherName || selectedCustomerObj.motherName || selectedCustomerObj.spouseName) && (
                       <div className={styles.nameFormatSelector}>
@@ -1465,16 +1367,6 @@ const CreateInvoicePage = () => {
                 </div>
               </aside>
             </div>
-
-            {/* Advance balance badge — informational only, selection is in the payments section */}
-            {selectedCustomerId && advanceBalance > 0 && (
-              <div className={styles.advanceBanner}>
-                <span className={styles.advanceBannerIcon}>💰</span>
-                <span className={styles.advanceBannerText}>
-                  ₹{advanceBalance.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} advance available — select receipts below to apply
-                </span>
-              </div>
-            )}
 
             {/* Items */}
             <section className={styles.itemsSection}>
@@ -1771,8 +1663,8 @@ const CreateInvoicePage = () => {
                 </div>
               ))}
 
-              {/* Transaction-level Advance Receipt Picker (new invoices & drafts) */}
-              {selectedCustomerId && (!id || invoiceData.status === "DRAFT") && (
+              {/* Advance receipts (new, draft and issued invoices) */}
+              {selectedCustomerId && (
                 <div className={styles.advanceRowWrap}>
                   <AdvanceReceiptPicker
                     primaryCustomerId={selectedCustomerId}
@@ -1782,28 +1674,54 @@ const CreateInvoicePage = () => {
                       invoiceData.buyer.name
                     }
                     selectedAdvances={selectedAdvances}
-                    onSelectedAdvancesChange={setSelectedAdvances}
+                    onSelectedAdvancesChange={(next) => {
+                      setSelectedAdvances(next);
+                      setAdvanceDirty(true);
+                    }}
                     invoiceDate={invoiceDate}
                     invoiceTotal={calc.total}
-                    directPaymentsTotal={directPaidAmount}
+                    directPaymentsTotal={directPaidAmount + lockedAdvanceAmount}
+                    reservedByInvoice={issuedAdvanceReserved}
                   />
                 </div>
               )}
 
-              {/* Locked advance summary when editing an already-finalized invoice */}
+              {/* Older lump-sum advance on an issued invoice (not tied to a receipt) */}
               {id && invoiceData.status !== "DRAFT" && lockedAdvancePayments.length > 0 && (
                 <div className={styles.advanceRowWrap}>
-                  <div className={styles.advanceHistory}>
-                    <span className={styles.advanceHistoryLabel}>
-                      Applied Advances (locked):
-                    </span>
+                  <div className={styles.lockedAdvance}>
+                    <div className={styles.lockedAdvanceHeader}>
+                      <span>Lump-sum advance</span>
+                      {advanceDirty && (
+                        <span className={styles.lockedAdvanceNote}>Goes back to the customer’s balance on save</span>
+                      )}
+                    </div>
                     {lockedAdvancePayments.map((p, idx) => (
-                      <span key={idx} className={styles.advanceHistoryChip}>
-                        {p.mode} · ₹{Number(p.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
-                        {p.paidAt ? ` · ${p.paidAt}` : ''}
-                        {p.sourceCustomerName ? ` (from ${p.sourceCustomerName})` : ''}
-                      </span>
+                      <div
+                        key={idx}
+                        className={`${styles.lockedAdvanceRow}${advanceDirty ? ` ${styles.lockedAdvanceRowReturned}` : ""}`}
+                      >
+                        <div className={styles.lockedAdvanceText}>
+                          <strong>
+                            {p.paidAt
+                              ? new Date(`${p.paidAt}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                              : 'Advance'}
+                          </strong>
+                          <span>
+                            Applied before receipts were tracked
+                            {p.sourceCustomerName ? ` · from ${p.sourceCustomerName}` : ''}
+                          </span>
+                        </div>
+                        <span className={styles.lockedAdvanceAmount}>
+                          ₹{Number(p.amount || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     ))}
+                    {!advanceDirty && (
+                      <p className={styles.lockedAdvanceHelp}>
+                        To change it, pick receipts above. This amount then goes back to the customer’s advance balance.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

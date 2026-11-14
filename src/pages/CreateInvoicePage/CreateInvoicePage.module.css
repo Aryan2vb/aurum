@@ -283,8 +283,6 @@
     color: var(--error);
 }
 
-
-
 .dateLabel {
     font-size: 0.65rem;
     font-weight: 700;
@@ -458,51 +456,9 @@
     font-size: 0.75rem;
 }
 
-
 .changeBtn:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
-}
-
-.billToSwitchBox {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.45rem 0.6rem;
-    background: var(--bg-secondary);
-    border: 1px dashed var(--accent);
-    border-radius: 0.45rem;
-}
-
-.billToSwitchInputRow {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-}
-
-.billToSwitchInput {
-    flex: 1;
-    padding: 0.35rem 0.55rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 0.35rem;
-    color: var(--text-primary);
-    font-size: 0.8rem;
-}
-
-.billToSwitchResults {
-    max-height: 180px;
-    overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: 0.4rem;
-    background: var(--bg-primary);
-}
-
-.billToSwitchEmpty {
-    font-size: 0.75rem;
-    color: var(--text-tertiary);
-    padding: 0.25rem 0.4rem;
 }
 
 .searchResults {
@@ -1471,31 +1427,9 @@
 }
 
 /* ── Advance balance banner ── */
-.advanceBanner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: color-mix(in srgb, var(--color-status-paid) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-status-paid) 35%, transparent);
-  border-radius: var(--radius-md);
-  padding: 0.5rem 0.75rem;
-  margin-top: 0.5rem;
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
 
-.advanceBannerIcon {
-  font-size: 1rem;
-  flex-shrink: 0;
-}
 
-.advanceBannerText {
-  color: var(--text-primary);
-}
 
-.advanceBannerText strong {
-  color: var(--color-status-paid);
-}
 
 /* ── Advance row in payments section ── */
 .advanceRowLabel {
@@ -1623,11 +1557,6 @@
   box-shadow: var(--shadow-sm);
 }
 
-.advanceBanner {
-  grid-area: advance;
-  width: fit-content;
-  margin: 0;
-}
 
 .customerSearchInput,
 .selectedCustomer {
@@ -2035,10 +1964,6 @@
 
   .topRowCustomer,
   .selectedCustomer,
-  .advanceBanner {
-    width: 100%;
-    max-width: none;
-  }
 
   .dateAndSeqGroup {
     grid-template-columns: 1fr 1fr;
@@ -2918,4 +2843,87 @@
 
 .pageWrapper::-webkit-scrollbar {
   display: none;               /* Chrome, Safari, iPad */
+}
+
+/* ── Advance already used by an issued invoice (read-only) ── */
+.lockedAdvance {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.lockedAdvanceHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.lockedAdvanceNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.lockedAdvanceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 48px;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--bg-secondary);
+}
+
+.lockedAdvanceText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.lockedAdvanceText strong {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.lockedAdvanceText span {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lockedAdvanceAmount {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lockedAdvanceRowReturned {
+  opacity: 0.55;
+}
+.lockedAdvanceRowReturned .lockedAdvanceAmount {
+  text-decoration: line-through;
+}
+
+.lockedAdvanceHelp {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }

@@ -307,14 +307,19 @@ const AdvancePage = () => {
                     <tr
                       onClick={(e) => {
                         // Don't open panel when clicking on the checkbox column
-                        if (e.target.closest('[role="checkbox"]')) return;
+                        if (e.target.closest('[role="checkbox"]') || e.target.closest('.attio-td-checkbox')) return;
                         openPanel(row.original);
                       }}
                       style={{ cursor: 'pointer' }}
                       className={row.getIsSelected() ? 'attio-row-selected' : ''}
                     >
                       {row.getVisibleCells().map(cell => (
-                        <td key={cell.id} className="attio-td">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                        <td
+                          key={cell.id}
+                          className={`attio-td${cell.column.id === 'select' ? ' attio-td-checkbox' : ''}`}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
                       ))}
                     </tr>
                   </React.Fragment>

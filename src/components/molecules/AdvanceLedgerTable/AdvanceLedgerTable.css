@@ -163,7 +163,7 @@
 }
 
 .advance-ledger-item:hover .advance-ledger-item-label {
-  color: var(--accent);
+  color: var(--text-primary);
 }
 
 .advance-ledger-item-main {
@@ -206,7 +206,7 @@
 }
 .advance-receipt-badge--partial {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  color: var(--text-primary);
 }
 .advance-receipt-badge--used {
   background: var(--bg-tertiary);

@@ -50,6 +50,72 @@ const formatCustomerAddress = (location) => {
   ].filter(Boolean).join(', ');
 };
 
+const PAYMENT_METHOD_LABELS = {
+  CASH: 'Cash', UPI: 'UPI', BANK_TRANSFER: 'Bank transfer', CHEQUE: 'Cheque', NEFT: 'NEFT',
+  RTGS: 'RTGS', IMPS: 'IMPS', OLD_GOLD: 'Old gold', CREDIT: 'Credit', OTHER: 'Other',
+};
+
+/**
+ * "Advance" tag on a payment row. Hover or focus it to see where the money came from:
+ * whose advance, which receipt (date, mode, reference) and how much of it this invoice used.
+ */
+export const AdvanceSourceBadge = ({ payment, invoiceCustomerId, invoiceCustomerName, openUp }) => {
+  const receipt = payment.advanceReceipt;
+  const fromOther = payment.sourceCustomerId && payment.sourceCustomerId !== invoiceCustomerId;
+  const owner = payment.sourceCustomerName || (fromOther ? 'Another customer' : invoiceCustomerName);
+  const receivedOn = receipt?.transactionDate || (payment.advanceEntryId ? payment.paidAt : null);
+  const mode = receipt?.paymentMethod || (payment.advanceEntryId ? payment.mode : null);
+  const reference = receipt?.reference || (payment.advanceEntryId ? payment.reference : null);
+  const tooltipId = `advance-source-${payment.id}`;
+
+  const rows = [
+    { label: 'Customer', value: owner },
+    receivedOn && { label: 'Received', value: formatDate(receivedOn) },
+    mode && { label: 'Paid by', value: PAYMENT_METHOD_LABELS[mode] || mode },
+    reference && { label: 'Reference', value: reference },
+    receipt && { label: 'Receipt total', value: formatCurrency(receipt.amount) },
+    { label: 'Used here', value: formatCurrency(payment.amount) },
+  ].filter(Boolean);
+
+  return (
+    <span className="advance-source">
+      <button
+        type="button"
+        className="payment-advance-badge advance-source__trigger"
+        aria-describedby={tooltipId}
+      >
+        Advance{fromOther && payment.sourceCustomerName ? ` · ${payment.sourceCustomerName}` : ''}
+      </button>
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className={`advance-source__card${openUp ? ' advance-source__card--up' : ''}`}
+      >
+        <span className="advance-source__title">
+          {fromOther ? 'From another customer’s advance' : 'From advance'}
+        </span>
+        <dl className="advance-source__list">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="advance-source__row">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {!payment.advanceEntryId && (
+          <span className="advance-source__note">Applied as a lump sum, so no single receipt is linked.</span>
+        )}
+        {receipt?.description && !/^Advance received via/.test(receipt.description) && (
+          <span className="advance-source__note">“{receipt.description}”</span>
+        )}
+        {receipt?.deleted && (
+          <span className="advance-source__note">This receipt was later deleted.</span>
+        )}
+      </span>
+    </span>
+  );
+};
+
 const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => {
   const navigate = useNavigate();
   const { can } = usePermission();
@@ -492,8 +558,8 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                       >
                         <Icon name="add" size={14} />
                         {advanceBalance > 0
-                          ? `Apply Advance Balance (${formatCurrency(advanceBalance)} available)`
-                          : "Apply Advance (own or another customer's)"}
+                          ? `Apply advance · ${formatCurrency(advanceBalance)} available`
+                          : 'Apply advance'}
                       </button>
                     ) : (
                       <div className="advance-apply-form">
@@ -560,15 +626,20 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td>
                             <span className="payment-mode-tag">{p.mode}</span>
                             {p.source === 'ADVANCE' && (
-                              <span className="payment-advance-badge">
-                                Advance
-                                {p.sourceCustomerName && p.sourceCustomerId !== invoice.customerId
-                                  ? ` · from ${p.sourceCustomerName}`
-                                  : ''}
-                              </span>
+                              <AdvanceSourceBadge
+                                payment={p}
+                                invoiceCustomerId={invoice.customerId}
+                                invoiceCustomerName={buyer.name || invoice.customer?.fullName}
+                                openUp={invoice.payments.length > 2 && i >= invoice.payments.length - 2}
+                              />
                             )}
                           </td>
-                          <td>{p.reference || '—'}</td>
+                          <td>
+                            {/* Legacy advance rows stored an internal ledger id as the reference */}
+                            {p.source === 'ADVANCE' && p.reference && p.reference === p.advanceLedgerEntryId
+                              ? '—'
+                              : p.reference || '—'}
+                          </td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>
                         </tr>
                       ))}
