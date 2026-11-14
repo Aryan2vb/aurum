@@ -455,3 +455,21 @@ input:checked + .slider:before {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Pinned header cells stick both up (top) and left. They must sit above the other
+   header cells (z-index 10), or scrolling sideways draws those headers over them. */
+.attio-th.attio-th-pinned-sn,
+.attio-th.attio-th-pinned-actions,
+.attio-th.attio-th-pinned-invoiceNumber {
+  z-index: 12;
+}
+.attio-th.attio-th-checkbox {
+  z-index: 13;
+}
+
+/* Footer checkbox cell stays pinned with the checkbox column above it. */
+.attio-tf.attio-tf-checkbox {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}

@@ -1095,7 +1095,7 @@ const InvoiceTable = ({
                   };
                   const val = totals[col.id];
                   return (
-                    <td key={col.id} style={pinnedStyle(col.id)} title={col.id === 'sn' ? `${aggregations.count} ${aggregations.label}` : undefined} className={`attio-tf ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
+                    <td key={col.id} style={pinnedStyle(col.id)} title={col.id === 'sn' ? `${aggregations.count} ${aggregations.label}` : undefined} className={`attio-tf ${col.id === 'select' ? 'attio-tf-checkbox' : ''} ${['sn', 'actions', 'invoiceNumber'].includes(col.id) ? `attio-tf-pinned-${col.id}` : ''}`}>
                       {val && <span className={`attio-tf-value${col.id === 'totalAmount' ? ' fw-600' : ''}`}>{val}</span>}
                     </td>
                   );
