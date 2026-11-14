@@ -115,14 +115,11 @@ const STATUS_COLORS = {
 // SKELETON LOADING
 // ============================================
 
-// Always pinned, in this order, and can't be unpinned. Users can pin more columns after them.
-const LOCKED_PINNED_COLUMNS = ['select', 'sn', 'actions', 'invoiceNumber'];
+// Columns pinned to the left until the user changes them. 'select' is always pinned first.
+const DEFAULT_PINNED_COLUMNS = ['select', 'sn', 'actions', 'invoiceNumber'];
 const PIN_STORAGE_KEY = 'invoiceTableColumnPinning';
 const normalizePinning = (pinning) => ({
-  left: [
-    ...LOCKED_PINNED_COLUMNS,
-    ...((pinning && pinning.left) || []).filter((id) => !LOCKED_PINNED_COLUMNS.includes(id)),
-  ],
+  left: ['select', ...((pinning && pinning.left) || []).filter((id) => id !== 'select')],
   right: [],
 });
 
@@ -230,7 +227,7 @@ const InvoiceTable = ({
     } catch {
       /* storage unavailable */
     }
-    return normalizePinning({ left: [] });
+    return normalizePinning({ left: DEFAULT_PINNED_COLUMNS });
   });
   useEffect(() => {
     try {
@@ -694,12 +691,10 @@ const InvoiceTable = ({
       header: 'S.N',
       cell: info => info.getValue(),
       size: 56,
-      enablePinning: false,
     }),
     columnHelper.display({
       id: 'actions',
       header: 'Actions',
-      enablePinning: false,
       cell: ({ row }) => {
         const inv = row.original;
         const status = (inv.status || '').toUpperCase();
@@ -751,7 +746,6 @@ const InvoiceTable = ({
       header: 'Invoice No.',
       cell: info => <span className="attio-td-value">{info.getValue() || 'DRAFT'}</span>,
       size: 140,
-      enablePinning: false,
     }),
     // Date
     columnHelper.accessor('invoiceDate', {
