@@ -444,8 +444,23 @@
   color: var(--text-primary);
 }
 
+.advance-result-create {
+  background: var(--bg-tertiary);
+}
 .advance-result-create .advance-result-name {
   color: var(--text-primary);
+  font-weight: 600;
+}
+.advance-result-add-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .advance-recipient {

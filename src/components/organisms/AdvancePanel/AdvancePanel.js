@@ -5,6 +5,7 @@ import Input from '../../atoms/Input/Input';
 import AmountDisplay from '../../atoms/AmountDisplay/AmountDisplay';
 import Toast from '../../atoms/Toast/Toast';
 import Avatar from '../../atoms/Avatar/Avatar';
+import Icon from '../../atoms/Icon/Icon';
 import {
   getAdvanceBalance,
   receiveAdvance,
@@ -201,6 +202,35 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
     }, 300);
     return () => clearTimeout(t);
   }, [customerId, receiveCustomerSearch]);
+
+  const selectReceiveCustomer = (c) => {
+    setSelectedCustomer(c);
+    setReceiveCustomerSearch('');
+    setReceiveCustomerResults([]);
+  };
+
+  // Same as Create Invoice: Enter picks the first match, or opens "new customer" prefilled
+  const handleReceiveSearchKeyDown = async (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault(); // don't submit the advance form
+    const query = receiveCustomerSearch.trim();
+    if (query.length < 2) return;
+    let results = receiveCustomerResults;
+    if (!results.length) {
+      try {
+        setReceiveSearching(true);
+        const data = await searchCustomers({ query });
+        results = data.data || data || [];
+        setReceiveCustomerResults(results);
+      } catch {
+        results = [];
+      } finally {
+        setReceiveSearching(false);
+      }
+    }
+    if (results.length > 0) selectReceiveCustomer(results[0]);
+    else setIsCustomerCreateOpen(true);
+  };
 
   // Debounced customer search for transfer tab
   useEffect(() => {
@@ -402,12 +432,12 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
               {!customerId && !selectedCustomer && (
                 <div className="advance-field">
                   <label className="advance-label" htmlFor="advance-customer">Customer <span className="required">*</span></label>
-                  <Input id="advance-customer" type="text" placeholder="Name or phone" value={receiveCustomerSearch} onChange={e => setReceiveCustomerSearch(e.target.value)} autoFocus />
+                  <Input id="advance-customer" type="text" placeholder="Name or phone" value={receiveCustomerSearch} onChange={e => setReceiveCustomerSearch(e.target.value)} onKeyDown={handleReceiveSearchKeyDown} autoComplete="off" autoFocus />
                   {receiveSearching && <span className="advance-hint">Searching…</span>}
                   {(receiveCustomerResults.length > 0 || (receiveCustomerSearch.trim().length >= 2 && !receiveSearching)) && (
                     <div className="advance-results">
                       {receiveCustomerResults.map(c => (
-                        <button type="button" key={c.id} className="advance-result" onClick={() => { setSelectedCustomer(c); setReceiveCustomerSearch(''); setReceiveCustomerResults([]); }}>
+                        <button type="button" key={c.id} className="advance-result" onClick={() => selectReceiveCustomer(c)}>
                           <Avatar name={c.fullName} size="sm" />
                           <span className="advance-result-copy">
                             <span className="advance-result-name">{c.fullName}</span>
@@ -417,8 +447,11 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                         </button>
                       ))}
                       <button type="button" className="advance-result advance-result-create" onClick={() => setIsCustomerCreateOpen(true)}>
-                        <span className="advance-result-name">Add “{receiveCustomerSearch.trim()}”</span>
-                        <span className="advance-result-meta">Create the customer and use them here</span>
+                        <span className="advance-result-add-icon" aria-hidden="true"><Icon name="add" size={14} color="currentColor" /></span>
+                        <span className="advance-result-copy">
+                          <span className="advance-result-name">Add “{receiveCustomerSearch.trim()}” as new customer</span>
+                          <span className="advance-result-meta">Create a new record and select automatically</span>
+                        </span>
                       </button>
                     </div>
                   )}
@@ -597,11 +630,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
         mode="create"
         initialData={{ fullName: receiveCustomerSearch.trim() }}
         onSuccess={(customer) => {
-          if (customer) {
-            setSelectedCustomer(customer);
-            setReceiveCustomerSearch('');
-            setReceiveCustomerResults([]);
-          }
+          if (customer) selectReceiveCustomer(customer);
           setIsCustomerCreateOpen(false);
         }}
       />
