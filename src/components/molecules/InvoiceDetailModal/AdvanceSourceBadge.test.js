@@ -70,4 +70,28 @@ describe('AdvanceSourceBadge', () => {
     expect(card.textContent).toContain('lump sum');
     await unmount();
   });
+  it('shows what was available on the receipt before this invoice, from issuedAdvanceAllocations', async () => {
+    const { container, unmount } = await render(
+      <AdvanceSourceBadge
+        invoiceCustomerId="cust-a"
+        invoiceCustomerName="Devendra Mishra"
+        allocation={{ advanceEntryId: 'r1', amount: 10000, originalAmount: 400000, remainingAmount: 380000 }}
+        payment={{
+          id: 'pay-2',
+          source: 'ADVANCE',
+          mode: 'CASH',
+          amount: 10000,
+          sourceCustomerId: 'cust-a',
+          advanceEntryId: 'r1',
+          advanceReceipt: { id: 'r1', amount: 400000, transactionDate: '2026-01-19T00:00:00.000Z', paymentMethod: 'CASH' },
+        }}
+      />,
+    );
+    const card = container.querySelector('[role="tooltip"]');
+    expect(card.textContent).toContain('Available before');
+    expect(card.textContent).toContain('3,80,000');
+    expect(card.textContent).toContain('Used here');
+    expect(card.textContent).not.toContain('Receipt total');
+    await unmount();
+  });
 });

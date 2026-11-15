@@ -59,7 +59,7 @@ const PAYMENT_METHOD_LABELS = {
  * "Advance" tag on a payment row. Hover or focus it to see where the money came from:
  * whose advance, which receipt (date, mode, reference) and how much of it this invoice used.
  */
-export const AdvanceSourceBadge = ({ payment, invoiceCustomerId, invoiceCustomerName, openUp }) => {
+export const AdvanceSourceBadge = ({ payment, allocation, invoiceCustomerId, invoiceCustomerName, openUp }) => {
   const receipt = payment.advanceReceipt;
   const fromOther = payment.sourceCustomerId && payment.sourceCustomerId !== invoiceCustomerId;
   const owner = payment.sourceCustomerName || (fromOther ? 'Another customer' : invoiceCustomerName);
@@ -73,7 +73,10 @@ export const AdvanceSourceBadge = ({ payment, invoiceCustomerId, invoiceCustomer
     receivedOn && { label: 'Received', value: formatDate(receivedOn) },
     mode && { label: 'Paid by', value: PAYMENT_METHOD_LABELS[mode] || mode },
     reference && { label: 'Reference', value: reference },
-    receipt && { label: 'Receipt total', value: formatCurrency(receipt.amount) },
+    // remainingAmount (issuedAdvanceAllocations) = left on this receipt now + what this invoice uses
+    allocation?.remainingAmount != null
+      ? { label: 'Available before', value: formatCurrency(allocation.remainingAmount) }
+      : receipt && { label: 'Receipt total', value: formatCurrency(receipt.amount) },
     { label: 'Used here', value: formatCurrency(payment.amount) },
   ].filter(Boolean);
 
@@ -628,6 +631,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                             {p.source === 'ADVANCE' && (
                               <AdvanceSourceBadge
                                 payment={p}
+                                allocation={
+                                  invoice.status !== 'CANCELLED'
+                                    ? (invoice.issuedAdvanceAllocations || []).find(
+                                        (a) => a.advanceEntryId === p.advanceEntryId,
+                                      )
+                                    : undefined
+                                }
                                 invoiceCustomerId={invoice.customerId}
                                 invoiceCustomerName={buyer.name || invoice.customer?.fullName}
                                 openUp={invoice.payments.length > 2 && i >= invoice.payments.length - 2}
