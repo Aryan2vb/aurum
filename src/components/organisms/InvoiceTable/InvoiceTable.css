@@ -193,34 +193,9 @@
   text-align: center;
 }
 
-.attio-td-pinned-sn, .attio-th-pinned-sn, .attio-tf-pinned-sn {
-  position: sticky;
-  left: 40px;
-  background: var(--ct-bg);
-  z-index: 4;
-}
-
-.attio-td-pinned-actions, .attio-th-pinned-actions, .attio-tf-pinned-actions {
-  position: sticky;
-  left: 90px;
-  background: var(--ct-bg);
-  z-index: 4;
-}
-
-.attio-td-pinned-invoiceNumber, .attio-th-pinned-invoiceNumber, .attio-tf-pinned-invoiceNumber {
-  position: sticky;
-  left: 190px;
-  background: var(--ct-bg);
-  z-index: 4;
-}
-
 .attio-td-checkbox, .attio-th-checkbox {
   width: 40px;
   padding: 11px 10px;
-  position: sticky;
-  left: 0;
-  background: var(--ct-bg);
-  z-index: 5;
 }
 
 .attio-row-selected {
@@ -246,7 +221,7 @@
   text-align: center;
 }
 
-.attio-tf-pinned-sn, .attio-tf-pinned-actions, .attio-tf-pinned-invoiceNumber, .attio-tf-checkbox {
+.attio-tf.attio-cell-pinned {
   background: var(--ct-bg-secondary) !important;
 }
 
@@ -444,7 +419,7 @@ input:checked + .slider:before {
 }
 
 /* Narrow identifier columns: tighter padding so 3-digit values aren't clipped. */
-.attio-td-pinned-sn, .attio-th-pinned-sn, .attio-tf-pinned-sn {
+.attio-col-sn {
   padding-left: 6px;
   padding-right: 6px;
 }
@@ -454,4 +429,116 @@ input:checked + .slider:before {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Pinned columns ─────────────────────────────────────────────────────────
+   Users pin/unpin columns from the header. Pinned columns stick to the left and read as
+   ONE floating panel: one raised surface with column lines inside, and a single edge +
+   shadow on the right of the last pinned column. Offsets come from the table (CSS var --pin-<id>). */
+
+/* border-collapse: collapse doesn't paint a sticky cell's borders at the stuck position,
+   so use separate borders (no spacing) and draw row lines on the cells. */
+.attio-table.attio-table--pinned {
+  border-collapse: separate;
+  border-spacing: 0;
+  --ct-pinned-bg: color-mix(in srgb, var(--ct-bg) 55%, #ffffff);
+  --ct-pinned-edge: color-mix(in srgb, var(--ct-text-muted, #888) 45%, var(--ct-border));
+}
+[data-theme='dark'] .attio-table.attio-table--pinned {
+  --ct-pinned-bg: color-mix(in srgb, var(--ct-bg) 88%, #ffffff);
+}
+.attio-table--pinned thead tr,
+.attio-table--pinned tbody tr {
+  border-bottom: none;
+}
+.attio-table--pinned thead .attio-th {
+  border-bottom: 1px solid var(--ct-border);
+}
+.attio-table--pinned tbody .attio-td {
+  border-bottom: 1px solid var(--ct-border-light);
+}
+
+.attio-cell-pinned {
+  position: sticky;
+  z-index: 4;
+}
+/* Header cells also stick to the top (z-index 10); pinned ones must sit above them */
+.attio-th.attio-cell-pinned {
+  z-index: 12;
+  background: var(--ct-bg);
+}
+.attio-td.attio-cell-pinned {
+  background: var(--ct-pinned-bg);
+}
+
+/* Lines between the columns inside the panel */
+.attio-cell-pinned:not(.attio-cell-pinned-last) {
+  border-right: 1px solid var(--ct-border);
+}
+
+/* Single edge + shadow over the columns scrolling underneath */
+.attio-cell-pinned-last {
+  border-right: 1px solid var(--ct-pinned-edge);
+  box-shadow: 6px 0 14px -6px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease;
+}
+.attio-table-wrapper.is-scrolled-x .attio-cell-pinned-last {
+  box-shadow: 12px 0 24px -8px rgba(0, 0, 0, 0.32);
+}
+[data-theme='dark'] .attio-cell-pinned-last {
+  box-shadow: 6px 0 16px -6px rgba(0, 0, 0, 0.6);
+}
+[data-theme='dark'] .attio-table-wrapper.is-scrolled-x .attio-cell-pinned-last {
+  box-shadow: 12px 0 26px -8px rgba(0, 0, 0, 0.9);
+}
+
+/* Pinned cells follow the row's hover and selected states, so the row stays one band */
+.attio-table tbody tr:hover .attio-td.attio-cell-pinned {
+  background: var(--ct-hover);
+}
+.attio-row-selected .attio-td.attio-cell-pinned {
+  background: var(--ct-selected);
+}
+
+/* Pin toggle in the header: shows on hover/focus, always visible on pinned columns */
+.attio-pin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ct-text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+.attio-th:hover .attio-pin-btn,
+.attio-pin-btn:focus-visible,
+.attio-pin-btn.is-pinned {
+  opacity: 1;
+}
+.attio-pin-btn:hover {
+  background: var(--ct-hover);
+  color: var(--ct-text);
+}
+.attio-pin-btn.is-pinned {
+  color: var(--ct-text-secondary);
+}
+@media (hover: none) {
+  .attio-pin-btn {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attio-cell-pinned-last,
+  .attio-pin-btn {
+    transition: none;
+  }
 }

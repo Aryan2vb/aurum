@@ -47,7 +47,7 @@ export const receiveAdvance = async (customerId, dto) => {
 /**
  * Refund advance balance back to the customer.
  * @param {string} customerId
- * @param {{ amount: number, paymentMethod: string, reference?: string, notes?: string }} dto
+ * @param {{ amount: number, paymentMethod: string, transactionDate?: string, reference?: string, notes?: string }} dto
  */
 export const refundAdvance = async (customerId, dto) => {
   const url = buildApiUrl(`/customers/${customerId}/advance/refund`);
@@ -59,10 +59,22 @@ export const refundAdvance = async (customerId, dto) => {
   return parseResponse(res);
 };
 
+export const updateAdvanceEntry = async (customerId, ledgerEntryId, dto) => {
+  const url = buildApiUrl(`/customers/${customerId}/advance/${ledgerEntryId}`);
+  const res = await fetch(url, { method: 'PATCH', headers: getAuthHeaders(), body: JSON.stringify(dto) });
+  return parseResponse(res);
+};
+
+export const correctAdvanceEntry = async (customerId, ledgerEntryId, dto) => {
+  const url = buildApiUrl(`/customers/${customerId}/advance/${ledgerEntryId}/correction`);
+  const res = await fetch(url, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(dto) });
+  return parseResponse(res);
+};
+
 /**
  * Transfer advance balance from one customer to another.
  * @param {string} fromCustomerId
- * @param {{ toCustomerId: string, amount: number, notes?: string }} dto
+ * @param {{ toCustomerId: string, amount: number, transactionDate?: string, notes?: string }} dto
  */
 export const transferAdvance = async (fromCustomerId, dto) => {
   const url = buildApiUrl(`/customers/${fromCustomerId}/advance/transfer`);
@@ -90,9 +102,41 @@ export const deleteAdvanceEntry = async (customerId, ledgerEntryId) => {
 };
 
 /**
+ * Get available advance receipts for a customer (with remaining amounts).
+ * Returns receipts where remainingAmount > 0, each carrying original date, mode, ref.
+ * @param {string} customerId
+ * @returns {Promise<Array<{
+ *   id: string,
+ *   transactionDate: string,
+ *   paymentMethod: string,
+ *   reference?: string,
+ *   description?: string,
+ *   originalAmount: number,
+ *   allocatedAmount: number,
+ *   remainingAmount: number,
+ *   customerId: string,
+ *   customerName?: string,
+ * }>>}
+ */
+export const getAvailableAdvances = async (customerId) => {
+  const url = buildApiUrl(`/customers/${customerId}/available-advances`);
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  const data = await parseResponse(res);
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.receipts)) return data.receipts;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
+/**
  * Apply advance balance to reduce an invoice's outstanding amount.
+ *
+ * Supports two payload shapes:
+ *   - **Legacy (lump-sum):** `{ amount, paidAt?, notes? }`
+ *   - **Receipt-level:** `{ allocations: Array<{ advanceEntryId, sourceCustomerId, amount }> }`
+ *
  * @param {string} invoiceId
- * @param {{ amount: number, paidAt?: string, notes?: string }} dto
+ * @param {{ amount?: number, paidAt?: string, notes?: string, allocations?: Array<{ advanceEntryId: string, sourceCustomerId: string, amount: number }> }} dto
  */
 export const applyAdvanceToInvoice = async (invoiceId, dto) => {
   const url = buildApiUrl(`/invoices/${invoiceId}/apply-advance`);

@@ -59,3 +59,11 @@
 [data-theme='dark'] .amount-neutral {
   color: var(--text-secondary);
 }
+
+/* Plain: same font and colour as the surrounding text (e.g. table cells) */
+.amount-display.amount-plain,
+[data-theme='dark'] .amount-display.amount-plain {
+  font-family: inherit;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}

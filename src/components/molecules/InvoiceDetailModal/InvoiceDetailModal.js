@@ -6,6 +6,8 @@ import Icon from '../../atoms/Icon/Icon';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import { getInvoiceById, getInvoiceHtmlUrl, getInvoiceViewToken, getNegotiationPreview, commitNegotiation, cancelInvoice } from '../../../services/invoicesService';
 import { applyAdvanceToInvoice, getAdvanceBalance } from '../../../services/advanceService';
+import AdvanceReceiptPicker from '../AdvanceReceiptPicker/AdvanceReceiptPicker';
+import { buildAdvanceAllocations, getTotalAdvanceApplied } from '../../../utils/invoicePayments';
 import { formatAadhaarNumber } from '../../../utils/customerKyc';
 import { usePermission } from '../../../hooks/usePermission';
 import { buildInvoiceWhatsAppMessage, buildWhatsAppUrl } from '../../../utils/invoiceWhatsApp';
@@ -48,6 +50,79 @@ const formatCustomerAddress = (location) => {
   ].filter(Boolean).join(', ');
 };
 
+const PAYMENT_METHOD_LABELS = {
+  CASH: 'Cash', UPI: 'UPI', BANK_TRANSFER: 'Bank transfer', CHEQUE: 'Cheque', NEFT: 'NEFT',
+  RTGS: 'RTGS', IMPS: 'IMPS', OLD_GOLD: 'Old gold', CREDIT: 'Credit', OTHER: 'Other',
+};
+
+/**
+ * "Advance" tag on a payment row. Hover or focus it to see where the money came from:
+ * whose advance, which receipt (date, mode, reference) and how much of it this invoice used.
+ */
+export const AdvanceSourceBadge = ({ payment, allocation, invoiceCustomerId, invoiceCustomerName, openUp }) => {
+  const receipt = payment.advanceReceipt;
+  const fromOther = payment.sourceCustomerId && payment.sourceCustomerId !== invoiceCustomerId;
+  const owner = payment.sourceCustomerName || (fromOther ? 'Another customer' : invoiceCustomerName);
+  const receivedOn = receipt?.transactionDate || (payment.advanceEntryId ? payment.paidAt : null);
+  const isTransfer = receipt?.type === 'ADVANCE_TRANSFER_IN';
+  const mode = isTransfer
+    ? null
+    : receipt?.paymentMethod || (payment.advanceEntryId ? payment.mode : null);
+  const reference = receipt?.reference || (payment.advanceEntryId ? payment.reference : null);
+  const tooltipId = `advance-source-${payment.id}`;
+
+  const rows = [
+    { label: 'Customer', value: owner },
+    receivedOn && { label: 'Received', value: formatDate(receivedOn) },
+    isTransfer && { label: 'Paid by', value: 'Advance transfer' },
+    mode && { label: 'Paid by', value: PAYMENT_METHOD_LABELS[mode] || mode },
+    reference && { label: 'Reference', value: reference },
+    // remainingAmount (issuedAdvanceAllocations) = left on this receipt now + what this invoice uses
+    allocation?.remainingAmount != null
+      ? { label: 'Available before', value: formatCurrency(allocation.remainingAmount) }
+      : receipt && { label: 'Receipt total', value: formatCurrency(receipt.amount) },
+    { label: 'Used here', value: formatCurrency(payment.amount) },
+  ].filter(Boolean);
+
+  return (
+    <span className="advance-source">
+      <button
+        type="button"
+        className="payment-advance-badge advance-source__trigger"
+        aria-describedby={tooltipId}
+      >
+        Advance{fromOther && payment.sourceCustomerName ? ` · ${payment.sourceCustomerName}` : ''}
+      </button>
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className={`advance-source__card${openUp ? ' advance-source__card--up' : ''}`}
+      >
+        <span className="advance-source__title">
+          {fromOther ? 'From another customer’s advance' : 'From advance'}
+        </span>
+        <dl className="advance-source__list">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="advance-source__row">
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        {!payment.advanceEntryId && (
+          <span className="advance-source__note">Applied as a lump sum, so no single receipt is linked.</span>
+        )}
+        {receipt?.description && !/^Advance received via/.test(receipt.description) && (
+          <span className="advance-source__note">“{receipt.description}”</span>
+        )}
+        {receipt?.deleted && (
+          <span className="advance-source__note">This receipt was later deleted.</span>
+        )}
+      </span>
+    </span>
+  );
+};
+
 const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => {
   const navigate = useNavigate();
   const { can } = usePermission();
@@ -72,7 +147,7 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
 
   // Advance application state
   const [advanceBalance, setAdvanceBalance] = useState(null);
-  const [applyAdvanceAmount, setApplyAdvanceAmount] = useState('');
+  const [selectedAdvances, setSelectedAdvances] = useState([]);
   const [showApplyAdvance, setShowApplyAdvance] = useState(false);
   const [applyingAdvance, setApplyingAdvance] = useState(false);
   const [applyAdvanceError, setApplyAdvanceError] = useState(null);
@@ -157,17 +232,31 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
   }, [invoiceId]);
 
   const handleApplyAdvance = async () => {
-    const amount = parseFloat(applyAdvanceAmount);
-    if (!amount || amount <= 0) {
-      setApplyAdvanceError('Enter a valid amount');
+    const allocations = buildAdvanceAllocations(selectedAdvances);
+    if (allocations.length === 0) {
+      setApplyAdvanceError('Select at least one advance receipt');
+      return;
+    }
+    const invoiceYmd = invoice?.invoiceDate ? String(invoice.invoiceDate).slice(0, 10) : '';
+    const futureReceipt = selectedAdvances.find(
+      (a) => a.transactionDate && invoiceYmd && String(a.transactionDate).slice(0, 10) > invoiceYmd,
+    );
+    if (futureReceipt) {
+      setApplyAdvanceError('Advance receipt date cannot be after the invoice date');
+      return;
+    }
+    const totalSelected = getTotalAdvanceApplied(selectedAdvances);
+    const outstanding = parseFloat(invoice?.remainingPayable ?? invoice?.remainingBalance ?? 0);
+    if (outstanding > 0 && totalSelected > outstanding) {
+      setApplyAdvanceError(`Selected advance (₹${totalSelected.toLocaleString('en-IN')}) exceeds remaining balance (₹${outstanding.toLocaleString('en-IN')})`);
       return;
     }
     try {
       setApplyingAdvance(true);
       setApplyAdvanceError(null);
-      await applyAdvanceToInvoice(invoiceId, { amount });
+      await applyAdvanceToInvoice(invoiceId, { allocations });
       setShowApplyAdvance(false);
-      setApplyAdvanceAmount('');
+      setSelectedAdvances([]);
       await fetchInvoiceDetails();
     } catch (err) {
       setApplyAdvanceError(err.message || 'Failed to apply advance');
@@ -445,8 +534,16 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                 </div>
                 {Number(invoice.advanceAdjustedAmount) > 0 && (
                   <div className="summary-row" style={{ color: 'var(--color-status-paid)' }}>
-                    <span>Advance Applied:</span>
-                    <span>- {formatCurrency(invoice.advanceAdjustedAmount)}</span>
+                    <span>
+                      {invoice.payments?.some((p) => p.source === 'ADVANCE')
+                        ? 'Includes Advance Applied:'
+                        : 'Advance Applied:'}
+                    </span>
+                    <span>
+                      {invoice.payments?.some((p) => p.source === 'ADVANCE')
+                        ? formatCurrency(invoice.advanceAdjustedAmount)
+                        : `- ${formatCurrency(invoice.advanceAdjustedAmount)}`}
+                    </span>
                   </div>
                 )}
                 <div className="summary-row balance">
@@ -454,43 +551,52 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                   <span>{formatCurrency(invoice.remainingPayable ?? invoice.remainingBalance)}</span>
                 </div>
 
-                {/* Apply Advance inline widget */}
-                {canWrite && ['UNPAID', 'PARTIAL'].includes(invoice.status) && advanceBalance > 0 && (
+                {/* Apply Advance receipt-picker widget */}
+                {canWrite && ['UNPAID', 'PARTIAL'].includes(invoice.status) && (
                   <div className="advance-apply-section">
                     {!showApplyAdvance ? (
                       <button
                         className="advance-apply-trigger"
-                        onClick={() => { setShowApplyAdvance(true); setApplyAdvanceError(null); }}
+                        onClick={() => {
+                          setShowApplyAdvance(true);
+                          setSelectedAdvances([]);
+                          setApplyAdvanceError(null);
+                        }}
                       >
                         <Icon name="add" size={14} />
-                        Apply Advance Balance ({formatCurrency(advanceBalance)} available)
+                        {advanceBalance > 0
+                          ? `Apply advance · ${formatCurrency(advanceBalance)} available`
+                          : 'Apply advance'}
                       </button>
                     ) : (
                       <div className="advance-apply-form">
-                        <div className="advance-apply-row">
-                          <input
-                            type="number"
-                            step="0.01"
-                            min="0.01"
-                            max={Math.min(advanceBalance, parseFloat(invoice.remainingPayable ?? invoice.remainingBalance ?? 0))}
-                            className="advance-apply-input"
-                            placeholder="Amount to apply"
-                            value={applyAdvanceAmount}
-                            onChange={(e) => setApplyAdvanceAmount(e.target.value)}
-                          />
-                          <button
-                            className="advance-apply-btn advance-apply-btn-primary"
-                            onClick={handleApplyAdvance}
-                            disabled={applyingAdvance}
-                          >
-                            {applyingAdvance ? 'Applying…' : 'Apply'}
-                          </button>
+                        <AdvanceReceiptPicker
+                          primaryCustomerId={invoice.customerId}
+                          primaryCustomerName={buyer.name || invoice.customer?.fullName}
+                          selectedAdvances={selectedAdvances}
+                          onSelectedAdvancesChange={setSelectedAdvances}
+                          invoiceDate={invoice.invoiceDate ? String(invoice.invoiceDate).slice(0, 10) : ''}
+                          invoiceTotal={parseFloat(invoice.totalAmount || 0)}
+                          directPaymentsTotal={parseFloat(invoice.paidAmount || 0)}
+                        />
+                        <div className="advance-apply-row" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
                           <button
                             className="advance-apply-btn advance-apply-btn-ghost"
-                            onClick={() => { setShowApplyAdvance(false); setApplyAdvanceAmount(''); setApplyAdvanceError(null); }}
+                            onClick={() => {
+                              setShowApplyAdvance(false);
+                              setSelectedAdvances([]);
+                              setApplyAdvanceError(null);
+                            }}
                             disabled={applyingAdvance}
                           >
                             Cancel
+                          </button>
+                          <button
+                            className="advance-apply-btn advance-apply-btn-primary"
+                            onClick={handleApplyAdvance}
+                            disabled={applyingAdvance || selectedAdvances.length === 0}
+                          >
+                            {applyingAdvance ? 'Applying…' : 'Apply Selected'}
                           </button>
                         </div>
                         {applyAdvanceError && (
@@ -524,8 +630,38 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                       {invoice.payments.map((p, i) => (
                         <tr key={p.id || i}>
                           <td>{formatDate(p.paidAt || p.createdAt)}</td>
-                          <td><span className="payment-mode-tag">{p.mode}</span></td>
-                          <td>{p.reference || '—'}</td>
+                          <td>
+                            <span className="payment-mode-tag">
+                              {/* Advance payments with no cash method are stored as CREDIT:
+                                  transfers between customers and old lump-sum applications */}
+                              {p.mode === 'CREDIT' && p.source === 'ADVANCE'
+                                ? p.advanceReceipt?.type === 'ADVANCE_TRANSFER_IN'
+                                  ? 'Transfer'
+                                  : 'Advance'
+                                : p.mode}
+                            </span>
+                            {p.source === 'ADVANCE' && (
+                              <AdvanceSourceBadge
+                                payment={p}
+                                allocation={
+                                  invoice.status !== 'CANCELLED'
+                                    ? (invoice.issuedAdvanceAllocations || []).find(
+                                        (a) => a.advanceEntryId === p.advanceEntryId,
+                                      )
+                                    : undefined
+                                }
+                                invoiceCustomerId={invoice.customerId}
+                                invoiceCustomerName={buyer.name || invoice.customer?.fullName}
+                                openUp={invoice.payments.length > 2 && i >= invoice.payments.length - 2}
+                              />
+                            )}
+                          </td>
+                          <td>
+                            {/* Legacy advance rows stored an internal ledger id as the reference */}
+                            {p.source === 'ADVANCE' && p.reference && p.reference === p.advanceLedgerEntryId
+                              ? '—'
+                              : p.reference || '—'}
+                          </td>
                           <td className="amount-cell">{formatCurrency(p.amount)}</td>
                         </tr>
                       ))}

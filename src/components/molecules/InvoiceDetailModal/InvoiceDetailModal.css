@@ -317,6 +317,129 @@
   border: 1px solid var(--border-color);
 }
 
+.payment-advance-badge {
+  display: inline-block;
+  margin-left: 6px;
+  background: color-mix(in srgb, var(--color-status-paid) 14%, transparent);
+  color: var(--text-primary);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Advance source: hover / focus card on the "Advance" tag */
+.payments-table-wrapper:has(.advance-source) {
+  overflow: visible;
+}
+.payments-table-wrapper:has(.advance-source) .payments-table thead th:first-child {
+  border-top-left-radius: 0.5rem;
+}
+.payments-table-wrapper:has(.advance-source) .payments-table thead th:last-child {
+  border-top-right-radius: 0.5rem;
+}
+
+.advance-source {
+  position: relative;
+  display: inline-block;
+}
+
+.advance-source__trigger {
+  border: 1px solid transparent;
+  font-family: inherit;
+  line-height: 1.4;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--text-primary) 40%, transparent);
+  text-underline-offset: 2px;
+}
+.advance-source__trigger:hover,
+.advance-source__trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--color-status-paid) 45%, transparent);
+}
+
+.advance-source__card {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 6px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: max-content;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 0.75rem 0.875rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.6rem;
+  box-shadow: 0 8px 24px var(--shadow-hover, rgba(0, 0, 0, 0.12)), 0 1px 2px var(--shadow, rgba(0, 0, 0, 0.06));
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-2px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  pointer-events: none;
+}
+.advance-source__card--up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform: translateY(2px);
+}
+.advance-source:hover .advance-source__card,
+.advance-source:focus-within .advance-source__card {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition-delay: 0.08s;
+}
+
+.advance-source__title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.advance-source__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.advance-source__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.78rem;
+}
+.advance-source__row dt {
+  color: var(--text-tertiary);
+}
+.advance-source__row dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.advance-source__note {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .advance-source__card {
+    transition: none;
+  }
+}
+
 /* Actions */
 .invoice-actions {
   display: flex;
@@ -611,9 +734,10 @@
   background: none;
   border: 1px solid var(--accent);
   border-radius: var(--radius-md);
-  color: var(--accent);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  min-height: 40px;
   padding: var(--spacing-xs) var(--spacing-sm);
   cursor: pointer;
   transition: background var(--transition-fast);

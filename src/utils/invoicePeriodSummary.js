@@ -241,7 +241,7 @@ const tableDefaults = {
   },
 };
 
-const drawCaption = (doc, text, x, y) => {
+export const drawCaption = (doc, text, x, y) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
@@ -251,7 +251,7 @@ const drawCaption = (doc, text, x, y) => {
 const metalLabel = (metal) => (String(metal).toUpperCase() === 'SILVER' ? 'Silver' : 'Gold');
 
 /** Fixed-width table at absolute (left, startY). Returns finalY. */
-const drawFixedTable = (doc, {
+export const drawFixedTable = (doc, {
   left,
   startY,
   tableWidth,

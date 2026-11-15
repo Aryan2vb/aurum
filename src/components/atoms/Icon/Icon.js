@@ -49,8 +49,9 @@ import {
   FiSidebar,
   FiDatabase,
   FiLoader,
+  FiAlertTriangle,
 } from 'react-icons/fi';
-import { MdExpandMore } from 'react-icons/md';
+import { MdExpandMore, MdPushPin, MdOutlinePushPin } from 'react-icons/md';
 import { IoMdSettings } from 'react-icons/io';
 import './Icon.css';
 
@@ -118,7 +119,10 @@ const Icon = ({ name, size = 20, color, className = '', ...props }) => {
     invoice: FiFileText,
     payment: FiCreditCard,
     advance: FiDatabase,
-    loader: FiLoader
+    loader: FiLoader,
+    alert: FiAlertTriangle,
+    pin: MdPushPin,
+    pinOutline: MdOutlinePushPin,
   };
 
   const IconComponent = iconMap[name] || FiBarChart2;
