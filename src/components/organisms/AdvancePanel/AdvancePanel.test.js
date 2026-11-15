@@ -54,7 +54,7 @@ describe('AdvancePanel customer search', () => {
     });
   };
 
-  it('Enter with no match does not open "new customer" by itself', async () => {
+  it('Enter with no match opens "new customer" prefilled, then selects the created customer', async () => {
     customersService.searchCustomers.mockResolvedValue({ data: [] });
     await act(async () => {
       root.render(<AdvancePanel isOpen onClose={() => {}} />);
@@ -62,23 +62,6 @@ describe('AdvancePanel customer search', () => {
     });
 
     await typeAndEnter('dharmendra');
-
-    expect(container.querySelector('[data-testid="create-panel"]')).toBeNull();
-    expect(container.querySelector('#advance-customer')).not.toBeNull();
-  });
-
-  it('clicking "Add as new customer" opens the form prefilled, then selects the created customer', async () => {
-    customersService.searchCustomers.mockResolvedValue({ data: [] });
-    await act(async () => {
-      root.render(<AdvancePanel isOpen onClose={() => {}} />);
-      await flush();
-    });
-
-    await typeAndEnter('dharmendra');
-    await act(async () => {
-      container.querySelector('.advance-result-create').click();
-      await flush();
-    });
 
     const panel = container.querySelector('[data-testid="create-panel"]');
     expect(panel).not.toBeNull();

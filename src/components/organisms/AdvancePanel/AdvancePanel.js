@@ -209,8 +209,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
     setReceiveCustomerResults([]);
   };
 
-  // Same as Create Invoice: Enter picks the first match. A new customer is only
-  // created from the explicit "Add as new customer" row, never from Enter.
+  // Same as Create Invoice: Enter picks the first match, or opens "new customer" prefilled
   const handleReceiveSearchKeyDown = async (e) => {
     if (e.key !== 'Enter') return;
     e.preventDefault(); // don't submit the advance form
@@ -230,6 +229,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
       }
     }
     if (results.length > 0) selectReceiveCustomer(results[0]);
+    else setIsCustomerCreateOpen(true);
   };
 
   // Debounced customer search for transfer tab

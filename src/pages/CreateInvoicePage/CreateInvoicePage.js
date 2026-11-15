@@ -764,9 +764,10 @@ const CreateInvoicePage = () => {
     const results =
       searchResults.length > 0 ? searchResults : await performSearch(query);
 
-    // Only pick an existing customer; adding one needs the explicit "Add as new customer" click.
     if (results.length > 0) {
       handleCustomerSelect(results[0]);
+    } else {
+      setIsCustomerPanelOpen(true);
     }
   };
 
