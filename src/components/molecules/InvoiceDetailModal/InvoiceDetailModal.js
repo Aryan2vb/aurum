@@ -73,10 +73,7 @@ export const AdvanceSourceBadge = ({ payment, invoiceCustomerId, invoiceCustomer
     receivedOn && { label: 'Received', value: formatDate(receivedOn) },
     mode && { label: 'Paid by', value: PAYMENT_METHOD_LABELS[mode] || mode },
     reference && { label: 'Reference', value: reference },
-    payment.advanceBalanceBefore != null && {
-      label: 'Advance before',
-      value: formatCurrency(payment.advanceBalanceBefore),
-    },
+    receipt && { label: 'Receipt total', value: formatCurrency(receipt.amount) },
     { label: 'Used here', value: formatCurrency(payment.amount) },
   ].filter(Boolean);
 
