@@ -64,13 +64,17 @@ export const AdvanceSourceBadge = ({ payment, allocation, invoiceCustomerId, inv
   const fromOther = payment.sourceCustomerId && payment.sourceCustomerId !== invoiceCustomerId;
   const owner = payment.sourceCustomerName || (fromOther ? 'Another customer' : invoiceCustomerName);
   const receivedOn = receipt?.transactionDate || (payment.advanceEntryId ? payment.paidAt : null);
-  const mode = receipt?.paymentMethod || (payment.advanceEntryId ? payment.mode : null);
+  const isTransfer = receipt?.type === 'ADVANCE_TRANSFER_IN';
+  const mode = isTransfer
+    ? null
+    : receipt?.paymentMethod || (payment.advanceEntryId ? payment.mode : null);
   const reference = receipt?.reference || (payment.advanceEntryId ? payment.reference : null);
   const tooltipId = `advance-source-${payment.id}`;
 
   const rows = [
     { label: 'Customer', value: owner },
     receivedOn && { label: 'Received', value: formatDate(receivedOn) },
+    isTransfer && { label: 'Paid by', value: 'Advance transfer' },
     mode && { label: 'Paid by', value: PAYMENT_METHOD_LABELS[mode] || mode },
     reference && { label: 'Reference', value: reference },
     // remainingAmount (issuedAdvanceAllocations) = left on this receipt now + what this invoice uses
@@ -628,8 +632,13 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                           <td>{formatDate(p.paidAt || p.createdAt)}</td>
                           <td>
                             <span className="payment-mode-tag">
-                              {/* Old lump-sum advance payments are stored with mode CREDIT */}
-                              {p.mode === 'CREDIT' && p.source === 'ADVANCE' ? 'Advance' : p.mode}
+                              {/* Advance payments with no cash method are stored as CREDIT:
+                                  transfers between customers and old lump-sum applications */}
+                              {p.mode === 'CREDIT' && p.source === 'ADVANCE'
+                                ? p.advanceReceipt?.type === 'ADVANCE_TRANSFER_IN'
+                                  ? 'Transfer'
+                                  : 'Advance'
+                                : p.mode}
                             </span>
                             {p.source === 'ADVANCE' && (
                               <AdvanceSourceBadge

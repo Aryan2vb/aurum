@@ -94,4 +94,33 @@ describe('AdvanceSourceBadge', () => {
     expect(card.textContent).not.toContain('Receipt total');
     await unmount();
   });
+  it('labels a receipt that came from an advance transfer', async () => {
+    const { container, unmount } = await render(
+      <AdvanceSourceBadge
+        invoiceCustomerId="cust-a"
+        invoiceCustomerName="Aryan Soni"
+        payment={{
+          id: 'pay-3',
+          source: 'ADVANCE',
+          mode: 'CREDIT',
+          amount: 10000,
+          sourceCustomerId: 'cust-a',
+          advanceEntryId: 'r9',
+          advanceReceipt: {
+            id: 'r9',
+            type: 'ADVANCE_TRANSFER_IN',
+            amount: 10000,
+            transactionDate: '2026-11-01T00:00:00.000Z',
+            paymentMethod: null,
+            description: 'Advance received from DEVENDRA MISHRA',
+          },
+        }}
+      />,
+    );
+    const card = container.querySelector('[role="tooltip"]');
+    expect(card.textContent).toContain('Advance transfer');
+    expect(card.textContent).not.toContain('Credit');
+    expect(card.textContent).toContain('Advance received from DEVENDRA MISHRA');
+    await unmount();
+  });
 });
