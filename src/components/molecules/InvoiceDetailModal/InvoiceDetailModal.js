@@ -627,7 +627,10 @@ const InvoiceDetailModal = ({ isOpen, onClose, invoiceId, onRecordPayment }) => 
                         <tr key={p.id || i}>
                           <td>{formatDate(p.paidAt || p.createdAt)}</td>
                           <td>
-                            <span className="payment-mode-tag">{p.mode}</span>
+                            <span className="payment-mode-tag">
+                              {/* Old lump-sum advance payments are stored with mode CREDIT */}
+                              {p.mode === 'CREDIT' && p.source === 'ADVANCE' ? 'Advance' : p.mode}
+                            </span>
                             {p.source === 'ADVANCE' && (
                               <AdvanceSourceBadge
                                 payment={p}
