@@ -110,4 +110,42 @@ describe('AdvancePanel customer search', () => {
     expect(container.textContent).toContain('Add “dharmendra” as new customer');
     expect(container.textContent).toContain('Create a new record and select automatically');
   });
+  it('Transfer to: "add as new customer" opens the same slide-over and selects the recipient', async () => {
+    jest.useFakeTimers();
+    customersService.searchCustomers.mockResolvedValue({ data: [] });
+    customersService.getCustomerById.mockResolvedValue({ id: 'c1', fullName: 'Aryan' });
+    await act(async () => {
+      root.render(<AdvancePanel isOpen onClose={() => {}} customerId="c1" customerName="Aryan" />);
+    });
+    const transferTab = [...container.querySelectorAll('[role="tab"]')].find((b) => /transfer/i.test(b.textContent));
+    await act(async () => {
+      transferTab.click();
+    });
+    await act(async () => {
+      Simulate.change(container.querySelector('#advance-recipient'), { target: { value: 'ramesh' } });
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(550);
+    });
+    jest.useRealTimers();
+    await act(async () => {
+      await flush();
+    });
+
+    const createRow = container.querySelector('.advance-result-create');
+    expect(createRow.textContent).toContain('Add “ramesh” as new customer');
+    await act(async () => {
+      createRow.click();
+    });
+    const panel = container.querySelector('[data-testid="create-panel"]');
+    expect(panel.getAttribute('data-name')).toBe('ramesh');
+
+    await act(async () => {
+      panel.querySelector('button').click();
+      await flush();
+    });
+    expect(container.querySelector('[data-testid="create-panel"]')).toBeNull();
+    expect(container.querySelector('#advance-recipient')).toBeNull();
+    expect(container.querySelector('.advance-recipient').textContent).toContain('ramesh');
+  });
 });

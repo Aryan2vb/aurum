@@ -116,7 +116,8 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
   const [receiveCustomerSearch, setReceiveCustomerSearch] = useState('');
   const [receiveCustomerResults, setReceiveCustomerResults] = useState([]);
   const [receiveSearching, setReceiveSearching] = useState(false);
-  const [isCustomerCreateOpen, setIsCustomerCreateOpen] = useState(false);
+  // Which search opened the "new customer" slide-over: 'receive' | 'transfer' | null
+  const [customerCreateFor, setCustomerCreateFor] = useState(null);
   const [sourceCustomer, setSourceCustomer] = useState(null);
   const activeCustomerId = customerId || selectedCustomer?.id;
   const activeCustomer = customerId ? sourceCustomer : selectedCustomer;
@@ -229,7 +230,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
       }
     }
     if (results.length > 0) selectReceiveCustomer(results[0]);
-    else setIsCustomerCreateOpen(true);
+    else setCustomerCreateFor('receive');
   };
 
   // Debounced customer search for transfer tab
@@ -248,6 +249,12 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
     }, 500);
     return () => clearTimeout(t);
   }, [customerSearch, activeCustomerId]);
+
+  const selectRecipient = (c) => {
+    setSelectedRecipient(c);
+    setCustomerSearch('');
+    setCustomerResults([]);
+  };
 
   const handleFieldChange = (field, value) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -446,7 +453,7 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                           </span>
                         </button>
                       ))}
-                      <button type="button" className="advance-result advance-result-create" onClick={() => setIsCustomerCreateOpen(true)}>
+                      <button type="button" className="advance-result advance-result-create" onClick={() => setCustomerCreateFor('receive')}>
                         <span className="advance-result-add-icon" aria-hidden="true"><Icon name="add" size={14} color="currentColor" /></span>
                         <span className="advance-result-copy">
                           <span className="advance-result-name">Add “{receiveCustomerSearch.trim()}” as new customer</span>
@@ -567,10 +574,10 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                   <>
                     <Input id="advance-recipient" type="text" placeholder="Name or phone" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} />
                     {searching && <span className="advance-hint">Searching…</span>}
-                    {customerResults.length > 0 && (
+                    {(customerResults.length > 0 || (customerSearch.trim().length >= 2 && !searching)) && (
                       <div className="advance-results">
                         {customerResults.map((c) => (
-                          <button type="button" key={c.id} className="advance-result" onClick={() => { setSelectedRecipient(c); setCustomerSearch(''); setCustomerResults([]); }}>
+                          <button type="button" key={c.id} className="advance-result" onClick={() => selectRecipient(c)}>
                             <Avatar name={c.fullName} size="sm" />
                             <span className="advance-result-copy">
                               <span className="advance-result-name">{c.fullName}</span>
@@ -579,6 +586,13 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                             </span>
                           </button>
                         ))}
+                        <button type="button" className="advance-result advance-result-create" onClick={() => setCustomerCreateFor('transfer')}>
+                          <span className="advance-result-add-icon" aria-hidden="true"><Icon name="add" size={14} color="currentColor" /></span>
+                          <span className="advance-result-copy">
+                            <span className="advance-result-name">Add “{customerSearch.trim()}” as new customer</span>
+                            <span className="advance-result-meta">Create a new record and select automatically</span>
+                          </span>
+                        </button>
                       </div>
                     )}
                   </>
@@ -625,13 +639,18 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
       </div>
 
       <CustomerInspectorPanel
-        isOpen={isCustomerCreateOpen}
-        onClose={() => setIsCustomerCreateOpen(false)}
+        isOpen={customerCreateFor !== null}
+        onClose={() => setCustomerCreateFor(null)}
         mode="create"
-        initialData={{ fullName: receiveCustomerSearch.trim() }}
+        initialData={{
+          fullName: (customerCreateFor === 'transfer' ? customerSearch : receiveCustomerSearch).trim(),
+        }}
         onSuccess={(customer) => {
-          if (customer) selectReceiveCustomer(customer);
-          setIsCustomerCreateOpen(false);
+          if (customer) {
+            if (customerCreateFor === 'transfer') selectRecipient(customer);
+            else selectReceiveCustomer(customer);
+          }
+          setCustomerCreateFor(null);
         }}
       />
     </SlideOver>
