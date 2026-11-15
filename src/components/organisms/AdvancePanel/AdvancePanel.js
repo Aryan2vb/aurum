@@ -464,21 +464,6 @@ const AdvancePanel = ({ isOpen, onClose, customerId, customerName, onSuccess }) 
                   )}
                 </div>
               )}
-              {!customerId && selectedCustomer && (
-                <div className="advance-selected-customer">
-                  <Avatar name={selectedCustomer.fullName} size="sm" />
-                  <div className="advance-selected-customer-copy">
-                    <strong>{selectedCustomer.fullName}</strong>
-                    <span>{[selectedCustomer.customerCode, activeCustomerPhone].filter(Boolean).join(' · ')}</span>
-                    {activeCustomerAddress && <small>{activeCustomerAddress}</small>}
-                  </div>
-                  <div className="advance-selected-customer-balance">
-                    <span>Available</span>
-                    {balanceLoading ? <em>Loading…</em> : <AmountDisplay value={balance ?? 0} size="sm" emphasis variant="plain" />}
-                  </div>
-                  <button type="button" className="advance-sheet-change" onClick={() => setSelectedCustomer(null)}>Change</button>
-                </div>
-              )}
               <div className="advance-field-row">
                 <div className="advance-field">
                   <label className="advance-label">Date received <span className="required">*</span></label>
