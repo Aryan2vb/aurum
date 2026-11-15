@@ -31,6 +31,7 @@ describe('AdvanceSourceBadge', () => {
           sourceCustomerId: 'cust-a',
           sourceCustomerName: 'Sita Devi',
           advanceEntryId: 'r1',
+          advanceBalanceBefore: 13000,
           advanceReceipt: {
             id: 'r1',
             amount: 10000,
@@ -52,6 +53,10 @@ describe('AdvanceSourceBadge', () => {
     expect(card.textContent).toContain('10 Jan 2026');
     expect(card.textContent).toContain('UTR123');
     expect(card.textContent).toContain('Wedding set booking');
+    expect(card.textContent).toContain('Advance before');
+    expect(card.textContent).toContain('13,000');
+    expect(card.textContent).toContain('Used here');
+    expect(card.textContent).not.toContain('Receipt total');
     await unmount();
   });
 
